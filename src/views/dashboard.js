@@ -10,23 +10,27 @@ function viewDashboard(){
   const recentInvoices = [...db.invoices].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
 
   return `
-  <div class="grid grid-4" style="margin-bottom:20px;">
+  <div class="grid grid-4" style="margin-bottom:22px;">
     <div class="stat-card ok">
+      <div class="stat-icon">${ICONS.pos}</div>
       <div class="stat-label">${t('stat_today_sales')}</div>
       <div class="stat-value">${fmtRM(todaySales)}</div>
       <div class="stat-sub">${todaysInvoices.length} invois dikeluarkan</div>
     </div>
     <div class="stat-card">
+      <div class="stat-icon">${ICONS.jobs}</div>
       <div class="stat-label">${t('stat_active_jobs')}</div>
       <div class="stat-value">${activeJobs.length}</div>
       <div class="stat-sub">${waitingJobs.length} menunggu tindakan</div>
     </div>
     <div class="stat-card ${lowStock.length ? 'warn' : 'ok'}">
+      <div class="stat-icon">${ICONS.inventory}</div>
       <div class="stat-label">${t('stat_low_stock')}</div>
       <div class="stat-value">${lowStock.length}</div>
       <div class="stat-sub">item perlu ditambah</div>
     </div>
     <div class="stat-card">
+      <div class="stat-icon">${ICONS.customers}</div>
       <div class="stat-label">${t('stat_total_customers')}</div>
       <div class="stat-value">${db.customers.length}</div>
       <div class="stat-sub">${db.vehicles.length} kenderaan direkod</div>
