@@ -75,7 +75,13 @@ async function run(){
   await page.setInputFiles('#restore-file', dlPath);
   await page.waitForTimeout(800);
   await clickInPage(page, '[data-action="confirm-yes"]');
-  await page.waitForTimeout(1500);
+  // The restore handler's confirm callback does `db = {...}` synchronously
+  // right before its own showToast() call, so waiting for that toast's text
+  // is a precise "the restore has actually applied" signal — a fixed sleep
+  // (previously 1500ms) is a guess that can run short under CI's added
+  // latency to the live Supabase backend, where this has been observed to
+  // flake in a way it never does on a local run.
+  await page.waitForFunction(() => document.getElementById('toast-root')?.textContent.includes('dipulihkan'), { timeout: 8000 }).catch(()=>{});
   r.check('restore reverts a locally-mutated field back to the backup value', await page.evaluate(() => db.suppliers.find(s=>s.name==='IPB Test Supplier')?.phone), '');
 
   // Hardened restore: a backup missing branches (and other fields) must not crash
@@ -96,7 +102,7 @@ async function run(){
   await page.setInputFiles('#restore-file', brokenPath);
   await page.waitForTimeout(800);
   await clickInPage(page, '[data-action="confirm-yes"]');
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => document.getElementById('toast-root')?.textContent.includes('dipulihkan'), { timeout: 8000 }).catch(()=>{});
   const afterBroken = await page.evaluate(() => ({ branches: db.branches }));
   r.checkTrue('restoring a backup with empty branches backfills a default branch', Array.isArray(afterBroken.branches) && afterBroken.branches.length > 0);
   const ownStaffKept = await page.evaluate((id) => db.staff.some(s => s.id === id), currentStaffId);
