@@ -6,23 +6,29 @@ Bengkel / Automotif POS) yang telah dibina.
 ## Struktur Folder
 
 ```
-Mr 4x4 Auto Service-Lengkap/
-├── Mr 4x4 Auto Service.html   ← Versi UNTUK CLAUDE.AI (guna dalam artifact/chat, tak disentuh sejak backend dibina)
+Mr 4x4 Auto Service/
 ├── src/                       ← KOD SUMBER — edit fail di sini, BUKAN fail HTML terus
 │   ├── views/                 ← satu fail bagi setiap skrin (dashboard, pos, jobs, dll.)
-│   ├── sync-engine.js         ← logik sync Supabase + log masuk
+│   ├── sync-engine.js         ← logik sync Supabase + log masuk + sandaran automatik
 │   ├── event-handlers.js      ← semua butang/borang (data-action bindings)
+│   ├── service-worker.js      ← sokongan luar talian (nombor versi cache dijana automatik)
 │   ├── global.d.ts            ← bentuk data (Customer, Job, Invoice, dll.) untuk semakan jenis
 │   └── ... (lihat build/build.js untuk senarai penuh & susunan)
 ├── build/
-│   └── build.js                ← `npm run build` cantumkan src/ semula jadi 1 fail HTML
+│   ├── build.js                ← `npm run build` cantumkan src/ semula jadi 1 fail HTML
+│   └── deploy.js                ← `npm run deploy` — build + hantar terus ke Netlify
+├── backend/
+│   ├── schema.sql               ← skema pangkalan data Supabase (jalankan di SQL Editor)
+│   ├── SETUP.md                 ← panduan setup backend (sekali sahaja)
+│   └── SENTRY_SETUP.md          ← panduan hidupkan pengesanan ralat (pilihan)
 ├── tests/                      ← suite ujian automatik (lihat tests/README.md)
+├── .github/workflows/ci.yml    ← GitHub Actions — semak typecheck+build+ujian setiap push
 ├── tsconfig.json                ← `npm run typecheck` — semakan jenis (TypeScript/JSDoc)
-├── package.json                  ← `npm install` dahulu, kemudian npm run build / test / check
+├── package.json                  ← `npm install` dahulu, kemudian npm run build / test / check / deploy
 └── Mr 4x4 Auto Service-pwa/         ← OUTPUT — fail yang sebenarnya di-deploy (jangan edit terus)
     ├── Mr 4x4 Auto Service.html ← DIHASILKAN oleh `npm run build`, bukan fail sumber
     ├── manifest.json      ← Metadata PWA (nama, ikon, warna tema)
-    ├── service-worker.js  ← Sokongan luar talian
+    ├── service-worker.js  ← DIHASILKAN oleh `npm run build`, bukan fail sumber
     ├── icons/             ← Ikon aplikasi
     └── README.md          ← Panduan hosting terperinci
 ```
@@ -33,35 +39,26 @@ Sejak sistem sync merentasi peranti dibina, kod sumber sebenar disimpan
 dalam `src/` (bukan terus dalam fail HTML). Untuk buat sebarang perubahan:
 
 ```
-npm install              # sekali sahaja
-npm run typecheck        # semak jenis data (tangkap silap sebelum jalan)
-npm run build             # cantumkan src/ jadi Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html
-npm test                  # jalankan suite ujian automatik (perlukan sambungan internet)
-npm run check              # buat kesemua 3 di atas sekali gus
+npm install               # sekali sahaja
+npm run typecheck         # semak jenis data (tangkap silap sebelum jalan)
+npm run build              # cantumkan src/ jadi Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html
+npm test                   # jalankan suite ujian automatik (perlukan sambungan internet)
+npm run check               # buat kesemua 3 di atas sekali gus
+npm run deploy               # build + hantar terus ke Netlify (perlukan .env dengan NETLIFY_AUTH_TOKEN)
 ```
 
-Selepas `npm run build`, deploy folder `Mr 4x4 Auto Service-pwa/` seperti
-biasa (Netlify, dll.) — fail HTML di dalamnya itulah yang dihantar ke
-pelayar staf.
+**Jangan edit `Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html` atau
+`Mr 4x4 Auto Service-pwa/service-worker.js` terus** — kedua-duanya akan
+ditimpa semula pada `npm run build` yang seterusnya. Edit fail dalam
+`src/` sebaliknya.
 
-**Jangan edit `Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html` terus** —
-ia akan ditimpa semula pada `npm run build` yang seterusnya. Edit fail
-dalam `src/` sebaliknya.
+## Git & CI
 
-## Fail Mana Nak Guna?
-
-**Guna `Mr 4x4 Auto Service.html`** jika anda mahu terus guna sistem ini di dalam
-Claude.ai (upload semula sebagai fail, atau minta Claude buka sebagai
-artifact). Data disimpan menggunakan `window.storage` (ciri Claude.ai).
-
-**Guna folder `Mr 4x4 Auto Service-pwa/`** jika anda mahu:
-- Host sistem ini di internet sendiri (Netlify, GitHub Pages, dll.)
-- Install sebagai app di telefon/komputer dengan ikon sendiri
-- Sistem berfungsi walaupun tiada sambungan internet (selepas dibuka sekali)
-
-Kedua-dua versi mengandungi **fungsi yang sama** — bezanya hanya cara data
-disimpan (`window.storage` vs `localStorage`) dan sokongan tambahan untuk
-PWA. Lihat `Mr 4x4 Auto Service-pwa/README.md` untuk panduan hosting penuh.
+Kod ini disimpan di GitHub (`tomassual-hub/mr4x4-auto-service`, repo
+peribadi). Setiap `git push` men-trigger GitHub Actions
+(`.github/workflows/ci.yml`) yang jalankan typecheck + build + suite
+ujian penuh secara automatik terhadap akaun ujian pakai buang — bukan
+data kedai sebenar.
 
 ## Ciri-Ciri Utama Sistem
 
@@ -72,18 +69,24 @@ PWA. Lihat `Mr 4x4 Auto Service-pwa/README.md` untuk panduan hosting penuh.
   bar/kod pantas
 - **Inventori** — stok alat ganti, pembekal, pesanan belian (manual & auto)
 - **Pelanggan & Kenderaan** — sejarah servis penuh, waranti alat ganti,
-  amaran servis ikut kilometer, kod QR kenderaan
+  amaran servis ikut kilometer (dipaparkan juga di Papan Pemuka dengan
+  butang peringatan WhatsApp sekali klik), kod QR kenderaan
 - **Tempahan & Kontrak Servis** — janji temu, invois berulang untuk
   pelanggan korporat
 - **Laporan** — untung/rugi (P&L), prestasi & komisen mekanik, ramalan
   stok, analitik pelanggan senyap, carta jualan
-- **Staf** — log masuk PIN dengan kunci selepas percubaan gagal, kebenaran
-  ikut peranan (Admin/Mekanik), log aktiviti (audit trail)
+- **Staf** — log masuk e-mel/kata laluan sebenar, kebenaran ikut peranan
+  (Admin/Mekanik) dengan sekatan Admin terakhir tak boleh dipadam/diturun
+  pangkat, log aktiviti (audit trail)
 - **Loceng Notifikasi**, **Mod Kiosk** (semak status tanpa log masuk),
   **Sokongan Berbilang Cawangan**
 - **Dwibahasa** — suis Bahasa Melayu ⇄ English (MS/EN)
 - **Tema Terang/Gelap**, **Mod Ringkas/Lanjutan**, **Tutorial Onboarding**
-- **Sandaran & Pemulihan Data**, eksport CSV & format perakaunan
+- **Sandaran & Pemulihan Data** — muat turun manual, ATAU automatik ke
+  pelayan (setiap 7 hari bila Admin log masuk, boleh muat turun balik di
+  Tetapan), eksport CSV & format perakaunan
+- **Pengesanan Ralat** (Sentry, pilihan) dan **prom kemas kini automatik**
+  bila versi baharu di-deploy
 
 ## Ikon Aplikasi
 
@@ -101,21 +104,16 @@ alat logo maker yang digunakan (biasanya tersedia dengan bayaran kecil).
 
 ## Log Masuk
 
-Versi `Mr 4x4 Auto Service-pwa/` (yang sebenarnya digunakan) log masuk
-dengan **e-mel + kata laluan sebenar** (Supabase Auth), bukan PIN — setiap
-staf ada akaun sendiri, ditambah oleh Admin di Tetapan → Staf. Lihat
-`backend/SETUP.md` untuk sediakan backend, dan `backend/SENTRY_SETUP.md`
-untuk hidupkan pengesanan ralat (pilihan).
-
-Versi `Mr 4x4 Auto Service.html` (untuk Claude.ai) yang guna PIN/data
-tempatan sahaja tidak lagi diselenggara sejak backend dibina — ia
-ditinggalkan sengaja sebagai rujukan sejarah, bukan untuk kegunaan sebenar.
+Log masuk dengan **e-mel + kata laluan sebenar** (Supabase Auth), bukan
+PIN — setiap staf ada akaun sendiri, ditambah oleh Admin di Tetapan →
+Staf. Lihat `backend/SETUP.md` untuk sediakan backend, dan
+`backend/SENTRY_SETUP.md` untuk hidupkan pengesanan ralat (pilihan).
 
 ## Nota Penting
 
-- Versi `Mr 4x4 Auto Service-pwa/` **berkongsi data merentasi semua
-  peranti secara masa nyata** (dikuasakan oleh Supabase) — staf boleh log
-  masuk dari telefon/komputer berlainan dan lihat data yang sama serentak.
+- Sistem ini **berkongsi data merentasi semua peranti secara masa nyata**
+  (dikuasakan oleh Supabase) — staf boleh log masuk dari telefon/komputer
+  berlainan dan lihat data yang sama serentak.
 - Suite ujian automatik (`tests/`) menguji terus terhadap backend Supabase
   sebenar menggunakan akaun ujian pakai buang — JANGAN tuju ke akaun
   bengkel sebenar.
