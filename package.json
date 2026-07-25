@@ -1,0 +1,21 @@
+{
+  "name": "mr4x4-auto-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mr 4x4 Auto Service — workshop management PWA",
+  "scripts": {
+    "build": "node build/build.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node tests/run-all.js",
+    "test:xss": "node tests/xss-escaping.test.js",
+    "test:sync": "node tests/job-pos-invoice.test.js",
+    "check": "npm run typecheck && npm run build && npm test",
+    "deploy": "node build/deploy.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "netlify-cli": "^17.38.0",
+    "playwright": "^1.48.0",
+    "typescript": "^5.6.0"
+  }
+}

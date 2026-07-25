@@ -1,0 +1,222 @@
+-- Mr 4x4 Auto Service — Supabase schema for multi-device sync.
+-- Run this once in Supabase Dashboard → SQL Editor → New query → Run.
+
+-- One JSONB-per-record table per top-level db.* array in the app.
+-- The app's existing entity shapes evolve ad hoc (fields added over time
+-- with migration guards), so a rigid relational schema would fight the
+-- app's own data model. Keeping "data jsonb" mirrors that flexibility
+-- 1:1 and means the existing render code doesn't need to change shape.
+create table if not exists customers      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists vehicles       (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists jobs           (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists inventory      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists invoices       (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists appointments   (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists contracts      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists suppliers      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists purchase_orders(id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists audit_log      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists branches       (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+create table if not exists cash_closures  (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+
+-- Staff needs a real column linking to Supabase Auth (real per-staff login),
+-- everything else about a staff member stays in data jsonb (name, role).
+create table if not exists staff (
+  id text primary key,
+  user_id uuid unique references auth.users(id) on delete set null,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+-- Single-row table for shop-wide settings (shopName, taxRate, paymentQR, ...).
+create table if not exists shop_meta (
+  id text primary key,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+-- Atomic counters for job/invoice/PO numbers, so two devices creating a
+-- job at the same moment never get the same WS-/INV-/PO- number.
+create table if not exists counters (
+  name text primary key,
+  value int not null default 0
+);
+
+create or replace function next_counter(counter_name text)
+returns int
+language plpgsql
+security definer
+as $$
+declare
+  new_val int;
+begin
+  insert into counters(name, value) values (counter_name, 1)
+  on conflict (name) do update set value = counters.value + 1
+  returning value into new_val;
+  return new_val;
+end;
+$$;
+
+-- security definer bypasses RLS for its own writes, so without this,
+-- anyone holding the (intentionally public) anon key could call this
+-- RPC with no login at all and burn through job/invoice/PO numbers.
+-- Supabase grants "anon" its own direct EXECUTE on new functions
+-- (separate from PUBLIC), so it must be revoked explicitly too.
+revoke execute on function next_counter(text) from public;
+revoke execute on function next_counter(text) from anon;
+grant execute on function next_counter(text) to authenticated;
+
+-- Row Level Security: this is a single-shop app (not multi-tenant SaaS),
+-- so the trust model is simply "logged in with real staff credentials =
+-- full access", matching how the current local version already works
+-- (any valid PIN sees everything). Tighten later with role-based policies
+-- if you ever need e.g. mechanics blocked from certain reports.
+do $$
+declare
+  t text;
+begin
+  for t in select unnest(array[
+    'customers','vehicles','jobs','inventory','invoices','appointments',
+    'contracts','suppliers','purchase_orders','audit_log','branches',
+    'cash_closures','staff','shop_meta','counters'
+  ])
+  loop
+    execute format('alter table %I enable row level security;', t);
+    execute format('drop policy if exists "staff full access" on %I;', t);
+    execute format(
+      'create policy "staff full access" on %I for all to authenticated using (true) with check (true);',
+      t
+    );
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Role-based hardening (run after the blanket policy above).
+-- Everything else stays "any authenticated staff = full access" (matches
+-- the UI, where only Reports/Staff/Settings are Admin-only) — these three
+-- tables get tightened because the UI already treats them as Admin-only
+-- or append-only, and RLS should actually enforce that, not just hide it.
+-- ---------------------------------------------------------------------
+
+-- is_admin(): true if the calling user's linked staff record has role Admin.
+create or replace function is_admin()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists(
+    select 1 from staff where user_id = auth.uid() and data->>'role' = 'Admin'
+  );
+$$;
+revoke execute on function is_admin() from public;
+revoke execute on function is_admin() from anon;
+grant execute on function is_admin() to authenticated;
+
+-- staff: everyone can read the roster (needed to assign mechanics to jobs),
+-- but only Admins can add/edit/remove staff records directly.
+drop policy if exists "staff full access" on staff;
+drop policy if exists "staff select" on staff;
+drop policy if exists "staff admin insert" on staff;
+drop policy if exists "staff admin update" on staff;
+drop policy if exists "staff admin delete" on staff;
+create policy "staff select" on staff for select to authenticated using (true);
+create policy "staff admin insert" on staff for insert to authenticated with check (is_admin());
+create policy "staff admin update" on staff for update to authenticated using (is_admin()) with check (is_admin());
+create policy "staff admin delete" on staff for delete to authenticated using (is_admin());
+
+-- shop_meta (settings): everyone reads it (shop name/tax rate/payment QR
+-- show up on invoices for all staff), only Admins can change it.
+drop policy if exists "staff full access" on shop_meta;
+drop policy if exists "shop_meta select" on shop_meta;
+drop policy if exists "shop_meta admin insert" on shop_meta;
+drop policy if exists "shop_meta admin update" on shop_meta;
+drop policy if exists "shop_meta admin delete" on shop_meta;
+create policy "shop_meta select" on shop_meta for select to authenticated using (true);
+create policy "shop_meta admin insert" on shop_meta for insert to authenticated with check (is_admin());
+create policy "shop_meta admin update" on shop_meta for update to authenticated using (is_admin()) with check (is_admin());
+create policy "shop_meta admin delete" on shop_meta for delete to authenticated using (is_admin());
+
+-- audit_log: append-only for everyone (it's an audit trail — nobody,
+-- including Admins, should be able to edit or erase past entries via the
+-- normal API). The app's local 300-entry cap is a display trim only and
+-- no longer deletes from the cloud copy (see client-side change).
+drop policy if exists "staff full access" on audit_log;
+drop policy if exists "audit_log select" on audit_log;
+drop policy if exists "audit_log insert" on audit_log;
+create policy "audit_log select" on audit_log for select to authenticated using (true);
+create policy "audit_log insert" on audit_log for insert to authenticated with check (true);
+
+-- claim_staff_record(): lets a newly signed-up user link themselves to an
+-- existing staff row by matching email (added by an Admin beforehand), or
+-- become the shop's first Admin if no staff records exist yet at all.
+-- security definer so this one narrow operation can run even though direct
+-- staff table writes are now Admin-only above — it can only ever claim a
+-- row matching the caller's own verified auth email, never anyone else's,
+-- and can only self-assign Admin in the empty-table bootstrap case.
+create or replace function claim_staff_record()
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  my_email text;
+  rec staff%rowtype;
+  new_id text;
+begin
+  my_email := lower(auth.jwt()->>'email');
+
+  select * into rec from staff where user_id = auth.uid();
+  if found then
+    return jsonb_build_object('id', rec.id, 'user_id', rec.user_id, 'data', rec.data);
+  end if;
+
+  select * into rec from staff where lower(data->>'email') = my_email and user_id is null limit 1;
+  if found then
+    update staff set user_id = auth.uid() where id = rec.id;
+    return jsonb_build_object('id', rec.id, 'user_id', auth.uid(), 'data', rec.data);
+  end if;
+
+  if (select count(*) from staff) = 0 then
+    new_id := md5(random()::text || clock_timestamp()::text);
+    insert into staff(id, user_id, data) values (
+      new_id, auth.uid(),
+      jsonb_build_object('name', split_part(my_email,'@',1), 'role','Admin','email', my_email, 'commissionPercent',0)
+    );
+    return jsonb_build_object('id', new_id, 'user_id', auth.uid(), 'data', jsonb_build_object('name', split_part(my_email,'@',1), 'role','Admin','email', my_email, 'commissionPercent',0));
+  end if;
+
+  return null;
+end;
+$$;
+revoke execute on function claim_staff_record() from public;
+revoke execute on function claim_staff_record() from anon;
+grant execute on function claim_staff_record() to authenticated;
+
+-- Realtime: let other open devices hear about changes as they happen.
+-- Checked per-table (rather than a plain ALTER PUBLICATION ... ADD TABLE)
+-- so this script is safe to run more than once.
+do $$
+declare
+  t text;
+begin
+  for t in select unnest(array[
+    'customers','vehicles','jobs','inventory','invoices','appointments',
+    'contracts','suppliers','purchase_orders','audit_log','branches',
+    'cash_closures','staff','shop_meta'
+  ])
+  loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table %I;', t);
+    end if;
+    -- Postgres's logical replication only sends the primary key for the
+    -- "old row" on UPDATE/DELETE by default. Supabase Realtime needs the
+    -- full old row to check it against RLS before deciding whether to
+    -- broadcast — without this, DELETE (and UPDATE) events are silently
+    -- dropped instead of reaching other devices, even though INSERT works.
+    execute format('alter table %I replica identity full;', t);
+  end loop;
+end $$;

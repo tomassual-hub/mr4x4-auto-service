@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.netlify.joyful_mochi_c1582a.twa",
+        "sha256_cert_fingerprints": ["2E:CB:5C:1C:6B:8C:DC:FB:13:CD:CC:5D:01:AD:06:21:37:D3:CD:F0:5E:8C:F4:4A:E9:F8:37:84:8B:FB:42:21"]
+      }
+    }]

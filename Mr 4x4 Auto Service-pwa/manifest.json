@@ -1,0 +1,41 @@
+{
+  "name": "Mr 4x4 Auto Service - Pakar Servis 4x4",
+  "short_name": "Mr 4x4",
+  "description": "Perisian pengurusan bengkel automotif — kad kerja, POS/invois, inventori, pelanggan & kenderaan, laporan.",
+  "start_url": "./Mr 4x4 Auto Service.html",
+  "id": "./Mr 4x4 Auto Service.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1B1D21",
+  "theme_color": "#1B1D21",
+  "lang": "ms",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
