@@ -1,36 +1,60 @@
 /* ============================= PRINT INVOICE ============================= */
+// Standard business invoice layout: letterhead (name/address/phone/SSM &
+// SST reg. no.), a distinct invoice number + date block, a "Bill To"
+// section, an itemized table with unit price separated from line amount,
+// then subtotal/discount/tax/total — the fields any accountant or LHDN
+// e-Invoice record-keeping check would expect to find, not just a receipt
+// strip. paymentQR/thank-you footer kept from the original.
 function printInvoice(inv){
   const c = getCustomer(inv.customerId);
   const v = getVehicle(inv.vehicleId);
+  const s = db.settings;
   const area = document.getElementById('print-area');
   area.innerHTML = `
     <div class="print-invoice">
-      <h2>${esc(db.settings.shopName)}</h2>
-      <div class="pi-sub">Mr 4x4 Auto Service - Pakar Servis 4x4</div>
-      <div class="pi-row"><span>No. Invois</span><span>${inv.invoiceNo}</span></div>
-      <div class="pi-row"><span>Tarikh</span><span>${fmtDateTime(inv.createdAt)}</span></div>
-      <div class="pi-row"><span>Pelanggan</span><span>${c?esc(c.name):'Walk-in'}</span></div>
-      ${v?`<div class="pi-row"><span>Kenderaan</span><span>${esc(v.plate)} (${esc(v.model)})</span></div>`:''}
+      <div class="pi-letterhead">
+        <div>
+          <h2>${esc(s.shopName)}</h2>
+          ${s.shopAddress ? `<div class="pi-addr">${esc(s.shopAddress).replace(/\n/g,'<br>')}</div>` : ''}
+          <div class="pi-addr">
+            ${s.shopPhone ? esc(s.shopPhone) : ''}
+            ${s.shopRegNo ? (s.shopPhone?' &middot; ':'')+(state.language==='en'?'Reg. No: ':'No. Pendaftaran: ')+esc(s.shopRegNo) : ''}
+            ${s.shopSstNo ? '<br>'+(state.language==='en'?'SST No: ':'No. SST: ')+esc(s.shopSstNo) : ''}
+          </div>
+        </div>
+        <div class="pi-doc-meta">
+          <div class="pi-doc-title">${state.language==='en'?'INVOICE':'INVOIS'}</div>
+          <div class="pi-row"><span>${state.language==='en'?'No.':'No. Invois'}</span><span>${esc(inv.invoiceNo)}</span></div>
+          <div class="pi-row"><span>${state.language==='en'?'Date':'Tarikh'}</span><span>${fmtDateTime(inv.createdAt)}</span></div>
+        </div>
+      </div>
       <div class="pi-line"></div>
+      <div class="pi-billto">
+        <div class="pi-billto-label">${state.language==='en'?'Bill To':'Kepada'}</div>
+        <div class="pi-billto-name">${c?esc(c.name):(state.language==='en'?'Walk-in Customer':'Pelanggan Walk-in')}</div>
+        ${c && c.phone ? `<div class="pi-addr">${esc(c.phone)}</div>` : ''}
+        ${v ? `<div class="pi-addr">${esc(v.plate)} — ${esc(v.model||'')}</div>` : ''}
+      </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Item</th><th>Kuantiti</th><th>Harga</th></tr></thead>
+        <thead><tr><th>${state.language==='en'?'Description':'Perkara'}</th><th style="text-align:center;">${state.language==='en'?'Qty':'Kuantiti'}</th><th style="text-align:right;">${state.language==='en'?'Unit Price':'Harga Seunit'}</th><th style="text-align:right;">${state.language==='en'?'Amount':'Jumlah'}</th></tr></thead>
         <tbody>
-          ${inv.items.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.qty}</td><td>${fmtRM(it.price*it.qty)}</td></tr>`).join('')}
+          ${inv.items.map(it=>`<tr><td>${esc(it.name)}</td><td style="text-align:center;">${it.qty}</td><td style="text-align:right;">${fmtRM(it.price)}</td><td style="text-align:right;">${fmtRM(it.price*it.qty)}</td></tr>`).join('')}
         </tbody>
       </table></div>
+      <div class="pi-totals">
+        <div class="pi-row"><span>${state.language==='en'?'Subtotal':'Subjumlah'}</span><span>${fmtRM(inv.subtotal)}</span></div>
+        ${inv.discount>0 ? `<div class="pi-row"><span>${state.language==='en'?'Discount':'Diskaun'}</span><span>-${fmtRM(inv.discount)}</span></div>` : ''}
+        ${inv.tax>0 ? `<div class="pi-row"><span>SST (${inv.taxRate}%)</span><span>${fmtRM(inv.tax)}</span></div>` : ''}
+        <div class="pi-row pi-total"><span>${state.language==='en'?'TOTAL':'JUMLAH'}</span><span>${fmtRM(inv.total)}</span></div>
+      </div>
       <div class="pi-line"></div>
-      <div class="pi-row"><span>Subjumlah</span><span>${fmtRM(inv.subtotal)}</span></div>
-      ${inv.discount>0 ? `<div class="pi-row"><span>Diskaun</span><span>-${fmtRM(inv.discount)}</span></div>` : ''}
-      ${inv.tax>0 ? `<div class="pi-row"><span>SST (${inv.taxRate}%)</span><span>${fmtRM(inv.tax)}</span></div>` : ''}
-      <div class="pi-row pi-total"><span>JUMLAH</span><span>${fmtRM(inv.total)}</span></div>
-      <div class="pi-row"><span>Kaedah Bayaran</span><span>${inv.payment}</span></div>
+      <div class="pi-row"><span>${state.language==='en'?'Payment Method':'Kaedah Bayaran'}</span><span>${esc(inv.payment)}</span></div>
       ${db.settings.paymentQR ? `
-      <div class="pi-line"></div>
-      <div style="text-align:center;">
+      <div style="text-align:center;margin-top:10px;">
         <img src="${db.settings.paymentQR}" alt="DuitNow QR" style="width:130px;height:130px;object-fit:contain;margin:6px auto;display:block;">
-        <div style="font-size:11px;">Imbas untuk bayar (DuitNow)</div>
+        <div style="font-size:11px;">${state.language==='en'?'Scan to pay (DuitNow)':'Imbas untuk bayar (DuitNow)'}</div>
       </div>` : ''}
-      <div class="pi-foot">Terima kasih kerana menggunakan perkhidmatan kami.</div>
+      <div class="pi-foot">${state.language==='en'?'Thank you for your business.':'Terima kasih kerana menggunakan perkhidmatan kami.'}</div>
     </div>
   `;
   window.print();

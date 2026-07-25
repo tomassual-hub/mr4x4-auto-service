@@ -7,6 +7,11 @@ function viewSettings(){
       <h2>${ICONS.settings} ${tt('Maklumat Kedai')}</h2>
       <div class="field"><label>${tt('Nama Bengkel')}</label><input id="set-shopname" value="${s.shopName}"></div>
       <div class="field"><label>${tt('No. Telefon Bengkel')}</label><input id="set-shopphone" value="${s.shopPhone||''}" placeholder="012-3456789"></div>
+      <div class="field"><label>${state.language==='en'?'Business Address':'Alamat Perniagaan'}</label><textarea id="set-shopaddress" rows="2" placeholder="${state.language==='en'?'For printed invoices':'Untuk invois cetak'}">${esc(s.shopAddress||'')}</textarea></div>
+      <div class="field-row">
+        <div class="field"><label>${state.language==='en'?'SSM Reg. No.':'No. Pendaftaran SSM'}</label><input id="set-shopregno" value="${esc(s.shopRegNo||'')}" placeholder="cth: 202301012345 (678901-A)"></div>
+        <div class="field"><label>${state.language==='en'?'SST Reg. No. (if any)':'No. Pendaftaran SST (jika ada)'}</label><input id="set-shopsstno" value="${esc(s.shopSstNo||'')}" placeholder="${state.language==='en'?'Leave blank if not registered':'Kosongkan jika tidak berdaftar'}"></div>
+      </div>
       <div class="field"><label>${tt('Kadar SST (%)')}</label><input id="set-tax" type="number" min="0" step="0.1" value="${s.taxRate||0}"></div>
       <div class="field-row">
         <div class="field"><label>${tt('Diskaun Setia (%)')}</label><input id="set-loyalty-discount" type="number" min="0" value="${s.loyaltyDiscount||10}"></div>

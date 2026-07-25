@@ -392,6 +392,9 @@ function attachHandlers(){
   bindAction('save-settings', ()=>{
     db.settings.shopName = document.getElementById('set-shopname').value.trim() || 'Mr 4x4 Auto Service';
     db.settings.shopPhone = document.getElementById('set-shopphone').value.trim();
+    db.settings.shopAddress = document.getElementById('set-shopaddress').value.trim();
+    db.settings.shopRegNo = document.getElementById('set-shopregno').value.trim();
+    db.settings.shopSstNo = document.getElementById('set-shopsstno').value.trim();
     db.settings.taxRate = Number(document.getElementById('set-tax').value)||0;
     db.settings.loyaltyDiscount = Number(document.getElementById('set-loyalty-discount').value)||0;
     db.settings.loyaltyVisits = Number(document.getElementById('set-loyalty-visits').value)||5;

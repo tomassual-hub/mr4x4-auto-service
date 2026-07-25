@@ -387,16 +387,27 @@ tr:hover td{background:var(--glass-highlight);}
 
 /* ---------- PRINT INVOICE ---------- */
 #print-area{display:none;}
-.print-invoice{background:#fff;color:#1a1a1a;padding:36px;font-family:'IBM Plex Mono',monospace;max-width:480px;margin:0 auto;}
-.print-invoice h2{font-family:'Oswald',sans-serif;margin:0 0 2px;font-size:20px;}
+.print-invoice{background:#fff;color:#1a1a1a;padding:40px;font-family:'Inter',sans-serif;max-width:640px;margin:0 auto;font-variant-numeric:tabular-nums;}
+.print-invoice h2{font-family:'Oswald',sans-serif;margin:0 0 4px;font-size:19px;}
 .print-invoice .pi-sub{font-size:11px;color:#666;margin-bottom:18px;}
 .print-invoice .pi-row{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;}
-.print-invoice .pi-line{border-top:1px dashed #999;margin:10px 0;}
+.print-invoice .pi-line{border-top:1px solid #ddd;margin:14px 0;}
 .print-invoice table{width:100%;font-size:12px;border-collapse:collapse;}
-.print-invoice th{text-align:left;border-bottom:1px solid #333;padding:5px 4px;font-size:10.5px;text-transform:uppercase;}
-.print-invoice td{padding:6px 4px;border-bottom:1px dashed #ccc;}
-.print-invoice .pi-total{font-weight:700;font-size:16px;}
-.print-invoice .pi-foot{text-align:center;font-size:11px;color:#666;margin-top:20px;}
+.print-invoice th{text-align:left;border-bottom:1.5px solid #1a1a1a;padding:6px 4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;}
+.print-invoice td{padding:8px 4px;border-bottom:1px solid #e5e5e5;font-size:12.5px;}
+.print-invoice .pi-total{font-weight:700;font-size:16px;border-top:1.5px solid #1a1a1a;margin-top:4px;padding-top:8px;}
+.print-invoice .pi-foot{text-align:center;font-size:11px;color:#666;margin-top:24px;}
+/* Standard invoice letterhead: shop details left, "INVOICE" + doc number/date
+   right — the layout an accountant expects, not a POS receipt strip. */
+.print-invoice .pi-letterhead{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;}
+.print-invoice .pi-addr{font-size:11px;color:#555;line-height:1.5;margin-top:2px;}
+.print-invoice .pi-doc-meta{text-align:right;flex-shrink:0;min-width:210px;}
+.print-invoice .pi-doc-meta .pi-row{gap:16px;}
+.print-invoice .pi-doc-title{font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;letter-spacing:2px;color:#999;margin-bottom:8px;}
+.print-invoice .pi-billto{margin:16px 0 14px;}
+.print-invoice .pi-billto-label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#999;font-weight:600;margin-bottom:3px;}
+.print-invoice .pi-billto-name{font-size:13.5px;font-weight:700;}
+.print-invoice .pi-totals{max-width:260px;margin-left:auto;margin-top:8px;}
 @media print{
   body *{visibility:hidden;}
   #print-area, #print-area *{visibility:visible;}

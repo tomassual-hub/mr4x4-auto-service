@@ -139,6 +139,9 @@ interface CashClosure { id: string; date: string; expected: number; actual: numb
 interface ShopSettings {
   shopName: string;
   shopPhone: string;
+  shopAddress: string;
+  shopRegNo: string;
+  shopSstNo: string;
   taxRate: number;
   loyaltyVisits: number;
   loyaltyDiscount: number;
