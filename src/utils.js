@@ -25,6 +25,15 @@ function getCustomer(id){ return db.customers.find(c=>c.id===id); }
 function getVehicle(id){ return db.vehicles.find(v=>v.id===id); }
 function getVehiclesFor(customerId){ return db.vehicles.filter(v=>v.customerId===customerId); }
 function getItem(id){ return db.inventory.find(i=>i.id===id); }
+// Shared by the vehicle detail modal (customers.js) and the dashboard's
+// "vehicles due for service" panel — kept as one function so the two never
+// drift into disagreeing about what "due" means.
+function vehicleServiceStatus(v){
+  if(!v.serviceIntervalKm) return null;
+  const nextKm = (v.lastServiceKm||0) + v.serviceIntervalKm;
+  const kmLeft = nextKm - (v.odometer||0);
+  return { due: kmLeft<=0, kmLeft };
+}
 function normalizePhone(phone){
   let p = (phone||'').replace(/[^0-9]/g,'');
   if(p.startsWith('0')) p = '6'+p; // Malaysia country code

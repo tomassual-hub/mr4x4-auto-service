@@ -107,10 +107,9 @@ function vehicleHistoryModalHTML(v){
       <button class="btn-icon" data-action="print-vehicle-qr" data-id="${v.id}" title="${en?'Print QR':'Cetak QR'}">${ICONS.printer}</button>
     </div>
     ${(()=>{
-      const nextKm = (v.lastServiceKm||0) + (v.serviceIntervalKm||10000);
-      const kmLeft = nextKm - (v.odometer||0);
-      if(!v.serviceIntervalKm) return '';
-      const due = kmLeft<=0;
+      const status = vehicleServiceStatus(v);
+      if(!status) return '';
+      const { due, kmLeft } = status;
       return `<div style="background:${due?'rgba(225,75,75,.12)':'var(--panel-alt)'};border:1px solid ${due?'var(--danger)':'var(--border)'};border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:12.5px;">
         ${ICONS.gauge} ${en?'Current odometer':'Odometer semasa'}: <strong>${(v.odometer||0).toLocaleString()} km</strong> ·
         ${due ? `<span style="color:var(--danger);font-weight:600;">${en?'Service overdue':'Servis tertunggak'} (${Math.abs(kmLeft).toLocaleString()} km ${en?'past schedule':'lepas jadual'})</span>` : `${en?'Next service in ~':'Servis seterusnya dalam ~'}${kmLeft.toLocaleString()} km`}

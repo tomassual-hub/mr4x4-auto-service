@@ -92,6 +92,34 @@ function viewDashboard(){
       </div>
     </div>`;
   })()}
+  ${(()=>{
+    const en = state.language==='en';
+    // Overdue-by-mileage vehicles, previously only visible one-by-one by
+    // opening each vehicle's own detail modal — nothing surfaced them
+    // proactively for outreach. True unattended auto-send isn't possible
+    // through wa.me links (that's just a pre-filled compose screen, not a
+    // send API), so this at least turns "open every vehicle to check" into
+    // "one glance, one tap per customer".
+    const dueVehicles = db.vehicles
+      .map(v=>({ v, status: vehicleServiceStatus(v) }))
+      .filter(x=>x.status && x.status.due)
+      .sort((a,b)=>a.status.kmLeft-b.status.kmLeft)
+      .slice(0,8);
+    if(dueVehicles.length===0) return '';
+    return `
+    <div class="panel" style="margin-top:20px;">
+      <h2>${ICONS.gauge} ${en?'Vehicles Due for Service':'Kenderaan Perlu Servis'} <span class="tag">${dueVehicles.length}</span></h2>
+      ${dueVehicles.map(({v, status})=>{
+        const c = getCustomer(v.customerId);
+        const waText = encodeURIComponent(`Salam ${c?c.name:''}, peringatan mesra dari ${db.settings.shopName} — kenderaan anda ${v.plate} kini ${Math.abs(status.kmLeft).toLocaleString()} km lepas jadual servis. Jemput hubungi kami untuk tempahan.`);
+        const waHref = c && c.phone ? `https://wa.me/${normalizePhone(c.phone)}?text=${waText}` : null;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px;">
+          <span>${esc(v.plate)} ${c?'· '+esc(c.name):''} <span style="color:var(--danger);">(${Math.abs(status.kmLeft).toLocaleString()} km ${en?'overdue':'tertunggak'})</span></span>
+          ${waHref ? `<a class="btn btn-outline btn-sm" href="${waHref}" target="_blank" rel="noopener">${ICONS.whatsapp} ${en?'Remind':'Ingatkan'}</a>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  })()}
   `;
 }
 

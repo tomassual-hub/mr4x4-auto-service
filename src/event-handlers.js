@@ -429,6 +429,24 @@ function attachHandlers(){
     render();
     showToast(tt('Fail sandaran dimuat turun.'));
   });
+  bindAction('list-auto-backups', async ()=>{
+    try{
+      const list = await listAutoBackups();
+      setState({autoBackupsList: list});
+    }catch(e){ reportError(e, 'Gagal muat senarai sandaran automatik'); showToast(tt('Gagal muat senarai sandaran.')); }
+  });
+  bindAllAction('download-auto-backup', async el=>{
+    const id = el.dataset.id;
+    try{
+      const backupData = await fetchAutoBackupData(id);
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'mr4x4-sandaran-auto-'+id+'.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }catch(e){ reportError(e, 'Gagal muat turun sandaran automatik'); showToast(tt('Gagal muat turun sandaran.')); }
+  });
   const paymentQrInput = document.getElementById('payment-qr-input');
   if(paymentQrInput) paymentQrInput.addEventListener('change', (e)=>{
     const file = e.target.files[0];

@@ -147,6 +147,24 @@ drop policy if exists "audit_log insert" on audit_log;
 create policy "audit_log select" on audit_log for select to authenticated using (true);
 create policy "audit_log insert" on audit_log for insert to authenticated with check (true);
 
+-- backups: automatic periodic snapshots of the whole shop database (see
+-- src/sync-engine.js's maybeAutoBackup()), stored server-side so a recovery
+-- point exists even if no Admin ever clicks "Muat Turun Sandaran" or their
+-- downloaded copy ends up somewhere they can't find again. Admin-only,
+-- same trust boundary as shop_meta/staff above.
+create table if not exists backups (
+  id text primary key,
+  data jsonb not null,
+  created_at timestamptz not null default now()
+);
+alter table backups enable row level security;
+drop policy if exists "backups admin select" on backups;
+drop policy if exists "backups admin insert" on backups;
+drop policy if exists "backups admin delete" on backups;
+create policy "backups admin select" on backups for select to authenticated using (is_admin());
+create policy "backups admin insert" on backups for insert to authenticated with check (is_admin());
+create policy "backups admin delete" on backups for delete to authenticated using (is_admin());
+
 -- claim_staff_record(): lets a newly signed-up user link themselves to an
 -- existing staff row by matching email (added by an Admin beforehand), or
 -- become the shop's first Admin if no staff records exist yet at all.

@@ -321,6 +321,41 @@ function loadOfflineSnapshot(userId){
   }catch(e){ return null; }
 }
 
+// Automatic server-side backups: a snapshot survives even if no Admin ever
+// clicks "Muat Turun Sandaran", or their downloaded copy ends up somewhere
+// they can't find again. Piggybacks on the existing lastBackupAt field/
+// 7-day staleness threshold already shown in Settings, so a manual download
+// also counts and this never nags/duplicates unnecessarily.
+const AUTO_BACKUP_INTERVAL_MS = 7*24*60*60*1000;
+const AUTO_BACKUP_KEEP = 10;
+async function maybeAutoBackup(){
+  if(!state.currentStaff || state.currentStaff.role!=='Admin') return;
+  const last = db.settings.lastBackupAt;
+  if(last && Date.now()-last < AUTO_BACKUP_INTERVAL_MS) return;
+  try{
+    const { error } = await supabaseClient.from('backups').insert({ id: uid(), data: db });
+    if(error) throw error;
+    db.settings.lastBackupAt = Date.now();
+    queueSave();
+    const { data: rows, error: listErr } = await supabaseClient.from('backups').select('id, created_at').order('created_at', { ascending: false });
+    if(!listErr && rows){
+      const stale = rows.slice(AUTO_BACKUP_KEEP).map(r=>r.id);
+      if(stale.length) await supabaseClient.from('backups').delete().in('id', stale);
+    }
+  }catch(e){ reportError(e, 'Sandaran automatik gagal'); }
+}
+async function listAutoBackups(){
+  const { data, error } = await supabaseClient.from('backups').select('id, created_at').order('created_at', { ascending: false }).limit(AUTO_BACKUP_KEEP);
+  if(error) throw error;
+  return data||[];
+}
+async function fetchAutoBackupData(id){
+  const { data, error } = await supabaseClient.from('backups').select('data').eq('id', id).maybeSingle();
+  if(error) throw error;
+  if(!data) throw new Error('Backup not found');
+  return data.data;
+}
+
 async function handleAuthenticated(session){
   state.authBusy = true; state.loginError=''; render();
   try{
@@ -355,6 +390,7 @@ async function handleAuthenticated(session){
     subscribeRealtime();
     checkOnboarding();
     cacheOfflineSnapshot(session.user.id, staffMember, db);
+    maybeAutoBackup(); // fire-and-forget — never delay login on this
     render();
   }catch(e){
     reportError(e, 'Gagal muat data bengkel');

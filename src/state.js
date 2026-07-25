@@ -39,6 +39,7 @@ let state = {
   onboardingStep: 0,
   jobsShowCount: 30,
   customersShowCount: 30,
+  autoBackupsList: /** @type {{id:string, created_at:string}[]|null} */ (null),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }
@@ -61,5 +62,20 @@ function showToast(msg, undoFn){
     if(undoEl) undoEl.addEventListener('click', ()=>{ undoFn(); container.innerHTML = ''; clearTimeout(/** @type {any} */ (showToast)._t); });
   }
   /** @type {any} */ (showToast)._t = setTimeout(()=>{ container.innerHTML = ''; }, undoFn ? 5000 : 2200);
+}
+
+function showUpdateAvailableToast(){
+  // Deliberately does NOT auto-dismiss like showToast() — a new service
+  // worker has already taken over in the background (see the
+  // controllerchange listener in the app shell), but the currently loaded
+  // page is still running the OLD code until reloaded. Losing this prompt
+  // before the user notices would mean the fix they're waiting on stays
+  // invisible until they happen to reload for some unrelated reason.
+  const container = document.getElementById('toast-root');
+  if(!container) return;
+  const en = state.language==='en';
+  container.innerHTML = `<div class="toast">${en?'A new version is ready.':'Versi baharu tersedia.'} <span class="clickable" data-action="reload-app" style="text-decoration:underline;font-weight:700;margin-left:6px;">${en?'Reload':'Muat Semula'}</span></div>`;
+  const btn = container.querySelector('[data-action="reload-app"]');
+  if(btn) btn.addEventListener('click', ()=>location.reload());
 }
 

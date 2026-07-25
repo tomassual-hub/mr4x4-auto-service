@@ -23,6 +23,7 @@ interface Vehicle {
   color?: string;
   odometer?: number;
   serviceIntervalKm?: number;
+  lastServiceKm?: number;
 }
 
 interface InspectionResult {
@@ -241,6 +242,7 @@ declare function getCustomer(id: string | null | undefined): Customer | undefine
 declare function getVehicle(id: string | null | undefined): Vehicle | undefined;
 declare function getVehiclesFor(customerId: string): Vehicle[];
 declare function getItem(id: string | null | undefined): InventoryItem | undefined;
+declare function vehicleServiceStatus(v: Vehicle): { due: boolean; kmLeft: number } | null;
 
 declare function t(key: string): string;
 declare function tt(msText: string): string;

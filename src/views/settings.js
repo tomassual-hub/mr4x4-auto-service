@@ -78,6 +78,18 @@ function viewSettings(){
       <label style="display:block;">${tt('Pulihkan daripada Fail Sandaran')}</label>
       <input type="file" id="restore-file" accept="application/json" style="padding:8px;">
       <div style="font-size:11.5px;color:var(--danger);margin-top:8px;">⚠️ ${tt('Memulihkan akan menggantikan SEMUA data semasa.')}</div>
+      ${state.currentStaff && state.currentStaff.role==='Admin' ? `
+      <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border);">
+        <h2 style="font-size:13px;">${ICONS.download} ${state.language==='en'?'Automatic Backups':'Sandaran Automatik'}</h2>
+        <p style="font-size:11.5px;color:var(--text-muted);margin-top:0;">${state.language==='en'?'A snapshot is saved to the server automatically (at most every 7 days) whenever an Admin logs in — a recovery point even if nobody remembers to download one.':'Satu salinan disimpan ke pelayan secara automatik (selang 7 hari) setiap kali Admin log masuk — titik pemulihan walaupun tiada siapa ingat untuk muat turun.'}</p>
+        ${state.autoBackupsList ? `
+          ${state.autoBackupsList.length===0 ? `<div style="font-size:12px;color:var(--text-muted);">${state.language==='en'?'No automatic backups yet.':'Belum ada sandaran automatik.'}</div>` : state.autoBackupsList.map(b=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:6px;">
+            <span style="font-size:12.5px;">${fmtDateTime(new Date(b.created_at).getTime())}</span>
+            <button class="btn btn-outline btn-sm" data-action="download-auto-backup" data-id="${b.id}">${ICONS.download}</button>
+          </div>`).join('')}
+        ` : `<button class="btn btn-outline btn-sm" data-action="list-auto-backups">${state.language==='en'?'Show Automatic Backups':'Papar Sandaran Automatik'}</button>`}
+      </div>` : ''}
       <div class="panel" style="margin-top:18px;padding:14px;background:var(--panel-alt);">
         <h2 style="font-size:13px;">${ICONS.download} ${tt('Eksport CSV')}</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
