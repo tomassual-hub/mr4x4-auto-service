@@ -57,7 +57,12 @@ async function run(){
   await pageA.fill('#nj-desc', 'JPI test job');
   await pageA.fill('#nj-mechanic', 'Test Mechanic');
   await pageA.click('[data-action="create-job"]');
-  await pageA.waitForTimeout(800);
+  // Job creation awaits a real network round-trip (next_counter RPC, for the
+  // WS-#### number) before the job lands in db.jobs — a fixed sleep here is
+  // a guess against that latency, and guessed wrong intermittently once
+  // tests moved to a project with different network characteristics. Poll
+  // for the actual row instead.
+  await pageA.waitForFunction(() => db.jobs.some(j=>j.description==='JPI test job'), { timeout: 10000 }).catch(()=>{});
   const jobId = await pageA.evaluate(() => db.jobs.find(j=>j.description==='JPI test job')?.id);
   r.checkTrue('job created', !!jobId);
   await waitForSyncIdle(pageA); // let this job's own creation echo settle before editing it
@@ -76,7 +81,10 @@ async function run(){
   await pageA.click(`[data-action="add-to-cart"][data-id="${itemId}"]`);
   await pageA.waitForTimeout(300);
   await pageA.click('[data-action="checkout"]');
-  await pageA.waitForTimeout(1500);
+  // Checkout awaits a real network round-trip (next_counter RPC for the
+  // INV-#### number) before the invoice lands in db.invoices — poll instead
+  // of guessing a fixed sleep covers that latency.
+  await pageA.waitForFunction(() => db.invoices.some(inv => inv.items && inv.items.some(it=>it.name==='JPI Test Item')), { timeout: 10000 }).catch(()=>{});
 
   const result = await pageA.evaluate(() => {
     const inv = db.invoices.find(inv => inv.items && inv.items.some(it=>it.name==='JPI Test Item'));

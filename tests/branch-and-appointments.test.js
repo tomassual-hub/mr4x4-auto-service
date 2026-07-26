@@ -59,7 +59,10 @@ async function run(){
   await pageA.fill('#nj-new-plate', 'BA 0001');
   await pageA.fill('#nj-desc', 'BA branch job');
   await pageA.click('[data-action="create-job"]');
-  await pageA.waitForTimeout(800);
+  // Job creation awaits a real network round-trip (next_counter RPC for the
+  // WS-#### number) before landing in db.jobs — poll instead of guessing a
+  // fixed sleep covers that latency (see job-pos-invoice.test.js).
+  await pageA.waitForFunction(() => db.jobs.some(j=>j.description==='BA branch job'), { timeout: 10000 }).catch(()=>{});
   r.check('new job tagged with the currently-selected branch', await pageA.evaluate(() => db.jobs.find(j=>j.description==='BA branch job')?.branchId), branchId);
 
   await pageA.evaluate(() => setState({ view: 'jobs' }));

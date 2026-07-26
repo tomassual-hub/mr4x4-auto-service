@@ -64,8 +64,12 @@ async function run(){
   await page.fill('#nj-desc', 'RCI test job');
   await page.fill('#nj-mechanic', 'RCI Mechanic');
   await page.click('[data-action="create-job"]');
-  await page.waitForTimeout(800);
+  // Job creation awaits a real network round-trip (next_counter RPC, for the
+  // WS-#### number) before the job lands in db.jobs — poll for the actual
+  // row instead of guessing a fixed sleep is enough (see job-pos-invoice.test.js).
+  await page.waitForFunction(() => db.jobs.some(j=>j.description==='RCI test job'), { timeout: 10000 }).catch(()=>{});
   const jobId = await page.evaluate(() => db.jobs.find(j=>j.description==='RCI test job')?.id);
+  r.checkTrue('job created', !!jobId);
 
   // Inspection checklist: cycle one item through all three states, verifying
   // each write lands in the real db.jobs record (not an orphaned copy).
@@ -95,7 +99,10 @@ async function run(){
   await page.waitForTimeout(200);
   await page.selectOption('#pos-payment', 'Tunai');
   await page.click('[data-action="checkout"]');
-  await page.waitForTimeout(1200);
+  // Checkout awaits a real network round-trip (next_counter RPC for the
+  // INV-#### number) before the invoice lands in db.invoices — poll instead
+  // of guessing a fixed sleep covers that latency.
+  await page.waitForFunction(() => db.invoices.some(inv => inv.items && inv.items.some(it=>it.name==='RCI Item')), { timeout: 10000 }).catch(()=>{});
 
   const invoice = await page.evaluate(() => db.invoices.find(inv => inv.items && inv.items.some(it=>it.name==='RCI Item')));
   r.check('invoice subtotal (2x RM30)', invoice?.subtotal, 60);

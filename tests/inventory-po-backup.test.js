@@ -48,7 +48,10 @@ async function run(){
   await page.selectOption('#po-supplier', supplierId);
   await page.fill('#po-items', 'IPB Part:15:10');
   await page.click('[data-action="save-po"]');
-  await page.waitForTimeout(800);
+  // PO creation awaits a real network round-trip (next_counter RPC for the
+  // PO-#### number) before landing in db.purchaseOrders — poll instead of
+  // guessing a fixed sleep covers that latency.
+  await page.waitForFunction(() => db.purchaseOrders.some(p=>p.items.some(it=>it.name==='IPB Part')), { timeout: 10000 }).catch(()=>{});
   const poId = await page.evaluate(() => db.purchaseOrders.find(p=>p.items.some(it=>it.name==='IPB Part'))?.id);
   r.checkTrue('purchase order created', !!poId);
   await waitForSyncIdle(page); // let this PO's own creation echo settle before receiving it
@@ -134,7 +137,7 @@ async function run(){
     await page.fill('#nj-new-plate', 'IPB 0002');
     await page.fill('#nj-desc', 'IPB post-restore job');
     await page.click('[data-action="create-job"]');
-    await page.waitForTimeout(800);
+    await page.waitForFunction(() => db.jobs.some(j=>j.description==='IPB post-restore job'), { timeout: 10000 }).catch(()=>{});
   }catch(e){ jobCreateError = e.message; }
   r.check('no Playwright-level error creating a job post-restore', jobCreateError, null);
   r.checkTrue('job actually created post-restore (proves db.branches[0] fallback worked)', await page.evaluate(() => db.jobs.some(j=>j.description==='IPB post-restore job')));
