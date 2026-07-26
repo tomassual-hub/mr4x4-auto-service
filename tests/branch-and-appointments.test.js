@@ -23,8 +23,11 @@ async function run(){
   await pageA.evaluate(() => {
     db.branches = db.branches.filter(b => b.name !== 'BA Branch');
     db.customers = db.customers.filter(c => c.name !== 'BA Customer');
+    db.vehicles = db.vehicles.filter(v => v.plate !== 'BA 0001');
+    db.jobs = db.jobs.filter(j => j.description !== 'BA branch job');
     db.appointments = db.appointments.filter(a => a.notes !== 'BA appt');
     db.contracts = db.contracts.filter(c => c.label !== 'BA Contract');
+    db.invoices = db.invoices.filter(inv => !(inv.items?.some(it=>it.name==='BA Service')));
     db.staff = db.staff.filter(s => s.email !== 'ba-staff@example.com');
     queueSave();
   });

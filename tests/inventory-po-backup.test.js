@@ -18,6 +18,9 @@ async function run(){
     db.suppliers = db.suppliers.filter(s => s.name !== 'IPB Test Supplier');
     db.inventory = db.inventory.filter(i => i.sku !== 'IPB-ITEM-1');
     db.purchaseOrders = db.purchaseOrders.filter(po => po.items.some(it=>it.name==='IPB Part'));
+    db.customers = db.customers.filter(c => c.name !== 'IPB Post-Restore Customer');
+    db.vehicles = db.vehicles.filter(v => v.plate !== 'IPB 0002');
+    db.jobs = db.jobs.filter(j => j.description !== 'IPB post-restore job');
     queueSave();
   });
   await page.waitForTimeout(1000);
