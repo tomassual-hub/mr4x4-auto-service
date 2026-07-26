@@ -55,3 +55,35 @@ Pelan percuma Sentry cukup untuk bengkel kecil (had bulanan yang munasabah
 untuk bilangan ralat). Kalau had itu dicapai, Sentry hanya berhenti terima
 ralat baharu sehingga bulan depan — app anda tetap berfungsi seperti biasa,
 cuma anda takkan dapat laporan ralat tambahan bulan tersebut.
+
+## 5. Sahkan Amaran E-mel Aktif
+
+Ralat muncul dalam dashboard Sentry tidak bermakna e-mel akan dihantar —
+dua tetapan berasingan perlu disemak. Ini penting: kalau tetapan ni tak
+aktif, ralat sebenar (macam insiden invois sebelum ini) hanya akan nampak
+kalau anda **secara aktif buka dashboard Sentry** untuk semak, bukan
+dimaklumkan secara automatik.
+
+**A. Tetapan peribadi (akaun anda)**
+1. Log masuk [sentry.io](https://sentry.io) → klik gambar profil (sudut
+   kanan atas) → **User Settings** (atau ikon gear kecil sebelah nama)
+2. Pergi ke tab **Notifications**
+3. Pastikan **Issue Alerts** / **Alerts** ditetapkan **On** (bukan "Off"
+   atau "Only on issues I'm assigned" — anda nak SEMUA ralat baharu, bukan
+   ralat yang ditugaskan khas kepada anda)
+
+**B. Tetapan projek (alert rule)**
+1. Buka projek `mr4x4-auto-service` di Sentry
+2. **Settings** (projek, bukan akaun) → **Alerts** → tab **Rules**
+3. Patut ada satu rule sedia-ada (Sentry cipta automatik bila projek
+   dibuat) — biasanya "Send a notification for new issues". Kalau **tiada**
+   rule langsung, cipta satu: **Create Alert Rule** → syarat "A new issue
+   is created" → tindakan "Send a notification to..." → pilih e-mel/ahli
+   projek → **Save**
+4. Pada rule tu ada butang **Send Test Notification** — tekan untuk uji
+   e-mel sampai betul-betul (semak juga folder **Spam/Junk** buat kali
+   pertama)
+
+Kalau kedua-dua di atas sudah **On**, lain kali ralat sebenar berlaku
+(seperti checkout gagal), e-mel patut sampai dalam beberapa minit tanpa
+perlu tunggu staf komplain dahulu.
