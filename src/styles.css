@@ -254,6 +254,16 @@ input,select,textarea{
   border-radius:var(--r-sm);padding:10px 13px;font-size:13.5px;font-family:'Inter',sans-serif;width:100%;
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
 }
+/* iOS Safari auto-zooms the whole page on focusing any input whose computed
+   font-size is under 16px — not just login, every input in the app (POS SKU
+   field, job forms, etc.) was triggering it on mobile. Must come AFTER the
+   base rule above: same selector specificity, and source order is what
+   decides the tie — placed inside an earlier media-query block higher up
+   the file, this exact rule silently lost to the one above instead of
+   overriding it. */
+@media screen and (max-width:880px){
+  input,select,textarea{font-size:16px;}
+}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3.5px var(--accent-soft);}
 label{font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600;display:block;margin-bottom:6px;}
 .field{margin-bottom:15px;}
