@@ -29,9 +29,14 @@ jobs:
           # Anon key here is the same one already shipped client-side in the
           # built HTML (see build/build.js) -- it's meant to be public;
           # Row Level Security is the real access boundary, not this key.
+          # Hitting a real table (not the bare /rest/v1/ root, which this
+          # Supabase project rejects for anon with 401 "Invalid API key" --
+          # that root path is restricted to the service_role key only) --
+          # RLS means this returns an empty/filtered [] for anon, and that's
+          # fine, a 200 here already proves the API + DB are up and talking.
           if ! curl -sf --max-time 15 -o /dev/null \
             -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmV2Z3RvaWdjdGVxZGlueXZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NDI1NzUsImV4cCI6MjEwMDQxODU3NX0.iT4voDPce2Ut3PpcOx9jz6jjCCEZ8Ozthu3vVTeykdU" \
-            "https://knvevgtoigcteqdinyvk.supabase.co/rest/v1/"; then
+            "https://knvevgtoigcteqdinyvk.supabase.co/rest/v1/customers?select=id&limit=1"; then
             FAIL="${FAIL}- Backend Supabase tidak dapat diakses (https://knvevgtoigcteqdinyvk.supabase.co)\n"
           fi
           if [ -n "$FAIL" ]; then
@@ -45,6 +50,7 @@ jobs:
         if: steps.healthcheck.outputs.status == 'down'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh label create uptime-alert --color D73A4A --description "Automated uptime check failure" --force
           EXISTING=$(gh issue list --label uptime-alert --state open --json number --jq '.[0].number')
@@ -60,6 +66,7 @@ jobs:
         if: steps.healthcheck.outputs.status == 'up'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           EXISTING=$(gh issue list --label uptime-alert --state open --json number --jq '.[0].number')
           if [ -n "$EXISTING" ]; then
