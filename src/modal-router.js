@@ -19,6 +19,8 @@ function renderModal(){
   else if(m.type==='new-po') inner = poModalHTML();
   else if(m.type==='inspection') inner = inspectionModalHTML(m.job);
   else if(m.type==='mfa-settings') inner = mfaSettingsModalHTML();
+  else if(m.type==='faceid-offer') inner = faceIdOfferModalHTML(m.email);
+  else if(m.type==='faceid-settings') inner = faceIdSettingsModalHTML();
   return `<div class="modal-overlay" data-action="overlay-close"><div class="modal" onclick="event.stopPropagation()">${inner}</div></div>`;
 }
 

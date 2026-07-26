@@ -426,6 +426,7 @@ async function handleAuthenticated(session){
     cacheOfflineSnapshot(session.user.id, staffMember, db);
     maybeAutoBackup(); // fire-and-forget — never delay login on this
     refreshMfaFactors(); // fire-and-forget — Settings' 2FA status shouldn't block login
+    maybeOfferFaceIdEnroll(session); // fire-and-forget — mobile-only Face ID quick-unlock offer
     render();
   }catch(e){
     reportError(e, 'Gagal muat data bengkel');
@@ -491,7 +492,20 @@ async function initApp(){
   render();
   try{
     const { data:{ session } } = await supabaseClient.auth.getSession();
-    if(session) await resolveSessionOrChallengeMfa(session);
+    if(session){
+      const enrolled = getFaceIdEnrollment();
+      // Only gate behind Face ID when the cached enrollment actually matches
+      // this session's account — otherwise (different staff logged in since,
+      // enrollment cleared, unsupported browser) just restore normally.
+      const shouldGate = enrolled && enrolled.email === session.user.email && await faceIdSupported();
+      if(shouldGate){
+        pendingFaceIdSession = session;
+        state.authMode = 'faceid-lock';
+        render();
+      } else {
+        await resolveSessionOrChallengeMfa(session);
+      }
+    }
   }catch(e){ reportError(e, 'Gagal semak sesi log masuk'); }
   supabaseClient.auth.onAuthStateChange((event)=>{
     if(event==='SIGNED_OUT'){

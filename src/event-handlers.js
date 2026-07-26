@@ -158,6 +158,7 @@ function attachHandlers(){
     supabaseClient.auth.signOut();
     unsubscribeRealtime();
     db = defaultDB();
+    clearFaceId(); // explicit logout = don't remember this device; re-offered on next login
     setState({currentStaff:null, view:'dashboard', authMode:'login', mfaChallenge:null});
   });
 
@@ -170,6 +171,25 @@ function attachHandlers(){
     await verifyMfaEnrollment(code);
     render();
   });
+  bindAllAction('open-faceid-settings', ()=>setState({modal:{type:'faceid-settings'}}));
+  bindAction('skip-faceid-enroll', ()=>{
+    localStorage.setItem('bk_faceid_dismissed', '1');
+    setState({modal:null});
+  });
+  bindAllAction('confirm-faceid-enroll', async el=>{
+    const email = el.dataset.email;
+    const ok = await enrollFaceId(email, state.currentStaff?state.currentStaff.name:'');
+    setState({modal:null});
+    showToast(ok ? tt('Face ID diaktifkan.') : tt('Gagal aktifkan Face ID.'));
+  });
+  bindAction('remove-faceid', ()=>{
+    askConfirm(state.language==='en'?'Turn off Face ID on this device?':'Matikan Face ID pada peranti ini?', ()=>{
+      clearFaceId();
+      setState({modal:null});
+      showToast(tt('Face ID dimatikan.'));
+    });
+  });
+
   bindAllAction('unenroll-mfa', el=>{
     askConfirm(state.language==='en'?'Remove 2FA from your account?':'Buang 2FA dari akaun anda?', async ()=>{
       await unenrollMfa(el.dataset.id);

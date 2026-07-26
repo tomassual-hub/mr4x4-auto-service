@@ -20,6 +20,23 @@ function renderLoginScreen(){
   const noticeBlock = state.loginNotice ? `<div style="font-size:12px;color:var(--success);margin-bottom:10px;">${state.loginNotice}</div>` : '';
   const mode = state.authMode || 'login';
 
+  if(mode==='faceid-lock'){
+    return `
+    <div class="login-screen">
+      <div class="login-box">
+        <div class="login-brand">${logoBlock}<div class="sub">${en?'Welcome back':'Selamat kembali'}</div></div>
+        <div class="panel" style="text-align:center;">
+          <div style="width:64px;height:64px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">${ICONS.faceid}</div>
+          ${errBlock}
+          <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="do-faceid-unlock">${en?'Unlock with Face ID':'Buka dengan Face ID'}</button>
+        </div>
+        <div style="text-align:center;margin-top:18px;">
+          <span class="clickable" data-action="faceid-use-password" style="font-size:12.5px;color:var(--text-muted);text-decoration:underline;">${en?'Use email & password instead':'Guna e-mel & kata laluan sebaliknya'}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
   if(mode==='mfa-challenge'){
     return `
     <div class="login-screen">
@@ -282,6 +299,30 @@ function attachLoginHandlers(){
   if(mfaCancelBtn) mfaCancelBtn.addEventListener('click', async ()=>{
     state.mfaChallenge = null;
     await supabaseClient.auth.signOut();
+    setAuthMode('login');
+  });
+
+  // ---- Face ID lock screen (session already cached — biometric is just the re-entry gate) ----
+  const faceIdBtn = document.querySelector('[data-action="do-faceid-unlock"]');
+  if(faceIdBtn) faceIdBtn.addEventListener('click', async ()=>{
+    state.loginError = '';
+    state.authBusy = true;
+    render();
+    const ok = await tryFaceIdUnlock();
+    if(!ok){
+      state.authBusy = false;
+      state.loginError = en ? 'Face ID failed or was cancelled. Try again, or use your password.' : 'Face ID gagal atau dibatalkan. Cuba lagi, atau guna kata laluan.';
+      render();
+      return;
+    }
+    const session = pendingFaceIdSession;
+    pendingFaceIdSession = null;
+    state.authMode = 'login';
+    await resolveSessionOrChallengeMfa(session);
+  });
+  const faceIdFallback = document.querySelector('[data-action="faceid-use-password"]');
+  if(faceIdFallback) faceIdFallback.addEventListener('click', ()=>{
+    pendingFaceIdSession = null;
     setAuthMode('login');
   });
 }

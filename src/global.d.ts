@@ -184,7 +184,7 @@ interface AppState {
   syncStatus: 'idle' | 'syncing' | 'error' | 'offline';
   offlineMode: boolean;
   authBusy: boolean;
-  authMode?: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa-challenge';
+  authMode?: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa-challenge' | 'faceid-lock';
   loginError?: string;
   loginNotice?: string;
   globalSearch: string;
@@ -300,6 +300,8 @@ declare function jobDetailModalHTML(j: Job): string;
 declare function newJobModalHTML(): string;
 declare function inspectionModalHTML(job: Job): string;
 declare function mfaSettingsModalHTML(): string;
+declare function faceIdOfferModalHTML(email: string): string;
+declare function faceIdSettingsModalHTML(): string;
 
 // ---- Setup / lifecycle ----
 declare function attachHandlers(): void;
@@ -309,6 +311,15 @@ declare function resetInactivityTimer(): void;
 declare function updateSyncIndicator(): void;
 declare function defaultDB(): DB;
 declare function handleAuthenticated(session: any): Promise<void>;
+declare function isMobileDevice(): boolean;
+declare function faceIdSupported(): Promise<boolean>;
+declare function faceIdSupportedSync(): boolean;
+declare function getFaceIdEnrollment(): { email: string; credentialId: string } | null;
+declare function enrollFaceId(email: string, displayName?: string): Promise<boolean>;
+declare function tryFaceIdUnlock(): Promise<boolean>;
+declare function clearFaceId(): void;
+declare function maybeOfferFaceIdEnroll(session: any): Promise<void>;
+declare let pendingFaceIdSession: any;
 declare function getOnboardingSteps(): any[];
 declare function finishOnboarding(): void;
 declare function checkOnboarding(): Promise<void>;
