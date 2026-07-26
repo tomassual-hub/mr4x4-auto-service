@@ -356,6 +356,40 @@ async function fetchAutoBackupData(id){
   return data.data;
 }
 
+// ---- 2FA (TOTP) self-service management — Settings → Keselamatan ----
+async function refreshMfaFactors(){
+  const { data, error } = await supabaseClient.auth.mfa.listFactors();
+  if(error){ reportError(error, 'Gagal semak status 2FA'); return; }
+  state.mfaFactors = data.totp; // only care about TOTP factors here
+  render();
+}
+async function startMfaEnrollment(){
+  const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp' });
+  if(error){ showToast(state.language==='en' ? 'Could not start 2FA setup.' : 'Gagal mulakan setup 2FA.'); return; }
+  state.mfaEnrollment = { factorId: data.id, qrSvg: data.totp.qr_code, secret: data.totp.secret };
+  render();
+}
+async function verifyMfaEnrollment(code){
+  if(!state.mfaEnrollment) return;
+  const { factorId } = state.mfaEnrollment;
+  const { data: challenge, error: challengeErr } = await supabaseClient.auth.mfa.challenge({ factorId });
+  if(challengeErr){ showToast(state.language==='en' ? 'Could not verify — try again.' : 'Gagal sahkan — cuba lagi.'); return; }
+  const { error: verifyErr } = await supabaseClient.auth.mfa.verify({ factorId, challengeId: challenge.id, code });
+  if(verifyErr){
+    showToast(state.language==='en' ? 'Incorrect code. Check your authenticator app and try again.' : 'Kod salah. Semak aplikasi authenticator anda dan cuba lagi.');
+    return;
+  }
+  state.mfaEnrollment = null;
+  await refreshMfaFactors();
+  showToast(state.language==='en' ? '2FA activated.' : '2FA diaktifkan.');
+}
+async function unenrollMfa(factorId){
+  const { error } = await supabaseClient.auth.mfa.unenroll({ factorId });
+  if(error){ showToast(state.language==='en' ? 'Could not remove 2FA.' : 'Gagal buang 2FA.'); return; }
+  await refreshMfaFactors();
+  showToast(state.language==='en' ? '2FA removed.' : '2FA dibuang.');
+}
+
 async function handleAuthenticated(session){
   state.authBusy = true; state.loginError=''; render();
   try{
@@ -391,6 +425,7 @@ async function handleAuthenticated(session){
     checkOnboarding();
     cacheOfflineSnapshot(session.user.id, staffMember, db);
     maybeAutoBackup(); // fire-and-forget — never delay login on this
+    refreshMfaFactors(); // fire-and-forget — Settings' 2FA status shouldn't block login
     render();
   }catch(e){
     reportError(e, 'Gagal muat data bengkel');
@@ -413,13 +448,50 @@ async function handleAuthenticated(session){
   }
 }
 
+// Gate between "password verified" and "actually let them in" for staff
+// who have TOTP 2FA enrolled. Used at every point a session can freshly
+// appear — login, password reset, and app-load session restore — since
+// skipping the check at any ONE of them would let a stolen password (with
+// no second factor) straight into the app via that path.
+async function resolveSessionOrChallengeMfa(session){
+  if(!session){ return; }
+  const { data: aal } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  if(aal && aal.nextLevel === 'aal2' && aal.currentLevel !== aal.nextLevel){
+    const { data: factors, error: listErr } = await supabaseClient.auth.mfa.listFactors();
+    const totpFactor = !listErr && factors ? factors.totp.find(f=>f.status==='verified') : null;
+    if(!totpFactor){
+      // Enrolled-but-unverified factor with no verified one — shouldn't
+      // normally happen (unenroll cleans this up), but don't lock the
+      // door with no key: fall through to a normal login instead.
+      await handleAuthenticated(session);
+      return;
+    }
+    const { data: challenge, error: challengeErr } = await supabaseClient.auth.mfa.challenge({ factorId: totpFactor.id });
+    if(challengeErr){
+      reportError(challengeErr, 'Gagal mulakan cabaran 2FA');
+      await supabaseClient.auth.signOut();
+      state.authBusy = false;
+      state.loginError = state.language==='en' ? 'Could not start 2FA check. Try logging in again.' : 'Gagal mulakan semakan 2FA. Cuba log masuk semula.';
+      render();
+      return;
+    }
+    state.authBusy = false;
+    state.mfaChallenge = { factorId: totpFactor.id, challengeId: challenge.id };
+    state.authMode = 'mfa-challenge';
+    state.loginError = '';
+    render();
+    return;
+  }
+  await handleAuthenticated(session);
+}
+
 async function initApp(){
   initErrorMonitoring();
   db = defaultDB();
   render();
   try{
     const { data:{ session } } = await supabaseClient.auth.getSession();
-    if(session) await handleAuthenticated(session);
+    if(session) await resolveSessionOrChallengeMfa(session);
   }catch(e){ reportError(e, 'Gagal semak sesi log masuk'); }
   supabaseClient.auth.onAuthStateChange((event)=>{
     if(event==='SIGNED_OUT'){

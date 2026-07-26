@@ -20,6 +20,24 @@ function renderLoginScreen(){
   const noticeBlock = state.loginNotice ? `<div style="font-size:12px;color:var(--success);margin-bottom:10px;">${state.loginNotice}</div>` : '';
   const mode = state.authMode || 'login';
 
+  if(mode==='mfa-challenge'){
+    return `
+    <div class="login-screen">
+      <div class="login-box">
+        <div class="login-brand">${logoBlock}<div class="sub">${en?'Two-Factor Verification':'Pengesahan Dua Faktor'}</div></div>
+        <div class="panel">
+          <p style="font-size:12.5px;color:var(--text-muted);margin-top:0;">${en?'Enter the 6-digit code from your authenticator app.':'Masukkan kod 6 digit dari aplikasi authenticator anda.'}</p>
+          <div class="field"><input id="mfa-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:6px;"></div>
+          ${errBlock}
+          <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="do-mfa-verify">${en?'Verify':'Sahkan'}</button>
+        </div>
+        <div style="text-align:center;margin-top:18px;">
+          <span class="clickable" data-action="mfa-cancel" style="font-size:12.5px;color:var(--text-muted);text-decoration:underline;">${en?'Back to log in':'Kembali ke log masuk'}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
   if(mode==='reset'){
     return `
     <div class="login-screen">
@@ -136,7 +154,7 @@ function attachLoginHandlers(){
       render();
       return;
     }
-    await handleAuthenticated(data.session);
+    await resolveSessionOrChallengeMfa(data.session);
   };
   const loginBtn = document.querySelector('[data-action="do-login"]');
   if(loginBtn) loginBtn.addEventListener('click', doLogin);
@@ -224,11 +242,48 @@ function attachLoginHandlers(){
       return;
     }
     state.authMode = 'login';
-    await handleAuthenticated(data.user ? { user: data.user } : (await supabaseClient.auth.getSession()).data.session);
+    const restoredSession = (await supabaseClient.auth.getSession()).data.session;
+    await resolveSessionOrChallengeMfa(restoredSession || (data.user ? { user: data.user } : null));
   };
   const resetBtn = document.querySelector('[data-action="do-reset-password"]');
   if(resetBtn) resetBtn.addEventListener('click', doResetPassword);
   bindEnter('reset-password', doResetPassword);
+
+  // ---- 2FA challenge (after password, before the app actually opens) ----
+  const doMfaVerify = async ()=>{
+    const code = (document.getElementById('mfa-code')||{}).value?.trim() || '';
+    if(!/^\d{6}$/.test(code)){
+      state.loginError = en ? 'Enter the 6-digit code.' : 'Masukkan kod 6 digit.';
+      render();
+      return;
+    }
+    if(!state.mfaChallenge){ setAuthMode('login'); return; }
+    state.loginError = ''; state.authBusy = true;
+    render();
+    const { error } = await supabaseClient.auth.mfa.verify({ factorId: state.mfaChallenge.factorId, challengeId: state.mfaChallenge.challengeId, code });
+    if(error){
+      state.authBusy = false;
+      state.loginError = en ? 'Incorrect or expired code. Try again.' : 'Kod salah atau tamat tempoh. Cuba lagi.';
+      // A used/expired challenge can't be retried — start a fresh one against the same factor.
+      const { data: fresh } = await supabaseClient.auth.mfa.challenge({ factorId: state.mfaChallenge.factorId });
+      if(fresh) state.mfaChallenge = { factorId: state.mfaChallenge.factorId, challengeId: fresh.id };
+      render();
+      return;
+    }
+    state.mfaChallenge = null;
+    state.authMode = 'login';
+    const { data:{ session } } = await supabaseClient.auth.getSession();
+    await handleAuthenticated(session);
+  };
+  const mfaBtn = document.querySelector('[data-action="do-mfa-verify"]');
+  if(mfaBtn) mfaBtn.addEventListener('click', doMfaVerify);
+  bindEnter('mfa-code', doMfaVerify);
+  const mfaCancelBtn = document.querySelector('[data-action="mfa-cancel"]');
+  if(mfaCancelBtn) mfaCancelBtn.addEventListener('click', async ()=>{
+    state.mfaChallenge = null;
+    await supabaseClient.auth.signOut();
+    setAuthMode('login');
+  });
 }
 
 /* ---------- CONFIRM MODAL ---------- */

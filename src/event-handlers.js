@@ -38,7 +38,10 @@ function attachHandlers(){
   document.querySelectorAll('[data-action="open-nav"]').forEach(el=>el.addEventListener('click', ()=>setState({navOpen:true})));
   document.querySelectorAll('[data-action="close-nav"]').forEach(el=>el.addEventListener('click', ()=>setState({navOpen:false})));
   bindAction('toggle-notif', ()=>setState({notifOpen: !state.notifOpen}));
-  document.querySelectorAll('[data-notif-nav]').forEach(el=>el.addEventListener('click', ()=>setState({view:el.dataset.notifNav, notifOpen:false})));
+  document.querySelectorAll('[data-notif-nav]').forEach(el=>el.addEventListener('click', ()=>{
+    if(el.dataset.notifNav==='mfa-settings'){ setState({modal:{type:'mfa-settings'}, notifOpen:false}); return; }
+    setState({view:el.dataset.notifNav, notifOpen:false});
+  }));
   const branchSel = document.getElementById('branch-selector');
   if(branchSel) branchSel.addEventListener('change', ()=>setState({currentBranch: branchSel.value}));
   bindAllAction('toggle-theme', ()=>{
@@ -155,7 +158,23 @@ function attachHandlers(){
     supabaseClient.auth.signOut();
     unsubscribeRealtime();
     db = defaultDB();
-    setState({currentStaff:null, view:'dashboard'});
+    setState({currentStaff:null, view:'dashboard', authMode:'login', mfaChallenge:null});
+  });
+
+  bindAllAction('open-mfa-settings', ()=>setState({modal:{type:'mfa-settings'}}));
+  bindAction('start-mfa-enroll', ()=>startMfaEnrollment());
+  bindAction('cancel-mfa-enroll', ()=>{ state.mfaEnrollment = null; setState({modal:null}); });
+  bindAction('confirm-mfa-enroll', async ()=>{
+    const code = document.getElementById('mfa-enroll-code').value.trim();
+    if(!/^\d{6}$/.test(code)){ showToast(tt('Masukkan kod 6 digit.')); return; }
+    await verifyMfaEnrollment(code);
+    render();
+  });
+  bindAllAction('unenroll-mfa', el=>{
+    askConfirm(state.language==='en'?'Remove 2FA from your account?':'Buang 2FA dari akaun anda?', async ()=>{
+      await unenrollMfa(el.dataset.id);
+      setState({modal:null});
+    });
   });
 
   bindAction('new-job', ()=>setState({modal:{type:'new-job'}}));

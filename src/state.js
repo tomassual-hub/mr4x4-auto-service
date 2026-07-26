@@ -40,6 +40,9 @@ let state = {
   jobsShowCount: 30,
   customersShowCount: 30,
   autoBackupsList: /** @type {{id:string, created_at:string}[]|null} */ (null),
+  mfaFactors: /** @type {{id:string, status:string}[]|null} */ (null),
+  mfaEnrollment: /** @type {{factorId:string, qrSvg:string, secret:string}|null} */ (null),
+  mfaChallenge: /** @type {{factorId:string, challengeId:string}|null} */ (null),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

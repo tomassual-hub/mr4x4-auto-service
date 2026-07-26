@@ -46,11 +46,59 @@ function renderSidebar(){
           <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
           <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
         </div>
+        <button class="btn-icon" data-action="open-mfa-settings" title="2FA">${ICONS.shield}</button>
         <button class="btn-icon" data-action="logout" title="${t('btn_logout')}" style="margin-left:auto;">${ICONS.logout}</button>
       </div>
     </div>
     <div class="sidebar-foot">${t('sidebar_foot')}</div>
   </div>`;
+}
+
+// Self-service 2FA (TOTP) management — reachable by EVERY staff member
+// (Mekanik included), unlike the rest of Settings which is Admin-only, so
+// this lives in its own modal rather than inside the Settings view.
+function mfaSettingsModalHTML(){
+  const en = state.language==='en';
+  const verifiedFactor = (state.mfaFactors||[]).find(f=>f.status==='verified');
+
+  if(state.mfaEnrollment){
+    const { qrSvg, secret } = state.mfaEnrollment;
+    return `
+      <h2>${ICONS.settings} ${en?'Set Up 2FA':'Sediakan 2FA'}</h2>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-top:0;">${en?'Scan this with Google Authenticator, Authy, or any TOTP app.':'Imbas ini dengan Google Authenticator, Authy, atau apa-apa aplikasi TOTP.'}</p>
+      <div style="background:#fff;padding:14px;border-radius:8px;width:fit-content;margin:0 auto 14px;"><img src="${esc(qrSvg)}" width="200" height="200" alt="QR 2FA"></div>
+      <p style="font-size:11px;color:var(--text-muted);text-align:center;word-break:break-all;">${en?'Or enter manually:':'Atau masukkan manual:'} <code>${esc(secret)}</code></p>
+      <div class="field"><label>${en?'6-digit code':'Kod 6 digit'}</label><input id="mfa-enroll-code" inputmode="numeric" maxlength="6" placeholder="000000" style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:6px;"></div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" data-action="cancel-mfa-enroll">${t('btn_cancel')}</button>
+        <button class="btn btn-primary" data-action="confirm-mfa-enroll">${en?'Activate':'Aktifkan'}</button>
+      </div>
+    `;
+  }
+
+  if(verifiedFactor){
+    return `
+      <h2>${ICONS.settings} ${en?'Two-Factor Authentication (2FA)':'Pengesahan Dua Faktor (2FA)'}</h2>
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(79,165,121,.12);border-radius:8px;padding:12px;margin-bottom:16px;">
+        <span style="color:var(--success);">${ICONS.done}</span>
+        <span style="font-size:13px;">${en?'2FA is active on your account.':'2FA aktif pada akaun anda.'}</span>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-muted);">${en?'If you lose your authenticator device, ask your shop Admin to remove 2FA for you via the Supabase dashboard.':'Jika anda kehilangan peranti authenticator, minta Admin bengkel buang 2FA untuk anda melalui dashboard Supabase.'}</p>
+      <div class="modal-foot">
+        <button class="btn btn-outline" data-action="close-modal">${t('btn_close')}</button>
+        <button class="btn btn-danger" data-action="unenroll-mfa" data-id="${verifiedFactor.id}">${en?'Remove 2FA':'Buang 2FA'}</button>
+      </div>
+    `;
+  }
+
+  return `
+    <h2>${ICONS.settings} ${en?'Two-Factor Authentication (2FA)':'Pengesahan Dua Faktor (2FA)'}</h2>
+    <p style="font-size:12.5px;color:var(--text-muted);margin-top:0;">${en?'Add an extra layer of security — after your password, you\'ll also need a code from an authenticator app to log in.':'Tambah satu lapisan keselamatan — selepas kata laluan, anda juga perlukan kod dari aplikasi authenticator untuk log masuk.'}</p>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_close')}</button>
+      <button class="btn btn-primary" data-action="start-mfa-enroll">${en?'Set Up 2FA':'Sediakan 2FA'}</button>
+    </div>
+  `;
 }
 
 function syncIndicatorClass(){
@@ -137,6 +185,7 @@ function renderTopbar(){
           <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
           <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
         </div>
+        <button class="btn-icon" data-action="open-mfa-settings" title="2FA">${ICONS.shield}</button>
         <button class="btn-icon" data-action="logout" title="${t('btn_logout')}">${ICONS.logout}</button>
       </div>
     </div>
@@ -173,6 +222,16 @@ function getNotifications(){
       label: !lastBackup ? (en?'No backup yet':'Belum pernah disandarkan') : (en?`Last backup ${daysSinceBackup} day(s) ago`:`Sandaran terakhir ${daysSinceBackup} hari lalu`),
       sub: en?'Download a backup from Settings to avoid losing data.':'Muat turun sandaran dari Tetapan untuk elak kehilangan data.',
       view:'settings', urgent: !lastBackup || daysSinceBackup>=14
+    });
+  }
+  const has2fa = (state.mfaFactors||[]).some(f=>f.status==='verified');
+  if(state.mfaFactors!==null && !has2fa){
+    const en = state.language==='en';
+    out.push({
+      tag: '2FA',
+      label: en?'2FA not set up':'2FA belum disediakan',
+      sub: en?'Add an extra layer of security to your account.':'Tambah satu lapisan keselamatan pada akaun anda.',
+      view:'mfa-settings', urgent:false
     });
   }
   return out;

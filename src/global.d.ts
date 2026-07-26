@@ -184,7 +184,7 @@ interface AppState {
   syncStatus: 'idle' | 'syncing' | 'error' | 'offline';
   offlineMode: boolean;
   authBusy: boolean;
-  authMode?: 'login' | 'signup' | 'forgot' | 'reset';
+  authMode?: 'login' | 'signup' | 'forgot' | 'reset' | 'mfa-challenge';
   loginError?: string;
   loginNotice?: string;
   globalSearch: string;
@@ -299,6 +299,7 @@ declare function poModalHTML(): string;
 declare function jobDetailModalHTML(j: Job): string;
 declare function newJobModalHTML(): string;
 declare function inspectionModalHTML(job: Job): string;
+declare function mfaSettingsModalHTML(): string;
 
 // ---- Setup / lifecycle ----
 declare function attachHandlers(): void;
