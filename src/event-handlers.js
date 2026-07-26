@@ -889,46 +889,62 @@ function attachHandlers(){
   });
   bindAction('checkout', async ()=>{
     if(state.posCart.length===0) return;
-    const payment = document.getElementById('pos-payment').value;
-    // deduct inventory
-    state.posCart.forEach(c=>{
-      if(c.refId){
-        const item = getItem(c.refId);
-        if(item) item.qty = Math.max(0, item.qty-c.qty);
+    // Everything here used to run with no try/catch — any unexpected throw
+    // (e.g. a malformed cart entry, a missing DOM element) died silently in
+    // the console with zero feedback: the button just looked unresponsive,
+    // no toast, no error, cart left untouched. Wrapping it means a real bug
+    // now surfaces (to the user AND to Sentry) instead of looking like
+    // nothing happened at all.
+    try{
+      const paymentEl = document.getElementById('pos-payment');
+      const payment = paymentEl ? paymentEl.value : 'Tunai';
+      // deduct inventory
+      state.posCart.forEach(c=>{
+        if(c.refId){
+          const item = getItem(c.refId);
+          if(item) item.qty = Math.max(0, item.qty-c.qty);
+        }
+      });
+      const subtotal = state.posCart.reduce((s,c)=>s+c.price*c.qty,0);
+      let discountAmt = 0;
+      if(state.posDiscountType==='percent') discountAmt = subtotal * (Number(state.posDiscountValue)||0) / 100;
+      else discountAmt = Number(state.posDiscountValue)||0;
+      discountAmt = Math.min(Math.max(discountAmt,0), subtotal);
+      const afterDiscount = subtotal - discountAmt;
+      const taxRate = Number(db.settings.taxRate)||0;
+      const taxAmt = afterDiscount * taxRate/100;
+      const total = afterDiscount + taxAmt;
+      const invoiceNo = await nextInvNo();
+      // db.branches is backfilled with a default on every login (see
+      // handleAuthenticated), but stay defensive here too rather than
+      // crash on db.branches[0].id if it's ever empty when this runs.
+      const fallbackBranchId = (db.branches && db.branches[0]) ? db.branches[0].id : 'main';
+      const invoice = {
+        id:uid(), invoiceNo, customerId:state.posCustomerId||null, vehicleId:state.posVehicleId||null,
+        jobId: state.posJobId||null, items:[...state.posCart], subtotal, discount:discountAmt, taxRate, tax:taxAmt, total, payment, createdAt:Date.now(),
+        createdBy: state.currentStaff ? state.currentStaff.name : '', branchId: state.currentBranch!=='all' ? state.currentBranch : fallbackBranchId
+      };
+      db.invoices.push(invoice);
+      logAudit('Jana Invois', invoice.invoiceNo+' — '+fmtRM(invoice.total));
+      if(state.posCustomerId){
+        const cust = getCustomer(state.posCustomerId);
+        if(cust){
+          cust.visits = (cust.visits||0)+1;
+          cust.loyaltyPoints = (cust.loyaltyPoints||0)+1;
+        }
       }
-    });
-    const subtotal = state.posCart.reduce((s,c)=>s+c.price*c.qty,0);
-    let discountAmt = 0;
-    if(state.posDiscountType==='percent') discountAmt = subtotal * (Number(state.posDiscountValue)||0) / 100;
-    else discountAmt = Number(state.posDiscountValue)||0;
-    discountAmt = Math.min(Math.max(discountAmt,0), subtotal);
-    const afterDiscount = subtotal - discountAmt;
-    const taxRate = Number(db.settings.taxRate)||0;
-    const taxAmt = afterDiscount * taxRate/100;
-    const total = afterDiscount + taxAmt;
-    const invoiceNo = await nextInvNo();
-    const invoice = {
-      id:uid(), invoiceNo, customerId:state.posCustomerId||null, vehicleId:state.posVehicleId||null,
-      jobId: state.posJobId||null, items:[...state.posCart], subtotal, discount:discountAmt, taxRate, tax:taxAmt, total, payment, createdAt:Date.now(),
-      createdBy: state.currentStaff ? state.currentStaff.name : '', branchId: state.currentBranch!=='all' ? state.currentBranch : db.branches[0].id
-    };
-    db.invoices.push(invoice);
-    logAudit('Jana Invois', invoice.invoiceNo+' — '+fmtRM(invoice.total));
-    if(state.posCustomerId){
-      const cust = getCustomer(state.posCustomerId);
-      if(cust){
-        cust.visits = (cust.visits||0)+1;
-        cust.loyaltyPoints = (cust.loyaltyPoints||0)+1;
+      if(state.posJobId){
+        const job = db.jobs.find(j=>j.id===state.posJobId);
+        if(job){ job.invoiced = true; job.status='delivered'; }
       }
+      queueSave();
+      state.posCart = []; state.posCustomerId=''; state.posVehicleId=''; state.posJobId=''; state.posDiscountValue=0; state.posDiscountType='flat';
+      render();
+      showToast(tt('Invois ')+invoice.invoiceNo+tt(' berjaya dijana!'));
+    }catch(e){
+      reportError(e, 'Checkout/jana invois gagal');
+      showToast(state.language==='en' ? 'Could not generate the invoice. Try again — if it keeps failing, tell your Admin.' : 'Gagal jana invois. Cuba lagi — kalau berterusan, maklumkan Admin.');
     }
-    if(state.posJobId){
-      const job = db.jobs.find(j=>j.id===state.posJobId);
-      if(job){ job.invoiced = true; job.status='delivered'; }
-    }
-    queueSave();
-    state.posCart = []; state.posCustomerId=''; state.posVehicleId=''; state.posJobId=''; state.posDiscountValue=0; state.posDiscountType='flat';
-    render();
-    showToast(tt('Invois ')+invoice.invoiceNo+tt(' berjaya dijana!'));
   });
 
   bindAllAction('print-invoice', el=>{
