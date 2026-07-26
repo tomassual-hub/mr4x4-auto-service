@@ -262,6 +262,8 @@ declare function unsubscribeRealtime(): void;
 declare function getNotifications(): { tag: string; label: string; sub: string; view: string; urgent: boolean }[];
 declare function bindAction(name: string, fn: (el?: HTMLElement) => void): void;
 declare function bindAllAction(name: string, fn: (el: HTMLElement) => void): void;
+declare function isCustomInteractiveElement(el: HTMLElement | null): boolean;
+declare function makeClickablesFocusable(): void;
 declare function initApp(): Promise<void>;
 
 // ---- View / modal HTML generators (each returns an HTML string) ----

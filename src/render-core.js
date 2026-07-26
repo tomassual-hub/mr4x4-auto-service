@@ -5,11 +5,13 @@ function render(){
   const root = document.getElementById('root');
   if(state.kioskMode){
     root.innerHTML = renderKioskScreen();
+    makeClickablesFocusable();
     attachKioskHandlers();
     return;
   }
   if(!state.currentStaff){
     root.innerHTML = renderLoginScreen();
+    makeClickablesFocusable();
     attachLoginHandlers();
     return;
   }
@@ -26,6 +28,7 @@ function render(){
     ${state.confirmAction ? renderConfirmModal() : ''}
     ${state.showOnboarding ? renderOnboarding() : ''}
   `;
+  makeClickablesFocusable();
   attachHandlers();
 }
 
