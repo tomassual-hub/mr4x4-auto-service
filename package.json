@@ -14,7 +14,7 @@
     "deploy": "node build/deploy.js"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.1",
     "playwright": "^1.48.0",
     "typescript": "^5.6.0"
   }
