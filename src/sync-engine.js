@@ -533,6 +533,21 @@ async function initApp(){
       }catch(e){ /* still offline or another issue — will retry on the next online event */ }
     }
   });
+  // Mobile browsers can fully suspend a backgrounded tab's timers/sockets
+  // (screen lock, switching to another app for a while) — the realtime
+  // WebSocket can end up silently dead, and its own reconnect logic was
+  // suspended right along with it, so it doesn't always self-heal promptly
+  // once the tab is foregrounded again. Force a fresh subscription on
+  // resume rather than trusting whatever state it's in; this only restores
+  // FUTURE live updates and deliberately does not re-fetch/replace `db`
+  // (a wholesale remote reload here risks the same class of bug as
+  // handleRemoteChange's old whole-array replacement — see modal-reference-identity).
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && state.currentStaff && !state.offlineMode){
+      unsubscribeRealtime();
+      subscribeRealtime();
+    }
+  });
 }
 
 function queueSave(){
