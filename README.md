@@ -57,8 +57,10 @@ ditimpa semula pada `npm run build` yang seterusnya. Edit fail dalam
 Kod ini disimpan di GitHub (`tomassual-hub/mr4x4-auto-service`, repo
 peribadi). Setiap `git push` men-trigger GitHub Actions
 (`.github/workflows/ci.yml`) yang jalankan typecheck + build + suite
-ujian penuh secara automatik terhadap akaun ujian pakai buang — bukan
-data kedai sebenar.
+ujian penuh secara automatik terhadap **projek Supabase berasingan
+sepenuhnya** khas untuk ujian (lihat `tests/README.md`) — bukan sekadar
+akaun pakai buang dalam pangkalan data sama, tapi pangkalan data yang
+lain sama sekali daripada data kedai sebenar.
 
 ## Ciri-Ciri Utama Sistem
 

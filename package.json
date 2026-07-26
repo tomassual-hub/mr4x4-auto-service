@@ -5,10 +5,11 @@
   "description": "Mr 4x4 Auto Service — workshop management PWA",
   "scripts": {
     "build": "node build/build.js",
+    "build:test": "node build/build-test.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node tests/run-all.js",
-    "test:xss": "node tests/xss-escaping.test.js",
-    "test:sync": "node tests/job-pos-invoice.test.js",
+    "test": "npm run build:test && node tests/run-all.js",
+    "test:xss": "npm run build:test && node tests/xss-escaping.test.js",
+    "test:sync": "npm run build:test && node tests/job-pos-invoice.test.js",
     "check": "npm run typecheck && npm run build && npm test",
     "deploy": "node build/deploy.js"
   },

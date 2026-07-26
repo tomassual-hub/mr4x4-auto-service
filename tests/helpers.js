@@ -1,14 +1,21 @@
-// Shared helpers for the Playwright regression suite. All tests log into the
-// same disposable Supabase test account (an Admin-role staff record created
-// specifically for automated testing — never use a real shop's account here)
-// and clean up every record they create before exiting.
+// Shared helpers for the Playwright regression suite. Every test here runs
+// against an isolated Supabase project (see build/build-test.js), never the
+// production one the live shop uses — `npm run build:test` produces the
+// exact HTML file appUrl() below points at. This isolation exists because a
+// bug in a test WILL touch whatever backend it's pointed at for real: a
+// restore-related bug earlier actually deleted the real shop's Admin staff
+// record before this separation existed.
 const path = require('path');
 
-const TEST_EMAIL = process.env.MR4X4_TEST_EMAIL || 'sync-test-mr4x4@example.com';
+// example.com is RFC 2606 reserved and gets rejected outright by Supabase's
+// email validator on this project (confirmed via direct signup attempts) —
+// mailinator.com is a real, deliverable domain so it passes validation; no
+// mail ever actually needs to be read there since email confirmation is off.
+const TEST_EMAIL = process.env.MR4X4_TEST_EMAIL || 'sync-test-mr4x4@mailinator.com';
 const TEST_PASSWORD = process.env.MR4X4_TEST_PASSWORD || 'SyncTest123!';
 
 function appUrl(){
-  const filePath = path.join(__dirname, '..', 'Mr 4x4 Auto Service-pwa', 'Mr 4x4 Auto Service.html');
+  const filePath = path.join(__dirname, '.test-build', 'Mr 4x4 Auto Service.html');
   return 'file:///' + filePath.replace(/\\/g, '/').replace(/ /g, '%20');
 }
 

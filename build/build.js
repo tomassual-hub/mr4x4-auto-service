@@ -11,9 +11,14 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const OUT_DIR = path.join(ROOT, 'Mr 4x4 Auto Service-pwa');
+// Overridable so `npm run build:test` can point a build at a throwaway
+// Supabase project + a separate output folder, without touching the real
+// production build at all. Defaults reproduce the exact previous behavior.
+const OUT_DIR = path.join(ROOT, process.env.BUILD_OUT_DIR || 'Mr 4x4 Auto Service-pwa');
 const OUT_HTML = path.join(OUT_DIR, 'Mr 4x4 Auto Service.html');
 const OUT_SW = path.join(OUT_DIR, 'service-worker.js');
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://knvevgtoigcteqdinyvk.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmV2Z3RvaWdjdGVxZGlueXZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NDI1NzUsImV4cCI6MjEwMDQxODU3NX0.iT4voDPce2Ut3PpcOx9jz6jjCCEZ8Ozthu3vVTeykdU';
 
 const FILE_ORDER = [
   'error-monitoring.js', // first: sync-engine.js and others call reportError()/identifyStaffForErrorMonitoring()
@@ -44,7 +49,12 @@ const FILE_ORDER = [
 
 function build(){
   const shell = JSON.parse(fs.readFileSync(path.join(__dirname, '_shell-pieces.json'), 'utf8'));
+  shell.supabaseCdnTag = shell.supabaseCdnTag
+    .replace('__SUPABASE_URL__', SUPABASE_URL)
+    .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_KEY);
   const css = fs.readFileSync(path.join(SRC, 'styles.css'), 'utf8');
+
+  fs.mkdirSync(OUT_DIR, { recursive: true });
 
   const jsParts = FILE_ORDER.map(name => {
     const filePath = path.join(SRC, name);

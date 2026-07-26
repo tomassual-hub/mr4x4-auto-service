@@ -1,9 +1,10 @@
 # Automated test suite
 
-Real browser (Playwright/Chromium) regression tests against the live Supabase
-backend. These are not unit tests — they log into a real (disposable) test
-account, exercise the actual UI, and assert on the resulting data and DOM,
-the same way every bug this project has ever caught was actually found.
+Real browser (Playwright/Chromium) regression tests against a **fully
+isolated** Supabase backend. These are not unit tests — they log into a real
+(disposable) test account, exercise the actual UI, and assert on the
+resulting data and DOM, the same way every bug this project has ever caught
+was actually found.
 
 ## Setup
 
@@ -15,24 +16,39 @@ npx playwright install chromium
 ## Running
 
 ```
-npm test                # run every test file
-node tests/xss-escaping.test.js   # run one file directly
+npm test                # builds against the test project, then runs every test file
+node tests/xss-escaping.test.js   # run one file directly (build:test first if you haven't)
 ```
 
 Each file exits with code 0 (pass) or 1 (fail), so `npm test` is CI-friendly.
 
-## The test account
+## The isolated test project
 
-Tests log into `sync-test-mr4x4@example.com`, a disposable Admin-role staff
-account created specifically for this purpose — **never point these tests at
-a real shop's account**, since some tests intentionally corrupt/restore data
-to exercise edge cases (e.g. `inventory-po-backup.test.js` restores a
-deliberately broken backup file).
+`npm test` first runs `npm run build:test`, which builds the app against a
+**separate Supabase project** (see `build/build-test.js`) — not the one the
+live shop uses — into `tests/.test-build/` (gitignored), and `appUrl()` in
+`helpers.js` always loads that file. This isolation is not theoretical: a
+restore-related bug earlier in this project's history actually deleted the
+real shop's Admin staff record when tests and production shared one backend.
+It's now structurally impossible for a test to touch real shop data, no
+matter what a test does.
 
-Override the account via env vars if you set up your own test account:
+Tests log into `sync-test-mr4x4@mailinator.com` on that isolated project — a
+disposable Admin-role account bootstrapped there specifically for this
+purpose (mailinator.com, not example.com, because Supabase's email validator
+rejects the RFC 2606 reserved example.com domain outright). Some tests
+intentionally corrupt/restore data to exercise edge cases (e.g.
+`inventory-po-backup.test.js` restores a deliberately broken backup file) —
+that's exactly the kind of thing this isolation protects against.
+
+Override the account via env vars if you set up your own:
 ```
 MR4X4_TEST_EMAIL=you@example.com MR4X4_TEST_PASSWORD=... npm test
 ```
+
+To point at yet another Supabase project (e.g. everyone runs their own),
+edit the `SUPABASE_URL`/`SUPABASE_ANON_KEY` in `build/build-test.js` and run
+`backend/schema.sql` there once via its SQL Editor.
 
 ## What's covered
 
