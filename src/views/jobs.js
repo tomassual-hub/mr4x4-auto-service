@@ -115,7 +115,7 @@ function jobDetailModalHTML(j){
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
         ${(j.photos||[]).map((p,idx)=>`
           <div style="position:relative;">
-            <img src="${p}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+            <img src="${p}" alt="${en?'Job photo':'Gambar kerja'} ${idx+1}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
             <button class="btn-icon" data-action="remove-photo" data-idx="${idx}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;padding:0;background:var(--danger);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">${ICONS.x}</button>
           </div>`).join('')}
       </div>
@@ -124,7 +124,7 @@ function jobDetailModalHTML(j){
     <div class="field">
       <label>${ICONS.edit} ${en?'Customer Signature (at vehicle handover)':'Tandatangan Pelanggan (semasa serah kereta)'}</label>
       ${j.signature ? `
-        <img src="${j.signature}" style="width:100%;max-width:280px;background:#fff;border-radius:6px;border:1px solid var(--border);display:block;">
+        <img src="${j.signature}" alt="${en?'Customer signature':'Tandatangan pelanggan'}" style="width:100%;max-width:280px;background:#fff;border-radius:6px;border:1px solid var(--border);display:block;">
         <button class="btn btn-outline btn-sm" style="margin-top:6px;" data-action="clear-signature" data-id="${j.id}">${en?'Delete & Sign Again':'Padam & Tandatangan Semula'}</button>
       ` : `
         <canvas id="sig-pad" width="280" height="120" style="background:#fff;border-radius:6px;border:1px solid var(--border);touch-action:none;cursor:crosshair;"></canvas>

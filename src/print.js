@@ -91,7 +91,7 @@ function printVehicleQR(v){
     <div class="print-invoice" style="text-align:center;">
       <h2>${esc(db.settings.shopName)}</h2>
       <div class="pi-sub">Label Kod QR Kenderaan</div>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(v.plate)}" width="180" height="180" style="margin:14px auto;display:block;">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(v.plate)}" width="180" height="180" alt="QR ${esc(v.plate)}" style="margin:14px auto;display:block;">
       <div style="font-size:20px;font-weight:700;letter-spacing:2px;">${esc(v.plate)}</div>
       <div style="font-size:12px;color:#666;margin-top:4px;">${esc(v.model||'')}</div>
     </div>
