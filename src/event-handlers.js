@@ -88,32 +88,42 @@ function attachHandlers(){
       return name ? {name, qty, cost} : null;
     }).filter(Boolean);
     if(items.length===0){ showToast(tt('Format item tidak sah (nama:kuantiti:kos).')); return; }
-    const poNo = await nextPoNo();
-    const po = {id:uid(), poNo, supplierId, items, status:'pending', createdAt:Date.now()};
-    db.purchaseOrders.push(po);
-    logAudit('Jana Pesanan Belian', po.poNo);
-    queueSave();
-    setState({modal:null});
-    showToast(tt('Pesanan belian ')+po.poNo+tt(' disimpan.'));
+    try{
+      const poNo = await nextPoNo();
+      const po = {id:uid(), poNo, supplierId, items, status:'pending', createdAt:Date.now()};
+      db.purchaseOrders.push(po);
+      logAudit('Jana Pesanan Belian', po.poNo);
+      queueSave();
+      setState({modal:null});
+      showToast(tt('Pesanan belian ')+po.poNo+tt(' disimpan.'));
+    }catch(e){
+      reportError(e, 'Simpan pesanan belian gagal');
+      showToast(state.language==='en' ? 'Could not save the purchase order. Try again.' : 'Gagal simpan pesanan belian. Cuba lagi.');
+    }
   });
   bindAction('auto-po', async ()=>{
     const lowItems = db.inventory.filter(i=>i.qty<=i.lowStock);
     if(lowItems.length===0) return;
-    const bySupplier = {};
-    lowItems.forEach(i=>{
-      const key = i.supplierId || 'none';
-      if(!bySupplier[key]) bySupplier[key] = [];
-      bySupplier[key].push({name:i.name, qty:Math.max(i.lowStock*2 - i.qty, i.lowStock), cost:i.cost});
-    });
-    for(const [supplierId, items] of Object.entries(bySupplier)){
-      const poNo = await nextPoNo();
-      const po = {id:uid(), poNo, supplierId: supplierId==='none'?null:supplierId, items, status:'pending', createdAt:Date.now()};
-      db.purchaseOrders.push(po);
+    try{
+      const bySupplier = {};
+      lowItems.forEach(i=>{
+        const key = i.supplierId || 'none';
+        if(!bySupplier[key]) bySupplier[key] = [];
+        bySupplier[key].push({name:i.name, qty:Math.max(i.lowStock*2 - i.qty, i.lowStock), cost:i.cost});
+      });
+      for(const [supplierId, items] of Object.entries(bySupplier)){
+        const poNo = await nextPoNo();
+        const po = {id:uid(), poNo, supplierId: supplierId==='none'?null:supplierId, items, status:'pending', createdAt:Date.now()};
+        db.purchaseOrders.push(po);
+      }
+      logAudit('Jana Pesanan Auto', lowItems.length+' item stok rendah');
+      queueSave();
+      render();
+      showToast(tt('Pesanan belian automatik dijana untuk ')+lowItems.length+tt(' item.'));
+    }catch(e){
+      reportError(e, 'Jana pesanan belian automatik gagal');
+      showToast(state.language==='en' ? 'Could not generate automatic purchase orders. Try again.' : 'Gagal jana pesanan belian automatik. Cuba lagi.');
     }
-    logAudit('Jana Pesanan Auto', lowItems.length+' item stok rendah');
-    queueSave();
-    render();
-    showToast(tt('Pesanan belian automatik dijana untuk ')+lowItems.length+tt(' item.'));
   });
   bindAllAction('receive-po', el=>{
     const po = db.purchaseOrders.find(p=>p.id===el.dataset.id);
@@ -314,25 +324,30 @@ function attachHandlers(){
     const commissionPercent = Number(document.getElementById('sf-commission').value)||0;
     if(!name){ showToast(tt('Sila masukkan nama staf.')); return; }
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showToast(state.language==='en'?'Enter a valid email.':'Masukkan e-mel yang sah.'); return; }
-    if(id){
-      const staffMember = db.staff.find(s=>s.id===id);
-      // Demoting the sole remaining Admin away from Admin is just as
-      // unrecoverable as deleting them outright (see delete-staff above).
-      if(staffMember.role==='Admin' && role!=='Admin' && db.staff.filter(s=>s.role==='Admin').length===1){
-        showToast(state.language==='en'
-          ? 'Cannot demote the last Admin — appoint another Admin first.'
-          : 'Tidak boleh menurunkan pangkat Admin terakhir. Lantik Admin lain dahulu.');
-        return;
+    try{
+      if(id){
+        const staffMember = db.staff.find(s=>s.id===id);
+        // Demoting the sole remaining Admin away from Admin is just as
+        // unrecoverable as deleting them outright (see delete-staff above).
+        if(staffMember.role==='Admin' && role!=='Admin' && db.staff.filter(s=>s.role==='Admin').length===1){
+          showToast(state.language==='en'
+            ? 'Cannot demote the last Admin — appoint another Admin first.'
+            : 'Tidak boleh menurunkan pangkat Admin terakhir. Lantik Admin lain dahulu.');
+          return;
+        }
+        Object.assign(staffMember, {name, role, email, commissionPercent});
+        logAudit('Sunting Staf', name+' ('+role+')');
+      } else {
+        db.staff.push({id:uid(), name, role, email, commissionPercent, userId:null});
+        logAudit('Tambah Staf', name+' ('+role+')');
       }
-      Object.assign(staffMember, {name, role, email, commissionPercent});
-      logAudit('Sunting Staf', name+' ('+role+')');
-    } else {
-      db.staff.push({id:uid(), name, role, email, commissionPercent, userId:null});
-      logAudit('Tambah Staf', name+' ('+role+')');
+      queueSave();
+      setState({modal:null});
+      showToast(tt('Staf disimpan.'));
+    }catch(e){
+      reportError(e, 'Simpan staf gagal');
+      showToast(state.language==='en' ? 'Could not save this staff member. Try again.' : 'Gagal simpan staf ini. Cuba lagi.');
     }
-    queueSave();
-    setState({modal:null});
-    showToast(tt('Staf disimpan.'));
   });
 
   // Appointment tabs
@@ -353,10 +368,15 @@ function attachHandlers(){
     const notes = document.getElementById('ap-notes').value.trim();
     if(!customerId){ showToast(tt('Sila pilih pelanggan.')); return; }
     if(!date || !time){ showToast(tt('Sila pilih tarikh dan masa.')); return; }
-    db.appointments.push({id:uid(), customerId, vehicleId, date, time, notes, status:'scheduled', createdAt:Date.now()});
-    queueSave();
-    setState({modal:null});
-    showToast(tt('Tempahan disimpan.'));
+    try{
+      db.appointments.push({id:uid(), customerId, vehicleId, date, time, notes, status:'scheduled', createdAt:Date.now()});
+      queueSave();
+      setState({modal:null});
+      showToast(tt('Tempahan disimpan.'));
+    }catch(e){
+      reportError(e, 'Simpan tempahan gagal');
+      showToast(state.language==='en' ? 'Could not save the appointment. Try again.' : 'Gagal simpan tempahan. Cuba lagi.');
+    }
   });
   bindAllAction('appt-done', el=>{
     const a = db.appointments.find(x=>x.id===el.dataset.id);
@@ -397,28 +417,38 @@ function attachHandlers(){
       return name ? {name, price, qty:1} : null;
     }).filter(Boolean);
     if(items.length===0){ showToast(tt('Sila masukkan sekurang-kurangnya satu item (format: nama:harga).')); return; }
-    db.contracts.push({id:uid(), label, customerId, vehicleId, items, frequencyDays:freq, nextDue:Date.now(), lastGenerated:null});
-    queueSave();
-    setState({modal:null});
-    showToast(tt('Kontrak servis disimpan.'));
+    try{
+      db.contracts.push({id:uid(), label, customerId, vehicleId, items, frequencyDays:freq, nextDue:Date.now(), lastGenerated:null});
+      queueSave();
+      setState({modal:null});
+      showToast(tt('Kontrak servis disimpan.'));
+    }catch(e){
+      reportError(e, 'Simpan kontrak servis gagal');
+      showToast(state.language==='en' ? 'Could not save the service contract. Try again.' : 'Gagal simpan kontrak servis. Cuba lagi.');
+    }
   });
   bindAllAction('generate-contract', async el=>{
     const ct = db.contracts.find(c=>c.id===el.dataset.id);
-    const subtotal = ct.items.reduce((s,i)=>s+i.price*i.qty,0);
-    const taxRate = Number(db.settings.taxRate)||0;
-    const taxAmt = subtotal*taxRate/100;
-    const invoiceNo = await nextInvNo();
-    const invoice = {
-      id:uid(), invoiceNo, customerId:ct.customerId, vehicleId:ct.vehicleId||null, jobId:null,
-      items:[...ct.items], subtotal, discount:0, taxRate, tax:taxAmt, total:subtotal+taxAmt, payment:'Kontrak',
-      createdAt:Date.now(), createdBy: state.currentStaff?state.currentStaff.name:''
-    };
-    db.invoices.push(invoice);
-    ct.lastGenerated = Date.now();
-    ct.nextDue = Date.now() + ct.frequencyDays*24*3600*1000;
-    queueSave();
-    render();
-    showToast(tt('Invois ')+invoice.invoiceNo+tt(' dijana daripada kontrak ')+ct.label+'.');
+    try{
+      const subtotal = ct.items.reduce((s,i)=>s+i.price*i.qty,0);
+      const taxRate = Number(db.settings.taxRate)||0;
+      const taxAmt = subtotal*taxRate/100;
+      const invoiceNo = await nextInvNo();
+      const invoice = {
+        id:uid(), invoiceNo, customerId:ct.customerId, vehicleId:ct.vehicleId||null, jobId:null,
+        items:[...ct.items], subtotal, discount:0, taxRate, tax:taxAmt, total:subtotal+taxAmt, payment:'Kontrak',
+        createdAt:Date.now(), createdBy: state.currentStaff?state.currentStaff.name:''
+      };
+      db.invoices.push(invoice);
+      ct.lastGenerated = Date.now();
+      ct.nextDue = Date.now() + ct.frequencyDays*24*3600*1000;
+      queueSave();
+      render();
+      showToast(tt('Invois ')+invoice.invoiceNo+tt(' dijana daripada kontrak ')+ct.label+'.');
+    }catch(e){
+      reportError(e, 'Jana invois daripada kontrak gagal');
+      showToast(state.language==='en' ? 'Could not generate the invoice from this contract. Try again.' : 'Gagal jana invois daripada kontrak ini. Cuba lagi.');
+    }
   });
   bindAllAction('delete-contract', el=>{
     askConfirm(tt('Padam kontrak servis ini?'), ()=>{
@@ -645,12 +675,21 @@ function attachHandlers(){
       db.vehicles.push({id:vehicleId, customerId, plate, model, color:''});
     }
 
-    const jobNo = await nextJobNo();
-    const job = {id:uid(), jobNo, customerId, vehicleId, description:desc, mechanic, status:'waiting', items:[], createdAt:Date.now(), invoiced:false, createdBy: state.currentStaff ? state.currentStaff.name : '', internalNote:'', doneAt:null, photos:[], branchId: state.currentBranch!=='all' ? state.currentBranch : db.branches[0].id};
-    db.jobs.push(job);
-    queueSave();
-    setState({modal:null, view:'jobs'});
-    showToast(tt('Kad kerja ')+job.jobNo+tt(' dicipta.'));
+    try{
+      const jobNo = await nextJobNo();
+      // db.branches is backfilled with a default on every login (see
+      // handleAuthenticated), but stay defensive here too rather than
+      // crash on db.branches[0].id if it's ever empty when this runs.
+      const fallbackBranchId = (db.branches && db.branches[0]) ? db.branches[0].id : 'main';
+      const job = {id:uid(), jobNo, customerId, vehicleId, description:desc, mechanic, status:'waiting', items:[], createdAt:Date.now(), invoiced:false, createdBy: state.currentStaff ? state.currentStaff.name : '', internalNote:'', doneAt:null, photos:[], branchId: state.currentBranch!=='all' ? state.currentBranch : fallbackBranchId};
+      db.jobs.push(job);
+      queueSave();
+      setState({modal:null, view:'jobs'});
+      showToast(tt('Kad kerja ')+job.jobNo+tt(' dicipta.'));
+    }catch(e){
+      reportError(e, 'Cipta kad kerja gagal');
+      showToast(state.language==='en' ? 'Could not create the job card. Try again.' : 'Gagal cipta kad kerja. Cuba lagi.');
+    }
   });
 
   const jobPhotoInput = document.getElementById('job-photo-input');
