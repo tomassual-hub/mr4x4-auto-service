@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    # These are all devDependencies (esbuild/playwright/typescript) — none
+    # of them ship to the deployed app, which is a single static HTML file
+    # with zero runtime npm dependencies. Low-risk to auto-update.
+    groups:
+      dev-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
