@@ -16,7 +16,7 @@ Mr 4x4 Auto Service/
 │   └── ... (lihat build/build.js untuk senarai penuh & susunan)
 ├── build/
 │   ├── build.js                ← `npm run build` cantumkan src/ semula jadi 1 fail HTML
-│   └── deploy.js                ← `npm run deploy` — build + hantar terus ke Netlify
+│   └── deploy.js                ← `npm run deploy` — build + hantar ke Netlify (backup manual, tak digunakan sekarang — lihat "Git & CI")
 ├── backend/
 │   ├── schema.sql               ← skema pangkalan data Supabase (jalankan di SQL Editor)
 │   ├── SETUP.md                 ← panduan setup backend (sekali sahaja)
@@ -44,7 +44,7 @@ npm run typecheck         # semak jenis data (tangkap silap sebelum jalan)
 npm run build              # cantumkan src/ jadi Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html
 npm test                   # jalankan suite ujian automatik (perlukan sambungan internet)
 npm run check               # buat kesemua 3 di atas sekali gus
-npm run deploy               # build + hantar terus ke Netlify (perlukan .env dengan NETLIFY_AUTH_TOKEN)
+npm run deploy               # backup manual ke Netlify (perlukan .env dengan NETLIFY_AUTH_TOKEN) — tak digunakan sekarang, lihat "Git & CI"
 ```
 
 **Jangan edit `Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html` atau
@@ -54,13 +54,23 @@ ditimpa semula pada `npm run build` yang seterusnya. Edit fail dalam
 
 ## Git & CI
 
-Kod ini disimpan di GitHub (`tomassual-hub/mr4x4-auto-service`, repo
-peribadi). Setiap `git push` men-trigger GitHub Actions
-(`.github/workflows/ci.yml`) yang jalankan typecheck + build + suite
-ujian penuh secara automatik terhadap **projek Supabase berasingan
-sepenuhnya** khas untuk ujian (lihat `tests/README.md`) — bukan sekadar
-akaun pakai buang dalam pangkalan data sama, tapi pangkalan data yang
-lain sama sekali daripada data kedai sebenar.
+Kod ini disimpan di GitHub (`tomassual-hub/mr4x4-auto-service`, **repo
+awam** — diperlukan untuk GitHub Pages percuma; tiada rahsia/kunci
+dalam kod, semua dalam `.env` yang tak pernah masuk Git). Setiap
+`git push` ke `master` men-trigger GitHub Actions
+(`.github/workflows/ci.yml`) yang:
+1. Jalankan typecheck + build + suite ujian penuh secara automatik
+   terhadap **projek Supabase berasingan sepenuhnya** khas untuk ujian
+   (lihat `tests/README.md`) — bukan sekadar akaun pakai buang dalam
+   pangkalan data sama, tapi pangkalan data yang lain sama sekali
+   daripada data kedai sebenar.
+2. Kalau semua ujian lulus, **deploy automatik ke GitHub Pages** —
+   laman live: **https://tomassual-hub.github.io/mr4x4-auto-service/**
+
+**Netlify** (`netlify.toml`, `npm run deploy`) adalah persediaan lama —
+dibiarkan terpasang sebagai pilihan sandaran (kalau kredit had percuma
+reset atau nak tambah bayaran), tapi **tidak digunakan sekarang**.
+Laman GitHub Pages di atas ialah yang sebenarnya live.
 
 ## Ciri-Ciri Utama Sistem
 
