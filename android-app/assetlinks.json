@@ -2,7 +2,7 @@
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
         "namespace": "android_app",
-        "package_name": "app.netlify.joyful_mochi_c1582a.twa",
-        "sha256_cert_fingerprints": ["2E:CB:5C:1C:6B:8C:DC:FB:13:CD:CC:5D:01:AD:06:21:37:D3:CD:F0:5E:8C:F4:4A:E9:F8:37:84:8B:FB:42:21"]
+        "package_name": "io.github.tomassual_hub.twa",
+        "sha256_cert_fingerprints": ["D1:50:85:98:E9:EF:81:11:E5:4C:DD:DB:1E:6D:24:B7:6A:1E:91:18:FF:B7:85:29:67:6C:3D:B8:94:18:38:EC"]
       }
     }]
