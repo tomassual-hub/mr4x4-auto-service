@@ -1,0 +1,26 @@
+[build]
+  publish = "Mr 4x4 Auto Service-pwa"
+
+# CSP still needs 'unsafe-inline' for script-src/style-src: the whole app is
+# one inline <script>/<style> block in a single static HTML file (see
+# build/build.js) with no nonce/hash infrastructure — that's a bigger
+# architecture change than a headers pass. What this DOES meaningfully buy:
+# script-src/connect-src are still restricted to known hosts, so even if a
+# future XSS bug slipped a script tag in, it can't load code from or exfiltrate
+# data to an arbitrary attacker-controlled domain — only Supabase, the
+# Supabase JS CDN, Google Fonts, and the QR service this app actually uses.
+#
+# Known cosmetic quirk: with this header present, 2 of the IBM Plex Mono
+# weight files occasionally fail to load (confirmed via document.fonts —
+# no CSP violation ever logs, and it reproduces with font-src wide open to
+# any https: host, so it isn't actually a policy block; removing this
+# header entirely is what makes it go away). Falls back cleanly to the
+# generic monospace font — cosmetic only, not investigated further.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.qrserver.com https://*.ingest.de.sentry.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
