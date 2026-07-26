@@ -1,0 +1,68 @@
+# Pings the live site + production Supabase backend every 20 minutes.
+# On failure, opens (or keeps open) a single GitHub Issue labelled
+# "uptime-alert" instead of e-mailing on every run — a multi-hour outage
+# would otherwise spam dozens of scheduled-workflow-failure e-mails, and
+# those emails depend on git commit-email <-> GitHub-account linking that
+# isn't reliable here. An Issue is visible on the repo regardless of that,
+# and auto-closes itself with a "back up" comment once a check passes again.
+name: Uptime Check
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check site and backend are reachable
+        id: healthcheck
+        run: |
+          FAIL=""
+          if ! curl -sf --max-time 15 -o /dev/null "https://tomassual-hub.github.io/mr4x4-auto-service/"; then
+            FAIL="${FAIL}- Laman GitHub Pages tidak dapat diakses (https://tomassual-hub.github.io/mr4x4-auto-service/)\n"
+          fi
+          # Anon key here is the same one already shipped client-side in the
+          # built HTML (see build/build.js) -- it's meant to be public;
+          # Row Level Security is the real access boundary, not this key.
+          if ! curl -sf --max-time 15 -o /dev/null \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmV2Z3RvaWdjdGVxZGlueXZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NDI1NzUsImV4cCI6MjEwMDQxODU3NX0.iT4voDPce2Ut3PpcOx9jz6jjCCEZ8Ozthu3vVTeykdU" \
+            "https://knvevgtoigcteqdinyvk.supabase.co/rest/v1/"; then
+            FAIL="${FAIL}- Backend Supabase tidak dapat diakses (https://knvevgtoigcteqdinyvk.supabase.co)\n"
+          fi
+          if [ -n "$FAIL" ]; then
+            echo "status=down" >> "$GITHUB_OUTPUT"
+            printf '%b' "$FAIL" > failure-details.txt
+          else
+            echo "status=up" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open alert issue if down (skip if one is already open)
+        if: steps.healthcheck.outputs.status == 'down'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create uptime-alert --color D73A4A --description "Automated uptime check failure" --force
+          EXISTING=$(gh issue list --label uptime-alert --state open --json number --jq '.[0].number')
+          if [ -z "$EXISTING" ]; then
+            DETAILS=$(cat failure-details.txt)
+            gh issue create \
+              --title "🔴 Sistem tak dapat diakses" \
+              --label uptime-alert \
+              --body "$(printf '%b\n\nDikesan automatik oleh uptime-check.yml pada %s UTC.' "$DETAILS" "$(date -u +'%Y-%m-%d %H:%M')")"
+          fi
+
+      - name: Close alert issue if back up
+        if: steps.healthcheck.outputs.status == 'up'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list --label uptime-alert --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "✅ Pulih semula — laman & backend boleh diakses semula."
+            gh issue close "$EXISTING"
+          fi
