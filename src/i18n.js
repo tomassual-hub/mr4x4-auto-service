@@ -208,6 +208,18 @@ const MS_EN = {
   'No. plat "':'Plate number "',
   '" sudah wujud dalam rekod (pemilik: ':'" already exists in records (owner: ',
   '). Tambah juga sebagai rekod berasingan?':'). Add as a separate record anyway?',
+  // Payroll nav/export, Face ID, backup errors, and 2 pre-existing gaps
+  // (Pesanan Belian Baharu, Baki) found via an audit for tt() calls with
+  // no English entry -- these silently stayed in Malay under EN mode.
+  'Gaji':'Payroll',
+  'Masukkan kod 6 digit.':'Enter the 6-digit code.',
+  'Face ID diaktifkan.':'Face ID activated.',
+  'Gagal aktifkan Face ID.':'Could not activate Face ID.',
+  'Face ID dimatikan.':'Face ID turned off.',
+  'Gagal muat senarai sandaran.':'Could not load backup list.',
+  'Gagal muat turun sandaran.':'Could not download backup.',
+  'Pesanan Belian Baharu':'New Purchase Order',
+  'Baki':'Remaining',
 };
 function tt(msText){ return state.language==='en' ? (MS_EN[msText]||msText) : msText; }
 

@@ -108,6 +108,12 @@ function renderLoginScreen(){
   return `
   <div class="login-screen">
     <div class="login-box">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+        <div class="theme-toggle" data-action="toggle-lang" title="Switch language">
+          <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
+          <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
+        </div>
+      </div>
       <div class="login-brand">
         ${logoBlock}
         <div class="sub">${t('login_title')}</div>
@@ -145,6 +151,11 @@ function attachLoginHandlers(){
   const en = state.language==='en';
   const kioskLink = document.querySelector('[data-action="open-kiosk"]');
   if(kioskLink) kioskLink.addEventListener('click', ()=>{ state.kioskMode=true; state.kioskQuery=''; state.kioskResult=null; render(); });
+  bindAllAction('toggle-lang', ()=>{
+    state.language = state.language==='ms' ? 'en' : 'ms';
+    render();
+    try{ window.storage.set('lang-pref', state.language, false); }catch(e){}
+  });
 
   document.querySelectorAll('[data-action="auth-mode-login"]').forEach(el=>el.addEventListener('click', ()=>setAuthMode('login')));
   document.querySelectorAll('[data-action="auth-mode-signup"]').forEach(el=>el.addEventListener('click', ()=>setAuthMode('signup')));
@@ -338,9 +349,17 @@ function attachLoginHandlers(){
    fields this screen needs (no customer name/phone, no pricing, no
    internal notes). */
 function renderKioskScreen(){
+  const en = state.language==='en';
   const result = state.kioskResult;
-  const statusLabel = {waiting:'Menunggu Giliran', progress:'Sedang Dikerjakan', done:'Siap, Sedia Diambil', delivered:'Telah Dihantar'};
-  const statusDesc = {
+  const statusLabel = en
+    ? {waiting:'Waiting in Queue', progress:'Being Worked On', done:'Ready for Pickup', delivered:'Delivered'}
+    : {waiting:'Menunggu Giliran', progress:'Sedang Dikerjakan', done:'Siap, Sedia Diambil', delivered:'Telah Dihantar'};
+  const statusDesc = en ? {
+    waiting:'Your vehicle has been registered and is waiting for a mechanic.',
+    progress:'Our mechanic is working on your vehicle right now.',
+    done:'The job is done! Your vehicle is ready to be picked up.',
+    delivered:'Vehicle has been delivered/picked up. Thank you for using our service.'
+  } : {
     waiting:'Kenderaan anda telah didaftarkan dan sedang menunggu giliran mekanik.',
     progress:'Mekanik kami sedang mengerjakan kenderaan anda sekarang.',
     done:'Kerja telah siap! Kenderaan anda sedia untuk diambil.',
@@ -349,16 +368,22 @@ function renderKioskScreen(){
   return `
   <div class="login-screen">
     <div class="login-box">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+        <div class="theme-toggle" data-action="toggle-lang" title="Switch language">
+          <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
+          <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
+        </div>
+      </div>
       <div class="login-brand">
         <div class="mark"><img src="${LOGO_DATA_URI}" alt="Mr 4x4 Auto Service" style="height:112px;width:auto;display:block;margin:0 auto;"></div>
-        <div class="sub">Semak Status Kenderaan</div>
+        <div class="sub">${en?'Check Vehicle Status':'Semak Status Kenderaan'}</div>
       </div>
       <div class="panel">
-        <div class="field"><label>No. Kad Kerja atau No. Plat</label>
-          <input id="kiosk-input" placeholder="cth: WS-0001 atau WXY 1234" value="${state.kioskQuery||''}">
+        <div class="field"><label>${en?'Job No. or Plate No.':'No. Kad Kerja atau No. Plat'}</label>
+          <input id="kiosk-input" placeholder="${en?'e.g. WS-0001 or WXY 1234':'cth: WS-0001 atau WXY 1234'}" value="${esc(state.kioskQuery||'')}">
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="kiosk-check" ${result==='loading'?'disabled':''}>${ICONS.search} ${result==='loading'?'Sedang semak…':'Semak Status'}</button>
-        ${result==='notfound' ? `<div class="empty" style="padding:20px 0 0;">Tiada rekod dijumpai. Sila semak semula no. kad kerja / plat.</div>` : ''}
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="kiosk-check" ${result==='loading'?'disabled':''}>${ICONS.search} ${result==='loading'?(en?'Checking…':'Sedang semak…'):(en?'Check Status':'Semak Status')}</button>
+        ${result==='notfound' ? `<div class="empty" style="padding:20px 0 0;">${en?'No record found. Please check the job/plate number again.':'Tiada rekod dijumpai. Sila semak semula no. kad kerja / plat.'}</div>` : ''}
         ${result && result!=='notfound' && result!=='loading' ? `
           <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border);">
             <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);">${esc(result.jobNo)}</div>
@@ -368,7 +393,7 @@ function renderKioskScreen(){
           </div>
           ${result.status==='delivered' ? renderKioskFeedback(result) : ''}` : ''}
         <div style="text-align:center;margin-top:18px;">
-          <span class="clickable" data-action="close-kiosk" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">← Kembali ke Log Masuk Staf</span>
+          <span class="clickable" data-action="close-kiosk" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">← ${en?'Back to Staff Log In':'Kembali ke Log Masuk Staf'}</span>
         </div>
       </div>
     </div>
@@ -376,26 +401,32 @@ function renderKioskScreen(){
 }
 
 function renderKioskFeedback(job){
+  const en = state.language==='en';
   if(job.rating){
     return `<div style="margin-top:14px;padding:12px;background:rgba(79,165,121,.12);border-radius:8px;text-align:center;">
       <div style="font-size:20px;">${'⭐'.repeat(job.rating)}</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Terima kasih atas maklum balas anda!</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${en?'Thank you for your feedback!':'Terima kasih atas maklum balas anda!'}</div>
     </div>`;
   }
   const rating = state.kioskRatingValue||0;
   return `
   <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);">
-    <label style="display:block;margin-bottom:8px;">Bagaimana perkhidmatan kami?</label>
+    <label style="display:block;margin-bottom:8px;">${en?'How was our service?':'Bagaimana perkhidmatan kami?'}</label>
     <div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;">
       ${[1,2,3,4,5].map(n=>`<span class="clickable" data-kiosk-star="${n}" style="font-size:26px;filter:${n<=rating?'none':'grayscale(1) opacity(0.4)'};">⭐</span>`).join('')}
     </div>
-    <textarea id="kiosk-feedback-text" rows="2" placeholder="Ulasan (pilihan)"></textarea>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" data-action="submit-feedback" data-id="${job.id}">Hantar Maklum Balas</button>
+    <textarea id="kiosk-feedback-text" rows="2" placeholder="${en?'Comments (optional)':'Ulasan (pilihan)'}"></textarea>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" data-action="submit-feedback" data-id="${job.id}">${en?'Send Feedback':'Hantar Maklum Balas'}</button>
   </div>`;
 }
 
 function attachKioskHandlers(){
   bindAction('close-kiosk', ()=>{ state.kioskMode=false; state.kioskQuery=''; state.kioskResult=null; state.kioskRatingValue=0; render(); });
+  bindAllAction('toggle-lang', ()=>{
+    state.language = state.language==='ms' ? 'en' : 'ms';
+    render();
+    try{ window.storage.set('lang-pref', state.language, false); }catch(e){}
+  });
   const doKioskCheck = async ()=>{
     const q = (document.getElementById('kiosk-input')||{}).value?.trim() || '';
     state.kioskQuery = q;
@@ -435,7 +466,7 @@ function attachKioskHandlers(){
       render();
     }catch(e){
       reportError(e, 'Hantar maklum balas kiosk gagal');
-      showToast('Gagal hantar maklum balas. Cuba lagi.');
+      showToast(state.language==='en' ? 'Could not send feedback. Try again.' : 'Gagal hantar maklum balas. Cuba lagi.');
     }
   });
 }
