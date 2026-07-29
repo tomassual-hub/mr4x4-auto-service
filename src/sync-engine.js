@@ -507,7 +507,7 @@ async function initApp(){
       }
     }
   }catch(e){ reportError(e, 'Gagal semak sesi log masuk'); }
-  supabaseClient.auth.onAuthStateChange((event, session)=>{
+  supabaseClient.auth.onAuthStateChange((event)=>{
     if(event==='SIGNED_OUT'){
       unsubscribeRealtime();
       db = defaultDB();
@@ -521,15 +521,6 @@ async function initApp(){
       state.authMode = 'reset';
       state.loginError = '';
       render();
-    }
-    // Google (or any future OAuth provider) redirects the whole page back
-    // here with the session already established by the time this fires —
-    // there's no explicit call site to hand it to, unlike the password
-    // login path (doLogin() already calls resolveSessionOrChallengeMfa()
-    // itself). Only handle non-'email' providers here so a password login's
-    // own SIGNED_IN event doesn't get processed twice.
-    if(event==='SIGNED_IN' && session && session.user?.app_metadata?.provider!=='email' && !state.currentStaff){
-      resolveSessionOrChallengeMfa(session);
     }
   });
   // Auto-recover once the browser regains connectivity, instead of
