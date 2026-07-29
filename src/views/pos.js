@@ -1,5 +1,9 @@
 /* ============================= POS VIEW ============================= */
 function viewPOS(){
+  // Invoice history and cash-closing totals are sales/revenue figures —
+  // Mekanik keeps full checkout ability (cart, current invoice total) but
+  // doesn't see the aggregate history or daily cash reconciliation.
+  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
   const cart = state.posCart;
   const subtotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
   let discountAmt = 0;
@@ -103,6 +107,7 @@ function viewPOS(){
     </div>
   </div>
 
+  ${isAdmin ? `
   <div class="panel" style="margin-top:20px;">
     <h2>${tt('Sejarah Invois')} <span class="tag">${db.invoices.length}</span></h2>
     ${db.invoices.length===0 ? emptyState(tt('Belum ada invois dikeluarkan.')) : `
@@ -152,7 +157,7 @@ function viewPOS(){
         <button class="btn btn-primary" data-action="close-cash">${tt('Tutup Kunci Hari Ini')}</button>
       `;
     })()}
-  </div>
+  </div>` : ''}
   `;
 }
 

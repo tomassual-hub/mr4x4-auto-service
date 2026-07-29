@@ -8,15 +8,19 @@ function viewDashboard(){
   const waitingJobs = db.jobs.filter(j=>j.status==='waiting');
   const lowStock = db.inventory.filter(i=>i.qty<=i.lowStock);
   const recentInvoices = [...db.invoices].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
+  // Sales figures (today's total, recent invoice amounts) are Admin-only —
+  // Mekanik still sees everything else (active jobs, stock, customer count).
+  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
 
   return `
-  <div class="grid grid-4" style="margin-bottom:22px;">
+  <div class="grid ${isAdmin?'grid-4':'grid-3'}" style="margin-bottom:22px;">
+    ${isAdmin ? `
     <div class="stat-card ok">
       <div class="stat-icon">${ICONS.pos}</div>
       <div class="stat-label">${t('stat_today_sales')}</div>
       <div class="stat-value">${fmtRM(todaySales)}</div>
       <div class="stat-sub">${todaysInvoices.length} invois dikeluarkan</div>
-    </div>
+    </div>` : ''}
     <div class="stat-card">
       <div class="stat-icon">${ICONS.jobs}</div>
       <div class="stat-label">${t('stat_active_jobs')}</div>
@@ -54,6 +58,7 @@ function viewDashboard(){
           </div>
           <span class="pill pill-low">${i.qty} ${tt('baki')}</span>
         </div>`).join('')}
+      ${isAdmin ? `
       <h2 style="margin-top:22px;">${tt('Invois Terkini')}</h2>
       ${recentInvoices.length===0 ? emptyState(tt('Belum ada invois.')) : recentInvoices.map(inv=>{
         const cust = getCustomer(inv.customerId);
@@ -61,7 +66,7 @@ function viewDashboard(){
           <span>${inv.invoiceNo} — ${cust?cust.name:tt('Walk-in')}</span>
           <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">${fmtRM(inv.total)}</span>
         </div>`;
-      }).join('')}
+      }).join('')}` : ''}
     </div>
   </div>
 
