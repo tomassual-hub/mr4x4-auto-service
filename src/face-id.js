@@ -71,7 +71,7 @@ async function enrollFaceId(email, displayName){
     const cred = await navigator.credentials.create({
       publicKey: {
         challenge,
-        rp: { name: 'Mr 4x4 Auto Service' },
+        rp: { name: 'ServisPro' },
         user: { id: userId, name: email, displayName: displayName || email },
         pubKeyCredParams: [{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
         authenticatorSelection: { authenticatorAttachment:'platform', userVerification:'required' },

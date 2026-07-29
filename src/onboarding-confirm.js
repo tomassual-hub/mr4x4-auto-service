@@ -1,7 +1,7 @@
 function getOnboardingSteps(){
   const en = state.language==='en';
   return [
-    {icon:ICONS.wrench, title: en?'Welcome to Mr 4x4 Auto Service!':'Selamat Datang ke Mr 4x4 Auto Service!',
+    {icon:ICONS.wrench, title: en?'Welcome to ServisPro!':'Selamat Datang ke ServisPro!',
       desc: en?'This quick tour shows the main parts of the system in under a minute.':'Tur ringkas ini tunjukkan bahagian utama sistem dalam masa kurang seminit.'},
     {icon:ICONS.jobs, title: en?'Job Cards':'Kad Kerja',
       desc: en?'Create a job card for every vehicle that comes in. Track its status from Waiting all the way to Delivered.':'Cipta kad kerja untuk setiap kenderaan yang masuk. Jejak statusnya dari Menunggu hingga Dihantar.'},
