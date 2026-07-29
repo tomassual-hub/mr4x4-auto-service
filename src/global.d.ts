@@ -171,6 +171,7 @@ interface ShopSettings {
   shopAddress: string;
   shopRegNo: string;
   shopSstNo: string;
+  shopTin: string;
   taxRate: number;
   loyaltyVisits: number;
   loyaltyDiscount: number;

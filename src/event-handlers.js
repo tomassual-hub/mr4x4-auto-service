@@ -519,6 +519,7 @@ function attachHandlers(){
     db.settings.shopAddress = document.getElementById('set-shopaddress').value.trim();
     db.settings.shopRegNo = document.getElementById('set-shopregno').value.trim();
     db.settings.shopSstNo = document.getElementById('set-shopsstno').value.trim();
+    db.settings.shopTin = document.getElementById('set-shoptin').value.trim();
     db.settings.taxRate = Number(document.getElementById('set-tax').value)||0;
     db.settings.loyaltyDiscount = Number(document.getElementById('set-loyalty-discount').value)||0;
     db.settings.loyaltyVisits = Number(document.getElementById('set-loyalty-visits').value)||5;

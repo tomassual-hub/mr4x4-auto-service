@@ -9,6 +9,12 @@ function printInvoice(inv){
   const c = getCustomer(inv.customerId);
   const v = getVehicle(inv.vehicleId);
   const s = db.settings;
+  const en = state.language==='en';
+  // Malaysian SST regulations require the document to be titled "Tax
+  // Invoice" specifically when service/sales tax is actually charged on
+  // it -- a plain "Invoice" is only correct when no SST applies (e.g. shop
+  // isn't SST-registered, or this particular sale is untaxed).
+  const docTitle = inv.tax>0 ? (en?'TAX INVOICE':'INVOIS CUKAI') : (en?'INVOICE':'INVOIS');
   const area = document.getElementById('print-area');
   area.innerHTML = `
     <div class="print-invoice">
@@ -18,14 +24,15 @@ function printInvoice(inv){
           ${s.shopAddress ? `<div class="pi-addr">${esc(s.shopAddress).replace(/\n/g,'<br>')}</div>` : ''}
           <div class="pi-addr">
             ${s.shopPhone ? esc(s.shopPhone) : ''}
-            ${s.shopRegNo ? (s.shopPhone?' &middot; ':'')+(state.language==='en'?'Reg. No: ':'No. Pendaftaran: ')+esc(s.shopRegNo) : ''}
-            ${s.shopSstNo ? '<br>'+(state.language==='en'?'SST No: ':'No. SST: ')+esc(s.shopSstNo) : ''}
+            ${s.shopRegNo ? (s.shopPhone?' &middot; ':'')+(en?'Reg. No: ':'No. Pendaftaran: ')+esc(s.shopRegNo) : ''}
+            ${s.shopSstNo ? '<br>'+(en?'SST No: ':'No. SST: ')+esc(s.shopSstNo) : ''}
+            ${s.shopTin ? (s.shopSstNo?' &middot; ':'<br>')+(en?'TIN: ':'No. TIN: ')+esc(s.shopTin) : ''}
           </div>
         </div>
         <div class="pi-doc-meta">
-          <div class="pi-doc-title">${state.language==='en'?'INVOICE':'INVOIS'}</div>
-          <div class="pi-row"><span>${state.language==='en'?'No.':'No. Invois'}</span><span>${esc(inv.invoiceNo)}</span></div>
-          <div class="pi-row"><span>${state.language==='en'?'Date':'Tarikh'}</span><span>${fmtDateTime(inv.createdAt)}</span></div>
+          <div class="pi-doc-title">${docTitle}</div>
+          <div class="pi-row"><span>${en?'No.':'No. Invois'}</span><span>${esc(inv.invoiceNo)}</span></div>
+          <div class="pi-row"><span>${en?'Date':'Tarikh'}</span><span>${fmtDateTime(inv.createdAt)}</span></div>
         </div>
       </div>
       <div class="pi-line"></div>

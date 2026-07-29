@@ -36,7 +36,7 @@ function defaultDB(){
     branches: [{id:'main', name:'Cawangan Utama'}],
     cashClosures: [],
     payrollRecords: [],
-    settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null },
+    settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null },
     counters: { job: 1, invoice: 1, po: 1 }
   };
 }

@@ -12,6 +12,7 @@ function viewSettings(){
         <div class="field"><label>${state.language==='en'?'SSM Reg. No.':'No. Pendaftaran SSM'}</label><input id="set-shopregno" value="${esc(s.shopRegNo||'')}" placeholder="cth: 202301012345 (678901-A)"></div>
         <div class="field"><label>${state.language==='en'?'SST Reg. No. (if any)':'No. Pendaftaran SST (jika ada)'}</label><input id="set-shopsstno" value="${esc(s.shopSstNo||'')}" placeholder="${state.language==='en'?'Leave blank if not registered':'Kosongkan jika tidak berdaftar'}"></div>
       </div>
+      <div class="field"><label>${state.language==='en'?'Tax ID (TIN)':'No. Pengenalan Cukai (TIN)'}</label><input id="set-shoptin" value="${esc(s.shopTin||'')}" placeholder="cth: IG12345678090"></div>
       <div class="field"><label>${tt('Kadar SST (%)')}</label><input id="set-tax" type="number" min="0" step="0.1" value="${s.taxRate||0}"></div>
       <div class="field-row">
         <div class="field"><label>${tt('Diskaun Setia (%)')}</label><input id="set-loyalty-discount" type="number" min="0" value="${s.loyaltyDiscount||10}"></div>
