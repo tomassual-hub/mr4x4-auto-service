@@ -197,6 +197,93 @@ begin
   alter table payroll_records replica identity full;
 end $$;
 
+-- kiosk_lookup_job(): anonymous-safe job status lookup by job number or
+-- plate, for a real customer checking status from their own phone (never
+-- logged in). Returns ONLY the minimal fields the public kiosk screen
+-- shows (see src/login-kiosk.js) -- no customer name/phone, no internal
+-- notes, no mechanic name, no pricing -- security definer so this one
+-- narrow read works despite jobs/vehicles requiring "authenticated" for
+-- everything else via RLS above.
+create or replace function kiosk_lookup_job(query text)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  rec record;
+begin
+  select j.id, j.data->>'jobNo' as job_no, j.data->>'status' as status,
+         j.data->'rating' as rating, j.data->>'feedback' as feedback,
+         v.data->>'plate' as plate, v.data->>'model' as model
+    into rec
+    from jobs j
+    left join vehicles v on v.id = j.data->>'vehicleId'
+    where lower(j.data->>'jobNo') = lower(query)
+    limit 1;
+
+  if not found then
+    select j.id, j.data->>'jobNo' as job_no, j.data->>'status' as status,
+           j.data->'rating' as rating, j.data->>'feedback' as feedback,
+           v.data->>'plate' as plate, v.data->>'model' as model
+      into rec
+      from jobs j
+      join vehicles v on v.id = j.data->>'vehicleId'
+      where replace(lower(v.data->>'plate'), ' ', '') = replace(lower(query), ' ', '')
+      order by j.updated_at desc
+      limit 1;
+  end if;
+
+  if not found then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'id', rec.id, 'jobNo', rec.job_no, 'status', rec.status,
+    'rating', rec.rating, 'feedback', rec.feedback,
+    'plate', rec.plate, 'model', rec.model
+  );
+end;
+$$;
+revoke execute on function kiosk_lookup_job(text) from public;
+grant execute on function kiosk_lookup_job(text) to anon;
+grant execute on function kiosk_lookup_job(text) to authenticated;
+
+-- kiosk_submit_feedback(): anonymous-safe write, narrowly scoped -- can
+-- only set rating+feedback on a job that's already 'delivered' and has no
+-- rating yet (no overwriting an existing rating, no touching any other
+-- field on any other row).
+create or replace function kiosk_submit_feedback(p_job_id text, p_rating int, p_feedback text)
+returns boolean
+language plpgsql
+security definer
+as $$
+declare
+  cur jsonb;
+begin
+  if p_rating < 1 or p_rating > 5 then
+    return false;
+  end if;
+
+  select data into cur from jobs where id = p_job_id and data->>'status' = 'delivered';
+  if not found then
+    return false;
+  end if;
+  if (cur ? 'rating') and cur->'rating' is not null then
+    return false;
+  end if;
+
+  update jobs
+    set data = data || jsonb_build_object('rating', p_rating, 'feedback', coalesce(p_feedback, '')),
+        updated_at = now()
+    where id = p_job_id;
+  return true;
+end;
+$$;
+revoke execute on function kiosk_submit_feedback(text, int, text) from public;
+grant execute on function kiosk_submit_feedback(text, int, text) to anon;
+grant execute on function kiosk_submit_feedback(text, int, text) to authenticated;
+
 -- claim_staff_record(): lets a newly signed-up user link themselves to an
 -- existing staff row by matching email (added by an Admin beforehand), or
 -- become the shop's first Admin if no staff records exist yet at all.

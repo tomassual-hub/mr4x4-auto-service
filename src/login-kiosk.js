@@ -144,7 +144,7 @@ function setAuthMode(mode){
 function attachLoginHandlers(){
   const en = state.language==='en';
   const kioskLink = document.querySelector('[data-action="open-kiosk"]');
-  if(kioskLink) kioskLink.addEventListener('click', ()=>{ state.kioskMode=true; state.kioskQuery=''; render(); });
+  if(kioskLink) kioskLink.addEventListener('click', ()=>{ state.kioskMode=true; state.kioskQuery=''; state.kioskResult=null; render(); });
 
   document.querySelectorAll('[data-action="auth-mode-login"]').forEach(el=>el.addEventListener('click', ()=>setAuthMode('login')));
   document.querySelectorAll('[data-action="auth-mode-signup"]').forEach(el=>el.addEventListener('click', ()=>setAuthMode('signup')));
@@ -328,16 +328,17 @@ function attachLoginHandlers(){
 }
 
 /* ---------- CONFIRM MODAL ---------- */
-/* ---------- KIOSK MODE (public status check, no login) ---------- */
+/* ---------- KIOSK MODE (public status check, no login) ----------
+   Looks up via the kiosk_lookup_job()/kiosk_submit_feedback() RPCs (see
+   backend/schema.sql) instead of reading db.jobs directly -- jobs/vehicles
+   require an authenticated session under normal RLS, so a real customer
+   opening this on their own phone (never logged in, db still empty) would
+   otherwise always see "no record found" even for a job that exists. The
+   RPCs are security-definer and deliberately return only the minimal
+   fields this screen needs (no customer name/phone, no pricing, no
+   internal notes). */
 function renderKioskScreen(){
-  const q = (state.kioskQuery||'').trim();
-  let result = null;
-  if(q){
-    const ql = q.toLowerCase();
-    const job = db.jobs.find(j=>j.jobNo.toLowerCase()===ql) ||
-      [...db.jobs].reverse().find(j=>{ const v=getVehicle(j.vehicleId); return v && v.plate.toLowerCase().replace(/\s/g,'')===ql.replace(/\s/g,''); });
-    result = job || 'notfound';
-  }
+  const result = state.kioskResult;
   const statusLabel = {waiting:'Menunggu Giliran', progress:'Sedang Dikerjakan', done:'Siap, Sedia Diambil', delivered:'Telah Dihantar'};
   const statusDesc = {
     waiting:'Kenderaan anda telah didaftarkan dan sedang menunggu giliran mekanik.',
@@ -356,19 +357,16 @@ function renderKioskScreen(){
         <div class="field"><label>No. Kad Kerja atau No. Plat</label>
           <input id="kiosk-input" placeholder="cth: WS-0001 atau WXY 1234" value="${state.kioskQuery||''}">
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="kiosk-check">${ICONS.search} Semak Status</button>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="kiosk-check" ${result==='loading'?'disabled':''}>${ICONS.search} ${result==='loading'?'Sedang semak…':'Semak Status'}</button>
         ${result==='notfound' ? `<div class="empty" style="padding:20px 0 0;">Tiada rekod dijumpai. Sila semak semula no. kad kerja / plat.</div>` : ''}
-        ${result && result!=='notfound' ? (()=>{
-          const v = getVehicle(result.vehicleId);
-          return `
+        ${result && result!=='notfound' && result!=='loading' ? `
           <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border);">
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);">${result.jobNo}</div>
-            <div style="font-size:16px;font-weight:700;margin:4px 0;">${v?v.plate:'-'} ${v?'· '+v.model:''}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);">${esc(result.jobNo)}</div>
+            <div style="font-size:16px;font-weight:700;margin:4px 0;">${esc(result.plate||'-')} ${result.model?'· '+esc(result.model):''}</div>
             <span class="pill pill-${result.status==='waiting'?'wait':result.status}">${statusLabel[result.status]}</span>
             <p style="font-size:12.5px;color:var(--text-muted);margin-top:12px;">${statusDesc[result.status]}</p>
           </div>
-          ${result.status==='delivered' ? renderKioskFeedback(result) : ''}`;
-        })() : ''}
+          ${result.status==='delivered' ? renderKioskFeedback(result) : ''}` : ''}
         <div style="text-align:center;margin-top:18px;">
           <span class="clickable" data-action="close-kiosk" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">← Kembali ke Log Masuk Staf</span>
         </div>
@@ -397,27 +395,48 @@ function renderKioskFeedback(job){
 }
 
 function attachKioskHandlers(){
-  bindAction('close-kiosk', ()=>{ state.kioskMode=false; state.kioskQuery=''; state.kioskRatingValue=0; render(); });
-  bindAction('kiosk-check', ()=>{
-    state.kioskQuery = document.getElementById('kiosk-input').value;
+  bindAction('close-kiosk', ()=>{ state.kioskMode=false; state.kioskQuery=''; state.kioskResult=null; state.kioskRatingValue=0; render(); });
+  const doKioskCheck = async ()=>{
+    const q = (document.getElementById('kiosk-input')||{}).value?.trim() || '';
+    state.kioskQuery = q;
+    if(!q){ state.kioskResult = null; render(); return; }
+    state.kioskResult = 'loading';
     render();
-  });
+    try{
+      const { data, error } = await supabaseClient.rpc('kiosk_lookup_job', { query: q });
+      if(error) throw error;
+      state.kioskResult = data || 'notfound';
+    }catch(e){
+      reportError(e, 'Semak status kiosk gagal');
+      state.kioskResult = 'notfound';
+    }
+    render();
+    focusEnd('kiosk-input');
+  };
+  bindAction('kiosk-check', doKioskCheck);
   const kInput = document.getElementById('kiosk-input');
-  if(kInput) kInput.addEventListener('keydown', (e)=>{
-    if(e.key==='Enter'){ state.kioskQuery = kInput.value; render(); }
-  });
+  if(kInput) kInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doKioskCheck(); });
   document.querySelectorAll('[data-kiosk-star]').forEach(el=>el.addEventListener('click', ()=>{
     state.kioskRatingValue = Number(el.dataset.kioskStar);
     render();
   }));
-  bindAllAction('submit-feedback', el=>{
-    const job = db.jobs.find(j=>j.id===el.dataset.id);
-    if(!job || !state.kioskRatingValue) return;
-    job.rating = state.kioskRatingValue;
-    job.feedback = document.getElementById('kiosk-feedback-text').value.trim();
-    queueSave();
-    state.kioskRatingValue = 0;
-    render();
+  bindAllAction('submit-feedback', async el=>{
+    if(!state.kioskRatingValue) return;
+    const jobId = el.dataset.id;
+    const feedback = (document.getElementById('kiosk-feedback-text')||{}).value?.trim() || '';
+    const rating = state.kioskRatingValue;
+    try{
+      const { data: ok, error } = await supabaseClient.rpc('kiosk_submit_feedback', { p_job_id: jobId, p_rating: rating, p_feedback: feedback });
+      if(error) throw error;
+      if(ok && state.kioskResult && state.kioskResult.id===jobId){
+        state.kioskResult = { ...state.kioskResult, rating, feedback };
+      }
+      state.kioskRatingValue = 0;
+      render();
+    }catch(e){
+      reportError(e, 'Hantar maklum balas kiosk gagal');
+      showToast('Gagal hantar maklum balas. Cuba lagi.');
+    }
   });
 }
 

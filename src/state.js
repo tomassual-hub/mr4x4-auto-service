@@ -28,6 +28,10 @@ let state = {
   apptTab: 'appointments',
   kioskMode: false,
   kioskQuery: '',
+  // null = no search yet, 'loading' = RPC in flight, 'notfound' = searched
+  // with no match, or the {id,jobNo,status,plate,model,rating,feedback}
+  // object from kiosk_lookup_job() -- see attachKioskHandlers().
+  kioskResult: /** @type {'loading'|'notfound'|{id:string,jobNo:string,status:string,plate:string,model:string,rating:number|null,feedback:string}|null} */ (null),
   currentBranch: 'all',
   notifOpen: false,
   lastDeleted: null,
