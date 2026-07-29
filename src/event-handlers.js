@@ -678,6 +678,13 @@ function attachHandlers(){
       const desc = 'Jualan - '+(c?c.name:'Walk-in')+' ('+inv.items.map(it=>it.name).join('; ')+')';
       return [localDateStr(new Date(inv.createdAt)), inv.invoiceNo, desc, 0, inv.total, inv.tax||0];
     })));
+  bindAction('export-csv-payroll', ()=>downloadCSV('rekod-gaji.csv',
+    ['Staf','Bulan','Gaji Pokok','Komisen %','Komisen','Jumlah Kasar','KWSP','PERKESO','EIS','PCB','Potongan Lain','Gaji Bersih','Tarikh Bayar','Dibayar Oleh'],
+    [...db.payrollRecords].sort((a,b)=>a.paidAt-b.paidAt).map(r=>[
+      r.staffName, r.month, r.baseSalary, r.commissionPct, r.commission, r.total,
+      r.epf||0, r.socso||0, r.eis||0, r.pcb||0, r.otherDeductions||0, r.netPay!==undefined?r.netPay:r.total,
+      localDateStr(new Date(r.paidAt)), r.paidBy
+    ])));
 
   // new customer / vehicle inline in job modal
   const njCustomer = document.getElementById('nj-customer');

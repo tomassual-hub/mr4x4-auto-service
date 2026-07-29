@@ -102,6 +102,7 @@ function viewSettings(){
           <button class="btn btn-outline btn-sm" data-action="export-csv-inventory">${tt('Inventori')}</button>
           <button class="btn btn-outline btn-sm" data-action="export-csv-customers">${tt('Pelanggan')}</button>
           <button class="btn btn-outline btn-sm" data-action="export-csv-accounting">${tt('Format Perakaunan')}</button>
+          <button class="btn btn-outline btn-sm" data-action="export-csv-payroll">${tt('Gaji')}</button>
         </div>
       </div>
     </div>
