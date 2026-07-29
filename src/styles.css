@@ -23,6 +23,7 @@
   --shadow: rgba(0,0,0,.5);
   --backdrop: rgba(6,7,9,.7);
   --accent-shadow: rgba(242,167,59,.32);
+  --logo-tint: var(--accent);
   /* Glass surfaces: translucent + blurred instead of flat solid fills.
      Kept as their own token tier (glass-1/2/3) rather than repurposing
      --panel/--panel-alt, so anything that must stay legible/solid (paper
@@ -67,6 +68,7 @@ html[data-theme="light"]{
   --shadow: rgba(40,32,18,.13);
   --backdrop: rgba(30,26,18,.45);
   --accent-shadow: rgba(214,130,31,.20);
+  --logo-tint: var(--text);
   --glass-1: rgba(255,255,255,.5);
   --glass-2: rgba(255,255,255,.4);
   --glass-sidebar: rgba(255,255,255,.46);
