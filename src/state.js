@@ -43,6 +43,7 @@ let state = {
   mfaFactors: /** @type {{id:string, status:string}[]|null} */ (null),
   mfaEnrollment: /** @type {{factorId:string, qrSvg:string, secret:string}|null} */ (null),
   mfaChallenge: /** @type {{factorId:string, challengeId:string}|null} */ (null),
+  payrollMonth: /** @type {string|null} */ (null),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

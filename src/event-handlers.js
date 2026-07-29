@@ -322,6 +322,7 @@ function attachHandlers(){
     const role = document.getElementById('sf-role').value;
     const email = document.getElementById('sf-email').value.trim();
     const commissionPercent = Number(document.getElementById('sf-commission').value)||0;
+    const baseSalary = Number(document.getElementById('sf-basesalary').value)||0;
     if(!name){ showToast(tt('Sila masukkan nama staf.')); return; }
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showToast(state.language==='en'?'Enter a valid email.':'Masukkan e-mel yang sah.'); return; }
     try{
@@ -335,10 +336,10 @@ function attachHandlers(){
             : 'Tidak boleh menurunkan pangkat Admin terakhir. Lantik Admin lain dahulu.');
           return;
         }
-        Object.assign(staffMember, {name, role, email, commissionPercent});
+        Object.assign(staffMember, {name, role, email, commissionPercent, baseSalary});
         logAudit('Sunting Staf', name+' ('+role+')');
       } else {
-        db.staff.push({id:uid(), name, role, email, commissionPercent, userId:null});
+        db.staff.push({id:uid(), name, role, email, commissionPercent, baseSalary, userId:null});
         logAudit('Tambah Staf', name+' ('+role+')');
       }
       queueSave();
@@ -348,6 +349,57 @@ function attachHandlers(){
       reportError(e, 'Simpan staf gagal');
       showToast(state.language==='en' ? 'Could not save this staff member. Try again.' : 'Gagal simpan staf ini. Cuba lagi.');
     }
+  });
+
+  // Payroll
+  bindAction('payroll-prev-month', ()=>{
+    setState({ payrollMonth: shiftMonth(state.payrollMonth || currentMonthStr(), -1) });
+  });
+  bindAction('payroll-next-month', ()=>{
+    const cur = state.payrollMonth || currentMonthStr();
+    if(cur === currentMonthStr()) return; // guards the disabled button being clicked via keyboard/devtools
+    setState({ payrollMonth: shiftMonth(cur, 1) });
+  });
+  bindAllAction('mark-payroll-paid', el=>{
+    const staffMember = db.staff.find(s=>s.id===el.dataset.staffid);
+    if(!staffMember) return;
+    const month = state.payrollMonth || currentMonthStr();
+    const pay = computeMonthlyPay(staffMember, month);
+    const en = state.language==='en';
+    askConfirm(
+      en
+        ? `Mark ${staffMember.name}'s pay for ${monthLabel(month)} (${fmtRM(pay.total)}) as paid? This only records it — make sure the actual payment has already been made.`
+        : `Tandakan gaji ${staffMember.name} untuk ${monthLabel(month)} (${fmtRM(pay.total)}) sebagai dibayar? Ini cuma rekod — pastikan bayaran sebenar dah dibuat.`,
+      ()=>{
+        try{
+          db.payrollRecords.push({
+            id: uid(), staffId: staffMember.id, staffName: staffMember.name, month,
+            baseSalary: pay.baseSalary, commissionRevenue: pay.commissionRevenue, commissionPct: pay.commissionPct,
+            commission: pay.commission, total: pay.total, paidAt: Date.now(),
+            paidBy: state.currentStaff ? state.currentStaff.name : '', notes: ''
+          });
+          logAudit('Bayaran Gaji', staffMember.name+' — '+monthLabel(month)+' — '+fmtRM(pay.total));
+          queueSave();
+          render();
+          showToast(en ? 'Payment recorded.' : 'Bayaran direkodkan.');
+        }catch(e){
+          reportError(e, 'Rekod bayaran gaji gagal');
+          showToast(en ? 'Could not record this payment. Try again.' : 'Gagal rekod bayaran ini. Cuba lagi.');
+        }
+      }
+    );
+  });
+  bindAllAction('undo-payroll-payment', el=>{
+    const record = db.payrollRecords.find(r=>r.id===el.dataset.id);
+    if(!record) return;
+    const en = state.language==='en';
+    askConfirm(en ? 'Undo this payment record?' : 'Batalkan rekod bayaran ini?', ()=>{
+      db.payrollRecords = db.payrollRecords.filter(r=>r.id!==record.id);
+      logAudit('Batal Bayaran Gaji', record.staffName+' — '+monthLabel(record.month));
+      queueSave();
+      render();
+      showToast(en ? 'Payment record removed.' : 'Rekod bayaran dibuang.');
+    });
   });
 
   // Appointment tabs

@@ -95,6 +95,7 @@ interface Staff {
   role: 'Admin' | 'Mekanik' | 'Ketua Mekanik';
   email?: string;
   commissionPercent?: number;
+  baseSalary?: number;
   userId?: string | null;
 }
 
@@ -136,6 +137,25 @@ interface AuditLogEntry { id: string; ts: number; staff: string; action: string;
 interface Branch { id: string; name: string; }
 interface CashClosure { id: string; date: string; expected: number; actual: number; closedBy: string; closedAt: number; }
 
+// A record that a given staff member's pay for a given calendar month was
+// marked paid. This is a ledger entry only -- no money actually moves
+// through the app (same as POS "payment method" or the DuitNow QR: real
+// funds move outside the system, this just records that it happened).
+interface PayrollRecord {
+  id: string;
+  staffId: string;
+  staffName: string; // snapshotted at payment time -- survives the staff record being renamed/deleted later
+  month: string; // "YYYY-MM"
+  baseSalary: number;
+  commissionRevenue: number;
+  commissionPct: number;
+  commission: number;
+  total: number;
+  paidAt: number;
+  paidBy: string;
+  notes?: string;
+}
+
 interface ShopSettings {
   shopName: string;
   shopPhone: string;
@@ -167,6 +187,7 @@ interface DB {
   auditLog: AuditLogEntry[];
   branches: Branch[];
   cashClosures: CashClosure[];
+  payrollRecords: PayrollRecord[];
   settings: ShopSettings;
   counters: Counters;
 }
@@ -196,6 +217,7 @@ interface AppState {
   posDiscountType?: 'flat' | 'percent';
   posDiscountValue?: number;
   reportRange: number;
+  payrollMonth?: string | null; // "YYYY-MM"
   invTab?: string;
   invMainTab?: string;
   jobFilter?: string;
@@ -273,6 +295,11 @@ declare function viewPOS(): string;
 declare function viewInventory(): string;
 declare function viewCustomers(): string;
 declare function viewReports(): string;
+declare function viewPayroll(): string;
+declare function computeMonthlyPay(staffMember: Staff, month: string): { baseSalary: number; commissionRevenue: number; commissionPct: number; commission: number; total: number };
+declare function currentMonthStr(): string;
+declare function monthLabel(monthStr: string): string;
+declare function shiftMonth(monthStr: string, delta: number): string;
 declare function viewStaff(): string;
 declare function viewAppointments(): string;
 declare function viewSettings(): string;

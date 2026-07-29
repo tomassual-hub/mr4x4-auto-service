@@ -9,6 +9,7 @@ function renderSidebar(){
     {k:'inventory', l:t('nav_inventory'), icon:ICONS.inventory, badge:lowStockCount, badgeWarn:true},
     {k:'customers', l:t('nav_customers'), icon:ICONS.customers},
     {k:'reports', l:t('nav_reports'), icon:ICONS.reports, adminOnly:true},
+    {k:'payroll', l:tt('Gaji'), icon:ICONS.wallet, adminOnly:true},
     {k:'staffpage', l:t('nav_staff'), icon:ICONS.staff, adminOnly:true},
     {k:'appointments', l:t('nav_appointments'), icon:ICONS.calendar, advancedOnly:true},
     {k:'settings', l:t('nav_settings'), icon:ICONS.settings, adminOnly:true},
@@ -269,7 +270,7 @@ function globalSearchResults(q){
 
 function renderView(){
   const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
-  const adminOnlyViews = ['reports','staffpage','settings'];
+  const adminOnlyViews = ['reports','staffpage','settings','payroll'];
   if(adminOnlyViews.includes(state.view) && !isAdmin){
     return `<div class="panel" style="text-align:center;padding:50px 20px;">
       ${ICONS.alert}
@@ -284,6 +285,7 @@ function renderView(){
     case 'inventory': return viewInventory();
     case 'customers': return viewCustomers();
     case 'reports': return viewReports();
+    case 'payroll': return viewPayroll();
     case 'staffpage': return viewStaff();
     case 'appointments': return viewAppointments();
     case 'settings': return viewSettings();

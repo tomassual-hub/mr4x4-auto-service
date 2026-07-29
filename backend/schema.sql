@@ -165,6 +165,38 @@ create policy "backups admin select" on backups for select to authenticated usin
 create policy "backups admin insert" on backups for insert to authenticated with check (is_admin());
 create policy "backups admin delete" on backups for delete to authenticated using (is_admin());
 
+-- payroll_records: a ledger of "staff X's pay for month Y was marked paid"
+-- (base salary + commission, see src/views/payroll.js) -- no money actually
+-- moves through the app, same as POS payment methods or the DuitNow QR;
+-- this only records that a payment happened. Salary figures are more
+-- sensitive than general shop revenue (which is only UI-hidden from
+-- Mekanik elsewhere in the app), so this gets real Admin-only RLS.
+create table if not exists payroll_records (
+  id text primary key,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table payroll_records enable row level security;
+drop policy if exists "payroll admin select" on payroll_records;
+drop policy if exists "payroll admin insert" on payroll_records;
+drop policy if exists "payroll admin update" on payroll_records;
+drop policy if exists "payroll admin delete" on payroll_records;
+create policy "payroll admin select" on payroll_records for select to authenticated using (is_admin());
+create policy "payroll admin insert" on payroll_records for insert to authenticated with check (is_admin());
+create policy "payroll admin update" on payroll_records for update to authenticated using (is_admin()) with check (is_admin());
+create policy "payroll admin delete" on payroll_records for delete to authenticated using (is_admin());
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'payroll_records'
+  ) then
+    alter publication supabase_realtime add table payroll_records;
+  end if;
+  alter table payroll_records replica identity full;
+end $$;
+
 -- claim_staff_record(): lets a newly signed-up user link themselves to an
 -- existing staff row by matching email (added by an Admin beforehand), or
 -- become the shop's first Admin if no staff records exist yet at all.

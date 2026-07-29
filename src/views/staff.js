@@ -53,7 +53,7 @@ function viewStaff(){
 function staffModalHTML(staffMember){
   const isEdit = !!staffMember;
   const en = state.language==='en';
-  staffMember = staffMember || {name:'', role:'Mekanik', email:'', commissionPercent:0};
+  staffMember = staffMember || {name:'', role:'Mekanik', email:'', commissionPercent:0, baseSalary:0};
   return `
     <h2>${isEdit?tt('Sunting Staf'):tt('Staf Baharu')}</h2>
     <div class="field"><label>${tt('Nama')||'Nama'}</label><input id="sf-name" value="${esc(staffMember.name)}" placeholder="Nama staf"></div>
@@ -72,6 +72,7 @@ function staffModalHTML(staffMember){
         ? (staffMember.userId ? 'Linked to a login account.' : 'Not linked yet — tell them to open the app and tap "New staff? Create an account" using this exact email.')
         : (staffMember.userId ? 'Sudah ditautkan dengan akaun log masuk.' : 'Belum ditautkan — minta mereka buka aplikasi dan tekan "Staf baharu? Daftar akaun" menggunakan e-mel yang sama ini.')}</div>
     </div>
+    <div class="field"><label>${en?'Base Salary (RM/month)':'Gaji Pokok (RM/bulan)'}</label><input id="sf-basesalary" type="number" min="0" step="0.01" value="${staffMember.baseSalary||0}"></div>
     <div class="field"><label>Komisen (% daripada nilai kerja disiapkan)</label><input id="sf-commission" type="number" min="0" max="100" value="${staffMember.commissionPercent||0}"></div>
     <div class="modal-foot">
       <button class="btn btn-outline" data-action="close-modal">Batal</button>
