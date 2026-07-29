@@ -9,6 +9,8 @@ function getOnboardingSteps(){
       desc: en?'Sell parts and services, then generate an invoice. Inventory is deducted automatically at checkout.':'Jual alat ganti dan servis, kemudian jana invois. Inventori ditolak secara automatik semasa checkout.'},
     {icon:ICONS.inventory, title: en?'Inventory':'Inventori',
       desc: en?"Track stock levels — you'll see a warning badge in the sidebar when items run low.":'Jejak paras stok — anda akan nampak lencana amaran di sidebar bila item hampir habis.'},
+    {icon:ICONS.book, title: en?'Tech Reference':'Rujukan Teknikal',
+      desc: en?"Build your own reference library per vehicle make/model — service schedules, oil types, torque specs, diagrams, and more. Nothing is pre-loaded; it's your team's own notes, kept organized.":'Bina perpustakaan rujukan anda sendiri ikut jenama/model kenderaan — jadual servis, jenis minyak, spesifikasi tork, gambar rajah dan banyak lagi. Tiada apa dipra-muat; ia nota pasukan anda sendiri, tersusun rapi.'},
     {icon:ICONS.settings, title: en?"You're All Set!":'Anda Sudah Bersedia!',
       desc: en?'Visit Settings anytime to adjust tax, loyalty discounts, or turn on Simple Mode for a cleaner everyday view.':'Lawati Tetapan bila-bila masa untuk laras cukai, diskaun setia, atau hidupkan Mod Ringkas untuk paparan harian lebih ringkas.'},
   ];

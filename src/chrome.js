@@ -7,6 +7,7 @@ function renderSidebar(){
     {k:'pos', l:t('nav_pos'), icon:ICONS.pos},
     {k:'inventory', l:t('nav_inventory'), icon:ICONS.inventory, badge:lowStockCount, badgeWarn:true},
     {k:'customers', l:t('nav_customers'), icon:ICONS.customers},
+    {k:'techref', l:state.language==='en'?'Tech Reference':'Rujukan Teknikal', icon:ICONS.book},
     {k:'reports', l:t('nav_reports'), icon:ICONS.reports, adminOnly:true},
     {k:'payroll', l:tt('Gaji'), icon:ICONS.wallet, adminOnly:true},
     {k:'staffpage', l:t('nav_staff'), icon:ICONS.staff, adminOnly:true},
@@ -128,7 +129,7 @@ function updateSyncIndicator(){
 }
 
 function renderTopbar(){
-  const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll')};
+  const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll'), techref: state.language==='en'?'Technical Reference':'Rujukan Teknikal'};
   const en = state.language==='en';
   const s = state.currentStaff;
   const q = state.globalSearch||'';
@@ -293,6 +294,7 @@ function renderView(){
     case 'pos': return viewPOS();
     case 'inventory': return viewInventory();
     case 'customers': return viewCustomers();
+    case 'techref': return viewTechRef();
     case 'reports': return viewReports();
     case 'payroll': return viewPayroll();
     case 'staffpage': return viewStaff();

@@ -85,6 +85,10 @@ Laman GitHub Pages di atas ialah yang sebenarnya live.
   butang peringatan WhatsApp sekali klik), kod QR kenderaan
 - **Tempahan & Kontrak Servis** — janji temu, invois berulang untuk
   pelanggan korporat
+- **Rujukan Teknikal** — perpustakaan nota bengkel sendiri ikut jenama/model
+  kenderaan (jadual servis, jenis minyak, spesifikasi tork, lokasi
+  komponen, gambar rajah/kod kerosakan, dll.) dengan lampiran gambar —
+  diisi oleh staf sendiri, bukan data pra-dimuat
 - **Laporan** — untung/rugi (P&L), prestasi & komisen mekanik, ramalan
   stok, analitik pelanggan senyap, carta jualan
 - **Staf** — log masuk e-mel/kata laluan sebenar, kebenaran ikut peranan

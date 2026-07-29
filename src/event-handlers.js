@@ -137,6 +137,126 @@ function attachHandlers(){
     render();
     showToast(tt('Stok dikemaskini daripada ')+po.poNo+'.');
   });
+
+  // Technical reference library
+  const techrefSearch = document.getElementById('techref-search');
+  if(techrefSearch){
+    techrefSearch.addEventListener('input', ()=>{
+      state.techRefSearch = techrefSearch.value; render(); focusEnd('techref-search');
+    });
+  }
+  bindAction('new-techref', ()=>setState({modal:{type:'new-techref'}}));
+  bindAllAction('open-techref', el=>{
+    const entry = db.techRefs.find(x=>x.id===el.dataset.id);
+    if(entry) setState({modal:{type:'techref-detail', entry}, techRefEditingSectionId:null});
+  });
+  bindAllAction('edit-techref', el=>{
+    const entry = db.techRefs.find(x=>x.id===el.dataset.id);
+    if(entry) setState({modal:{type:'edit-techref', entry}});
+  });
+  bindAction('save-techref', ()=>{
+    const en = state.language==='en';
+    const make = document.getElementById('tr-make').value.trim();
+    const model = document.getElementById('tr-model').value.trim();
+    const variant = document.getElementById('tr-variant').value.trim();
+    const yearFrom = document.getElementById('tr-year-from').value.trim();
+    const yearTo = document.getElementById('tr-year-to').value.trim();
+    const notes = document.getElementById('tr-notes').value.trim();
+    if(!make || !model){ showToast(en?'Please enter make and model.':'Sila masukkan jenama dan model.'); return; }
+    const id = document.querySelector('[data-action="save-techref"]').dataset.id;
+    if(id){
+      const entry = db.techRefs.find(x=>x.id===id);
+      Object.assign(entry, {make, model, variant, yearFrom, yearTo, notes});
+      logAudit('Kemaskini Rujukan Teknikal', make+' '+model);
+    } else {
+      db.techRefs.push({id:uid(), make, model, variant, yearFrom, yearTo, notes, sections:[], createdAt:Date.now()});
+      logAudit('Tambah Rujukan Teknikal', make+' '+model);
+    }
+    queueSave();
+    setState({modal:null});
+    showToast(en?'Reference saved.':'Rujukan disimpan.');
+  });
+  bindAllAction('delete-techref', el=>{
+    const en = state.language==='en';
+    askConfirm(en?'Delete this reference and all its sections? This cannot be undone.':'Padam rujukan ini dan semua bahagiannya? Tindakan ini tidak boleh dibuat asal.', ()=>{
+      const entry = db.techRefs.find(x=>x.id===el.dataset.id);
+      db.techRefs = db.techRefs.filter(x=>x.id!==el.dataset.id);
+      queueSave();
+      setState({modal:null});
+      showToast(en?'Reference deleted.':'Rujukan dipadam.');
+      if(entry) logAudit('Padam Rujukan Teknikal', entry.make+' '+entry.model);
+    });
+  });
+  bindAllAction('edit-techref-section', el=>setState({techRefEditingSectionId: el.dataset.id}));
+  bindAction('cancel-techref-section-edit', ()=>setState({techRefEditingSectionId: null}));
+  bindAction('save-techref-section', ()=>{
+    const en = state.language==='en';
+    const btn = document.querySelector('[data-action="save-techref-section"]');
+    const entry = db.techRefs.find(x=>x.id===btn.dataset.entryId);
+    if(!entry) return;
+    const category = document.getElementById('tr-section-category').value;
+    const content = document.getElementById('tr-section-content').value.trim();
+    if(!content){ showToast(en?'Please enter some notes.':'Sila masukkan nota.'); return; }
+    const editingId = btn.dataset.editingId;
+    if(editingId){
+      const section = entry.sections.find(s=>s.id===editingId);
+      if(section) Object.assign(section, {category, content});
+    } else {
+      if(!entry.sections) entry.sections = [];
+      entry.sections.push({id:uid(), category, content, photos:[]});
+    }
+    queueSave();
+    setState({techRefEditingSectionId:null});
+    showToast(en?'Section saved.':'Bahagian disimpan.');
+  });
+  bindAllAction('delete-techref-section', el=>{
+    const en = state.language==='en';
+    askConfirm(en?'Delete this section?':'Padam bahagian ini?', ()=>{
+      const entry = state.modal && state.modal.entry;
+      if(!entry) return;
+      entry.sections = entry.sections.filter(s=>s.id!==el.dataset.id);
+      queueSave();
+      render();
+      showToast(en?'Section deleted.':'Bahagian dipadam.');
+    });
+  });
+  bindAllAction('remove-techref-photo', el=>{
+    const entry = state.modal && state.modal.entry;
+    if(!entry) return;
+    const section = entry.sections.find(s=>s.id===el.dataset.sectionId);
+    if(!section || !section.photos) return;
+    section.photos.splice(Number(el.dataset.idx), 1);
+    queueSave();
+    render();
+  });
+  document.querySelectorAll('[data-techref-photo-input]').forEach(input=>input.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const sectionId = input.dataset.sectionId;
+    const entry = state.modal && state.modal.entry;
+    const section = entry && entry.sections.find(s=>s.id===sectionId);
+    if(!section) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      img.onload = ()=>{
+        const maxW = 700;
+        const scale = Math.min(1, maxW/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        if(!section.photos) section.photos = [];
+        section.photos.push(dataUrl);
+        queueSave();
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }));
+
   document.querySelectorAll('[data-range]').forEach(el=>el.addEventListener('click', ()=>setState({reportRange:Number(el.dataset.range)})));
   document.querySelectorAll('[data-job-detail]').forEach(el=>el.addEventListener('click', ()=>{
     const job = db.jobs.find(j=>j.id===el.dataset.jobDetail);

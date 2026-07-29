@@ -18,6 +18,13 @@ create table if not exists purchase_orders(id text primary key, data jsonb not n
 create table if not exists audit_log      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 create table if not exists branches       (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 create table if not exists cash_closures  (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- tech_refs: the shop's own technical notes per vehicle make/model/variant
+-- (service schedules, oil types, torque specs, diagrams, fault-code notes,
+-- etc.) -- see src/views/techref.js for why this is deliberately empty by
+-- default rather than pre-loaded. Same trust tier as jobs/customers/
+-- inventory: any authenticated staff can read and maintain it (covered by
+-- the blanket policy below), not Admin-restricted.
+create table if not exists tech_refs      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 
 -- Staff needs a real column linking to Supabase Auth (real per-staff login),
 -- everything else about a staff member stays in data jsonb (name, role).
@@ -78,7 +85,7 @@ begin
   for t in select unnest(array[
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
-    'cash_closures','staff','shop_meta','counters'
+    'cash_closures','staff','shop_meta','counters','tech_refs'
   ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -113,29 +120,50 @@ revoke execute on function is_admin() from public;
 revoke execute on function is_admin() from anon;
 grant execute on function is_admin() to authenticated;
 
+-- is_manager(): true for Admin OR Kerani -- mirrors the client-side
+-- canManage() split in src/utils.js (Kerani gets full Admin-level access to
+-- Staff/Settings/Payroll, just not revenue figures, which is a client-side-
+-- only concern since no table holds "revenue" as its own row). Written
+-- after is_admin() already existed and the staff/shop_meta/payroll_records
+-- policies below were still Admin-only -- Kerani could see those pages in
+-- the UI but every write silently failed against RLS until this was added.
+create or replace function is_manager()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists(
+    select 1 from staff where user_id = auth.uid() and data->>'role' in ('Admin','Kerani')
+  );
+$$;
+revoke execute on function is_manager() from public;
+revoke execute on function is_manager() from anon;
+grant execute on function is_manager() to authenticated;
+
 -- staff: everyone can read the roster (needed to assign mechanics to jobs),
--- but only Admins can add/edit/remove staff records directly.
+-- but only Admin/Kerani can add/edit/remove staff records directly.
 drop policy if exists "staff full access" on staff;
 drop policy if exists "staff select" on staff;
 drop policy if exists "staff admin insert" on staff;
 drop policy if exists "staff admin update" on staff;
 drop policy if exists "staff admin delete" on staff;
 create policy "staff select" on staff for select to authenticated using (true);
-create policy "staff admin insert" on staff for insert to authenticated with check (is_admin());
-create policy "staff admin update" on staff for update to authenticated using (is_admin()) with check (is_admin());
-create policy "staff admin delete" on staff for delete to authenticated using (is_admin());
+create policy "staff admin insert" on staff for insert to authenticated with check (is_manager());
+create policy "staff admin update" on staff for update to authenticated using (is_manager()) with check (is_manager());
+create policy "staff admin delete" on staff for delete to authenticated using (is_manager());
 
 -- shop_meta (settings): everyone reads it (shop name/tax rate/payment QR
--- show up on invoices for all staff), only Admins can change it.
+-- show up on invoices for all staff), only Admin/Kerani can change it.
 drop policy if exists "staff full access" on shop_meta;
 drop policy if exists "shop_meta select" on shop_meta;
 drop policy if exists "shop_meta admin insert" on shop_meta;
 drop policy if exists "shop_meta admin update" on shop_meta;
 drop policy if exists "shop_meta admin delete" on shop_meta;
 create policy "shop_meta select" on shop_meta for select to authenticated using (true);
-create policy "shop_meta admin insert" on shop_meta for insert to authenticated with check (is_admin());
-create policy "shop_meta admin update" on shop_meta for update to authenticated using (is_admin()) with check (is_admin());
-create policy "shop_meta admin delete" on shop_meta for delete to authenticated using (is_admin());
+create policy "shop_meta admin insert" on shop_meta for insert to authenticated with check (is_manager());
+create policy "shop_meta admin update" on shop_meta for update to authenticated using (is_manager()) with check (is_manager());
+create policy "shop_meta admin delete" on shop_meta for delete to authenticated using (is_manager());
 
 -- audit_log: append-only for everyone (it's an audit trail — nobody,
 -- including Admins, should be able to edit or erase past entries via the
@@ -170,7 +198,9 @@ create policy "backups admin delete" on backups for delete to authenticated usin
 -- moves through the app, same as POS payment methods or the DuitNow QR;
 -- this only records that a payment happened. Salary figures are more
 -- sensitive than general shop revenue (which is only UI-hidden from
--- Mekanik elsewhere in the app), so this gets real Admin-only RLS.
+-- Mekanik elsewhere in the app), so this stays restricted -- but to
+-- is_manager() (Admin/Kerani), not is_admin(), since Kerani was later
+-- given full Admin-level access to the Payroll page itself.
 create table if not exists payroll_records (
   id text primary key,
   data jsonb not null,
@@ -181,10 +211,10 @@ drop policy if exists "payroll admin select" on payroll_records;
 drop policy if exists "payroll admin insert" on payroll_records;
 drop policy if exists "payroll admin update" on payroll_records;
 drop policy if exists "payroll admin delete" on payroll_records;
-create policy "payroll admin select" on payroll_records for select to authenticated using (is_admin());
-create policy "payroll admin insert" on payroll_records for insert to authenticated with check (is_admin());
-create policy "payroll admin update" on payroll_records for update to authenticated using (is_admin()) with check (is_admin());
-create policy "payroll admin delete" on payroll_records for delete to authenticated using (is_admin());
+create policy "payroll admin select" on payroll_records for select to authenticated using (is_manager());
+create policy "payroll admin insert" on payroll_records for insert to authenticated with check (is_manager());
+create policy "payroll admin update" on payroll_records for update to authenticated using (is_manager()) with check (is_manager());
+create policy "payroll admin delete" on payroll_records for delete to authenticated using (is_manager());
 
 do $$
 begin
@@ -340,7 +370,7 @@ begin
   for t in select unnest(array[
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
-    'cash_closures','staff','shop_meta'
+    'cash_closures','staff','shop_meta','tech_refs'
   ])
   loop
     if not exists (

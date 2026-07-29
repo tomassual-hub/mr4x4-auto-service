@@ -183,6 +183,27 @@ interface ShopSettings {
 
 interface Counters { job: number; invoice: number; po: number; }
 
+// Structured place for the shop's OWN technical notes per vehicle
+// make/model/variant -- deliberately empty by default (see src/views/techref.js
+// for why torque specs/wiring diagrams/fault codes are never pre-loaded here).
+interface TechRefSection {
+  id: string;
+  category: string; // key from TECH_REF_CATEGORIES, or 'other'
+  content: string;
+  photos: string[];
+}
+interface TechRef {
+  id: string;
+  make: string;
+  model: string;
+  variant?: string;
+  yearFrom?: string;
+  yearTo?: string;
+  notes?: string;
+  sections: TechRefSection[];
+  createdAt: number;
+}
+
 interface DB {
   customers: Customer[];
   vehicles: Vehicle[];
@@ -198,6 +219,7 @@ interface DB {
   branches: Branch[];
   cashClosures: CashClosure[];
   payrollRecords: PayrollRecord[];
+  techRefs: TechRef[];
   settings: ShopSettings;
   counters: Counters;
 }
@@ -220,6 +242,8 @@ interface AppState {
   loginNotice?: string;
   globalSearch: string;
   customerSearch?: string;
+  techRefSearch?: string;
+  techRefEditingSectionId?: string | null;
   posCart: CartLine[];
   posCustomerId: string;
   posVehicleId: string;
@@ -307,6 +331,11 @@ declare function viewJobs(): string;
 declare function viewPOS(): string;
 declare function viewInventory(): string;
 declare function viewCustomers(): string;
+declare const TECH_REF_CATEGORIES: { key: string; ms: string; en: string }[];
+declare function techRefCategoryLabel(key: string): string;
+declare function viewTechRef(): string;
+declare function techRefModalHTML(entry?: TechRef | null): string;
+declare function techRefDetailModalHTML(entry: TechRef): string;
 declare function viewReports(): string;
 declare function viewPayroll(): string;
 declare function computeMonthlyPay(staffMember: Staff, month: string): { baseSalary: number; commissionRevenue: number; commissionPct: number; commission: number; total: number };

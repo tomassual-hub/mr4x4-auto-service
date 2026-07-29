@@ -1,7 +1,7 @@
 {
   "name": "Mr 4x4 Auto Service - Pakar Servis 4x4",
   "short_name": "Mr 4x4",
-  "description": "Perisian pengurusan bengkel automotif — kad kerja, POS/invois, inventori, pelanggan & kenderaan, laporan.",
+  "description": "Urus kad kerja, invois, inventori, jadual temujanji dan komunikasi pelanggan dengan sistem pengurusan bengkel semua-dalam-satu ini — lengkap dengan perpustakaan rujukan teknikal anda sendiri (jadual servis, jenis minyak, spesifikasi tork, gambar rajah, kod kerosakan dan banyak lagi).",
   "start_url": "./Mr 4x4 Auto Service.html",
   "id": "./Mr 4x4 Auto Service.html",
   "scope": "./",
