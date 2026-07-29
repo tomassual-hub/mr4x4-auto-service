@@ -1,0 +1,22 @@
+# Supabase's free tier auto-pauses a project after 7 days with no activity.
+# The isolated test project (see tests/README.md) only gets touched when CI
+# runs -- if nobody pushes for over a week, it can pause silently, and the
+# next push's CI run fails with a confusing connection error that looks like
+# a code problem instead of what it actually is. Ping it well inside that
+# window so it never has the chance.
+name: Test Project Keep-Alive
+
+on:
+  schedule:
+    - cron: '0 3 * * 1,4'  # Monday and Thursday -- comfortably under the 7-day pause threshold either way
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query the isolated test project (real activity, not just a network ping)
+        run: |
+          curl -sf --max-time 15 -o /dev/null \
+            -H "apikey: sb_publishable_UY9WLveLkt_7e1JYoGV-og_h802Mlzp" \
+            "https://vnmlwxiwifzwjgbbhooy.supabase.co/rest/v1/customers?select=id&limit=1"
