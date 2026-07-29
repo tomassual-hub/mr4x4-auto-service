@@ -9,13 +9,13 @@ function renderLoginScreen(){
     <div class="login-screen">
       <div class="login-box" style="text-align:center;">
         <div class="login-brand">
-          <div class="mark"><img src="${LOGO_DATA_URI}" alt="Mr 4x4 Auto Service" style="height:160px;width:auto;display:block;margin:0 auto;"></div>
+          <div class="mark">${logoMarkHtml(160)}</div>
           <div class="sub">${en?'Signing in…':'Sedang log masuk…'}</div>
         </div>
       </div>
     </div>`;
   }
-  const logoBlock = `<div class="mark"><img src="${LOGO_DATA_URI}" alt="Mr 4x4 Auto Service" style="height:160px;width:auto;display:block;margin:0 auto;"></div>`;
+  const logoBlock = `<div class="mark">${logoMarkHtml(160)}</div>`;
   const errBlock = state.loginError ? `<div style="font-size:12px;color:var(--danger);margin-bottom:10px;">${state.loginError}</div>` : '';
   const noticeBlock = state.loginNotice ? `<div style="font-size:12px;color:var(--success);margin-bottom:10px;">${state.loginNotice}</div>` : '';
   const mode = state.authMode || 'login';
@@ -375,7 +375,7 @@ function renderKioskScreen(){
         </div>
       </div>
       <div class="login-brand">
-        <div class="mark"><img src="${LOGO_DATA_URI}" alt="Mr 4x4 Auto Service" style="height:112px;width:auto;display:block;margin:0 auto;"></div>
+        <div class="mark">${logoMarkHtml(112)}</div>
         <div class="sub">${en?'Check Vehicle Status':'Semak Status Kenderaan'}</div>
       </div>
       <div class="panel">

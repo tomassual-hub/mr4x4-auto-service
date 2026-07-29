@@ -274,6 +274,7 @@ declare function localDateStr(d?: Date): string;
 declare function normalizePhone(phone: string): string;
 declare function canManage(): boolean;
 declare function canSeeRevenue(): boolean;
+declare function logoMarkHtml(px: number): string;
 declare function logAudit(action: string, detail: string): void;
 declare function getCustomer(id: string | null | undefined): Customer | undefined;
 declare function getVehicle(id: string | null | undefined): Vehicle | undefined;

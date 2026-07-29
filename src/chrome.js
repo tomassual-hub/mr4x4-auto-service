@@ -21,7 +21,7 @@ function renderSidebar(){
   return `
   <div class="sidebar ${state.navOpen?'nav-open':''}">
     <div class="brand" style="position:relative;text-align:center;">
-      <div class="brand-mark" style="justify-content:center;"><img src="${LOGO_DATA_URI}" alt="Mr 4x4 Auto Service" style="height:58px;width:auto;display:block;margin:0 auto;"></div>
+      <div class="brand-mark" style="justify-content:center;">${logoMarkHtml(58)}</div>
       <div class="brand-sub">Pakar Servis 4x4</div>
       <button class="btn-icon hamburger-btn" data-action="close-nav" style="position:absolute;top:0;right:0;">${ICONS.x}</button>
     </div>

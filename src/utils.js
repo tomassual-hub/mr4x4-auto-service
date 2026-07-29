@@ -55,3 +55,13 @@ function canSeeRevenue(){
   return !!(state.currentStaff && state.currentStaff.role==='Admin');
 }
 
+// LOGO_DATA_URI is a flat-gold silhouette (logo shape + transparency, no
+// shading), so a plain <img> pins it to one fixed color regardless of theme.
+// Rendering it as a CSS mask instead lets background-color:var(--accent)
+// drive its color, so it automatically switches shade with the rest of the
+// UI's accent (gold in dark mode, deeper amber in light mode) instead of
+// staying stuck at one hardcoded tone.
+function logoMarkHtml(px){
+  return `<div role="img" aria-label="Mr 4x4 Auto Service" style="display:inline-block;height:${px}px;aspect-ratio:200/211;background-color:var(--accent);-webkit-mask:url(${LOGO_DATA_URI}) center / contain no-repeat;mask:url(${LOGO_DATA_URI}) center / contain no-repeat;"></div>`;
+}
+
