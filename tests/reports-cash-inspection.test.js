@@ -2,7 +2,7 @@
 // plus cash-closure reconciliation and the job inspection checklist (which
 // also exercises the same modal-reference pattern as modal-reference-identity.test.js).
 const { chromium } = require('playwright');
-const { login, clickInPage, dismissDuplicateConfirm, makeReporter } = require('./helpers');
+const { login, clickInPage, dismissDuplicateConfirm, waitForSyncIdle, makeReporter } = require('./helpers');
 
 async function run(){
   const r = makeReporter('reports-cash-inspection');
@@ -80,7 +80,13 @@ async function run(){
   const firstItem = await page.evaluate(() => document.querySelector('[data-inspect-item]')?.dataset.inspectItem);
   for(const expected of ['ok','attention','replace']){
     await clickInPage(page, `[data-inspect-item="${firstItem}"]`);
-    await page.waitForTimeout(150);
+    // Same reasoning as elsewhere in this suite (see waitForSyncIdle's own
+    // comment in helpers.js): this job's inspection field can get a realtime
+    // echo of ITS OWN previous edit, and clicking again before that echo
+    // settles risks the echo landing after this click and stomping it back
+    // to an earlier value -- a fixed 150ms was fine locally but not under
+    // CI's higher latency to Supabase (confirmed flaky there specifically).
+    await waitForSyncIdle(page);
     const status = await page.evaluate(({id, name}) => db.jobs.find(j=>j.id===id)?.inspection?.[name], {id: jobId, name: firstItem});
     r.check(`inspection status cycles to "${expected}" and persists`, status, expected);
   }
