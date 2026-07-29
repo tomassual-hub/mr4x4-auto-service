@@ -1,5 +1,8 @@
 /* ============================= APPOINTMENTS & CONTRACTS ============================= */
 function viewAppointments(){
+  // Contract cycle totals are a revenue figure -- same Admin-only gating as
+  // the dashboard/POS sales figures (see viewDashboard/viewPOS).
+  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
   const statusLabel = {scheduled:tt('Dijadualkan'), done:tt('Selesai')||'Selesai', cancelled:tt('Dibatalkan')};
   const appts = [...db.appointments].sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
   const now = Date.now();
@@ -54,7 +57,7 @@ function viewAppointments(){
           <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:8px;">${c?esc(c.name):'-'} · ${v?esc(v.plate):'-'}</div>
           <div style="font-size:12.5px;color:var(--text-muted);">${tt('Kitaran: setiap')} ${ct.frequencyDays} ${tt('hari')}</div>
           <div style="font-size:12.5px;color:var(--text-muted);">${tt('Seterusnya')}: ${fmtDate(ct.nextDue)}</div>
-          <div style="font-weight:600;color:var(--accent);margin:8px 0;">${fmtRM(total)} ${tt('/ kitaran')}</div>
+          ${isAdmin ? `<div style="font-weight:600;color:var(--accent);margin:8px 0;">${fmtRM(total)} ${tt('/ kitaran')}</div>` : ''}
           <div style="display:flex;gap:8px;">
             <button class="btn btn-primary btn-sm" style="flex:1;" data-action="generate-contract" data-id="${ct.id}">${ICONS.repeat} ${tt('Jana Invois')}</button>
             <button class="btn btn-danger btn-sm" data-action="delete-contract" data-id="${ct.id}">${ICONS.trash}</button>
