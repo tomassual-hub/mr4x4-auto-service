@@ -86,7 +86,10 @@ function viewPayroll(){
         <div style="font-weight:700;color:var(--accent);display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);"><span>${en?'Total':'Jumlah'}</span><span>${fmtRM(pay.total)}</span></div>
         ${record
           ? `<div style="font-size:11px;color:var(--text-muted);margin-top:8px;">${en?'Paid':'Dibayar'} ${fmtDateTime(record.paidAt)} ${en?'by':'oleh'} ${esc(record.paidBy)}</div>
-             <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;justify-content:center;" data-action="undo-payroll-payment" data-id="${record.id}">${en?'Undo':'Batal Rekod'}</button>`
+             <div style="display:flex;gap:8px;margin-top:8px;">
+               <button class="btn btn-outline btn-sm" style="flex:1;justify-content:center;" data-action="print-payslip" data-id="${record.id}">${ICONS.printer} ${en?'Payslip':'Penyata'}</button>
+               <button class="btn btn-outline btn-sm" style="flex:1;justify-content:center;" data-action="undo-payroll-payment" data-id="${record.id}">${en?'Undo':'Batal Rekod'}</button>
+             </div>`
           : `<button class="btn btn-primary btn-sm" style="width:100%;margin-top:10px;justify-content:center;" data-action="mark-payroll-paid" data-staffid="${staff.id}">${en?'Mark as Paid':'Tandakan Dibayar'}</button>`}
       </div>`).join('')}
   </div>
@@ -95,7 +98,7 @@ function viewPayroll(){
     <h2>${ICONS.history} ${en?'Payment History':'Sejarah Bayaran'}</h2>
     ${history.length===0 ? emptyState(en?'No payments recorded yet.':'Belum ada bayaran direkod.') : `
     <div class="table-wrap"><table>
-      <thead><tr><th>${en?'Staff':'Staf'}</th><th>${en?'Month':'Bulan'}</th><th>${en?'Total':'Jumlah'}</th><th>${en?'Paid At':'Tarikh Bayar'}</th><th>${en?'By':'Oleh'}</th></tr></thead>
+      <thead><tr><th>${en?'Staff':'Staf'}</th><th>${en?'Month':'Bulan'}</th><th>${en?'Total':'Jumlah'}</th><th>${en?'Paid At':'Tarikh Bayar'}</th><th>${en?'By':'Oleh'}</th><th></th></tr></thead>
       <tbody>
         ${history.map(r=>`
           <tr>
@@ -104,6 +107,7 @@ function viewPayroll(){
             <td style="color:var(--accent);font-weight:600;">${fmtRM(r.total)}</td>
             <td>${fmtDateTime(r.paidAt)}</td>
             <td>${esc(r.paidBy)}</td>
+            <td><button class="btn-icon" data-action="print-payslip" data-id="${r.id}" title="${en?'Print payslip':'Cetak penyata'}">${ICONS.printer}</button></td>
           </tr>`).join('')}
       </tbody>
     </table></div>`}

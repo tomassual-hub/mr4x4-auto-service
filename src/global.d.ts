@@ -362,5 +362,6 @@ declare function nextJobNo(): Promise<string>;
 declare function nextInvNo(): Promise<string>;
 declare function nextPoNo(): Promise<string>;
 declare function printInvoice(inv: Invoice): void;
+declare function printPayslip(record: PayrollRecord): void;
 declare function printJobCard(job: Job): void;
 declare function printVehicleQR(v: Vehicle): void;

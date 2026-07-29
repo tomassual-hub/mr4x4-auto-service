@@ -1042,6 +1042,10 @@ function attachHandlers(){
     const invoice = db.invoices.find(i=>i.id===el.dataset.id);
     if(invoice) printInvoice(invoice);
   });
+  bindAllAction('print-payslip', el=>{
+    const record = db.payrollRecords.find(r=>r.id===el.dataset.id);
+    if(record) printPayslip(record);
+  });
   bindAllAction('print-jobcard', el=>{
     const job = db.jobs.find(j=>j.id===el.dataset.id);
     if(job) printJobCard(job);
