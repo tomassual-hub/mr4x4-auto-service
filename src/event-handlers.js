@@ -361,33 +361,36 @@ function attachHandlers(){
     setState({ payrollMonth: shiftMonth(cur, 1) });
   });
   bindAllAction('mark-payroll-paid', el=>{
+    setState({ modal: { type:'payroll-payment', staffId: el.dataset.staffid } });
+  });
+  bindAllAction('confirm-payroll-payment', el=>{
     const staffMember = db.staff.find(s=>s.id===el.dataset.staffid);
     if(!staffMember) return;
-    const month = state.payrollMonth || currentMonthStr();
-    const pay = computeMonthlyPay(staffMember, month);
     const en = state.language==='en';
-    askConfirm(
-      en
-        ? `Mark ${staffMember.name}'s pay for ${monthLabel(month)} (${fmtRM(pay.total)}) as paid? This only records it — make sure the actual payment has already been made.`
-        : `Tandakan gaji ${staffMember.name} untuk ${monthLabel(month)} (${fmtRM(pay.total)}) sebagai dibayar? Ini cuma rekod — pastikan bayaran sebenar dah dibuat.`,
-      ()=>{
-        try{
-          db.payrollRecords.push({
-            id: uid(), staffId: staffMember.id, staffName: staffMember.name, month,
-            baseSalary: pay.baseSalary, commissionRevenue: pay.commissionRevenue, commissionPct: pay.commissionPct,
-            commission: pay.commission, total: pay.total, paidAt: Date.now(),
-            paidBy: state.currentStaff ? state.currentStaff.name : '', notes: ''
-          });
-          logAudit('Bayaran Gaji', staffMember.name+' — '+monthLabel(month)+' — '+fmtRM(pay.total));
-          queueSave();
-          render();
-          showToast(en ? 'Payment recorded.' : 'Bayaran direkodkan.');
-        }catch(e){
-          reportError(e, 'Rekod bayaran gaji gagal');
-          showToast(en ? 'Could not record this payment. Try again.' : 'Gagal rekod bayaran ini. Cuba lagi.');
-        }
-      }
-    );
+    try{
+      const month = state.payrollMonth || currentMonthStr();
+      const pay = computeMonthlyPay(staffMember, month);
+      const epf = Number(document.getElementById('pr-epf').value)||0;
+      const socso = Number(document.getElementById('pr-socso').value)||0;
+      const eis = Number(document.getElementById('pr-eis').value)||0;
+      const pcb = Number(document.getElementById('pr-pcb').value)||0;
+      const otherDeductions = Number(document.getElementById('pr-other').value)||0;
+      const netPay = pay.total - epf - socso - eis - pcb - otherDeductions;
+      db.payrollRecords.push({
+        id: uid(), staffId: staffMember.id, staffName: staffMember.name, month,
+        baseSalary: pay.baseSalary, commissionRevenue: pay.commissionRevenue, commissionPct: pay.commissionPct,
+        commission: pay.commission, total: pay.total,
+        epf, socso, eis, pcb, otherDeductions, netPay,
+        paidAt: Date.now(), paidBy: state.currentStaff ? state.currentStaff.name : '', notes: ''
+      });
+      logAudit('Bayaran Gaji', staffMember.name+' — '+monthLabel(month)+' — '+fmtRM(netPay));
+      queueSave();
+      setState({modal:null});
+      showToast(en ? 'Payment recorded.' : 'Bayaran direkodkan.');
+    }catch(e){
+      reportError(e, 'Rekod bayaran gaji gagal');
+      showToast(en ? 'Could not record this payment. Try again.' : 'Gagal rekod bayaran ini. Cuba lagi.');
+    }
   });
   bindAllAction('undo-payroll-payment', el=>{
     const record = db.payrollRecords.find(r=>r.id===el.dataset.id);

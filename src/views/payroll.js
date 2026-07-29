@@ -67,8 +67,8 @@ function viewPayroll(){
 
   <div style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--text-muted);">
     ${en
-      ? '<strong>Note:</strong> this calculates gross pay (base salary + commission) only. It does NOT calculate EPF/SOCSO/EIS/PCB statutory deductions — handle those separately per LHDN/KWSP/PERKESO requirements.'
-      : '<strong>Nota:</strong> ini kira gaji kasar (gaji pokok + komisen) sahaja. Potongan statutori KWSP/PERKESO/EIS/PCB <u>TIDAK</u> dikira di sini — uruskan berasingan mengikut keperluan LHDN/KWSP/PERKESO.'}
+      ? '<strong>Note:</strong> Base Salary + Commission is calculated automatically. Statutory deductions (EPF/SOCSO/EIS/PCB) are entered manually by you when marking a payment paid — this app does not calculate those rates itself. Verify your figures against LHDN/KWSP/PERKESO.'
+      : '<strong>Nota:</strong> Gaji Pokok + Komisen dikira automatik. Potongan statutori (KWSP/PERKESO/EIS/PCB) dimasukkan secara manual oleh anda semasa tandakan bayaran — sistem ini tidak mengira kadar tersebut sendiri. Sahkan angka anda dengan LHDN/KWSP/PERKESO.'}
   </div>
 
   <div class="grid grid-3">
@@ -83,9 +83,10 @@ function viewPayroll(){
         </div>
         <div style="font-size:12.5px;color:var(--text-muted);display:flex;justify-content:space-between;padding:3px 0;"><span>${en?'Base Salary':'Gaji Pokok'}</span><span>${fmtRM(pay.baseSalary)}</span></div>
         <div style="font-size:12.5px;color:var(--text-muted);display:flex;justify-content:space-between;padding:3px 0;"><span>${en?'Commission':'Komisen'} (${pay.commissionPct}%)</span><span>${fmtRM(pay.commission)}</span></div>
-        <div style="font-weight:700;color:var(--accent);display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);"><span>${en?'Total':'Jumlah'}</span><span>${fmtRM(pay.total)}</span></div>
+        <div style="font-weight:700;color:var(--accent);display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);"><span>${en?'Gross Total':'Jumlah Kasar'}</span><span>${fmtRM(pay.total)}</span></div>
         ${record
-          ? `<div style="font-size:11px;color:var(--text-muted);margin-top:8px;">${en?'Paid':'Dibayar'} ${fmtDateTime(record.paidAt)} ${en?'by':'oleh'} ${esc(record.paidBy)}</div>
+          ? `${record.netPay!==record.total ? `<div style="font-weight:700;color:var(--success);display:flex;justify-content:space-between;margin-top:4px;"><span>${en?'Net Pay':'Gaji Bersih'}</span><span>${fmtRM(record.netPay)}</span></div>` : ''}
+             <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">${en?'Paid':'Dibayar'} ${fmtDateTime(record.paidAt)} ${en?'by':'oleh'} ${esc(record.paidBy)}</div>
              <div style="display:flex;gap:8px;margin-top:8px;">
                <button class="btn btn-outline btn-sm" style="flex:1;justify-content:center;" data-action="print-payslip" data-id="${record.id}">${ICONS.printer} ${en?'Payslip':'Penyata'}</button>
                <button class="btn btn-outline btn-sm" style="flex:1;justify-content:center;" data-action="undo-payroll-payment" data-id="${record.id}">${en?'Undo':'Batal Rekod'}</button>
@@ -98,13 +99,14 @@ function viewPayroll(){
     <h2>${ICONS.history} ${en?'Payment History':'Sejarah Bayaran'}</h2>
     ${history.length===0 ? emptyState(en?'No payments recorded yet.':'Belum ada bayaran direkod.') : `
     <div class="table-wrap"><table>
-      <thead><tr><th>${en?'Staff':'Staf'}</th><th>${en?'Month':'Bulan'}</th><th>${en?'Total':'Jumlah'}</th><th>${en?'Paid At':'Tarikh Bayar'}</th><th>${en?'By':'Oleh'}</th><th></th></tr></thead>
+      <thead><tr><th>${en?'Staff':'Staf'}</th><th>${en?'Month':'Bulan'}</th><th>${en?'Gross':'Kasar'}</th><th>${en?'Net Pay':'Gaji Bersih'}</th><th>${en?'Paid At':'Tarikh Bayar'}</th><th>${en?'By':'Oleh'}</th><th></th></tr></thead>
       <tbody>
         ${history.map(r=>`
           <tr>
             <td style="font-weight:600;">${esc(r.staffName)}</td>
             <td>${monthLabel(r.month)}</td>
-            <td style="color:var(--accent);font-weight:600;">${fmtRM(r.total)}</td>
+            <td>${fmtRM(r.total)}</td>
+            <td style="color:var(--success);font-weight:600;">${fmtRM(r.netPay!==undefined ? r.netPay : r.total)}</td>
             <td>${fmtDateTime(r.paidAt)}</td>
             <td>${esc(r.paidBy)}</td>
             <td><button class="btn-icon" data-action="print-payslip" data-id="${r.id}" title="${en?'Print payslip':'Cetak penyata'}">${ICONS.printer}</button></td>
@@ -112,5 +114,41 @@ function viewPayroll(){
       </tbody>
     </table></div>`}
   </div>
+  `;
+}
+
+// Standard payslip structure (Pendapatan/Earnings -> Potongan/Deductions ->
+// Gaji Bersih/Net Pay). Deduction fields default to 0 and are entered
+// manually — this modal does arithmetic (subtraction) only, never a
+// statutory rate, so filling them in doesn't reintroduce the "calculating
+// EPF/SOCSO wrong has legal consequences" risk the rest of this feature
+// deliberately avoids.
+function payrollPaymentModalHTML(staffId){
+  const en = state.language==='en';
+  const staff = db.staff.find(s=>s.id===staffId);
+  const month = state.payrollMonth || currentMonthStr();
+  const pay = staff ? computeMonthlyPay(staff, month) : { baseSalary:0, commissionPct:0, commission:0, total:0 };
+  return `
+    <h2>${ICONS.wallet} ${en?'Record Payment':'Rekod Bayaran'} — ${esc(staff?staff.name:'')}</h2>
+    <p style="font-size:12.5px;color:var(--text-muted);margin-top:0;">${monthLabel(month)}</p>
+    <div style="background:var(--panel-alt);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;">
+      <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${en?'Base Salary':'Gaji Pokok'}</span><span>${fmtRM(pay.baseSalary)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${en?'Commission':'Komisen'} (${pay.commissionPct}%)</span><span>${fmtRM(pay.commission)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0 0;margin-top:4px;border-top:1px dashed var(--border);font-weight:700;"><span>${en?'Gross Total':'Jumlah Kasar'}</span><span>${fmtRM(pay.total)}</span></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">${en?'Statutory deductions (optional — leave 0 if not applicable):':'Potongan statutori (pilihan — biar 0 jika tidak berkenaan):'}</p>
+    <div class="field-row">
+      <div class="field"><label>${en?'EPF/KWSP (Employee)':'KWSP (Pekerja)'}</label><input id="pr-epf" type="number" min="0" step="0.01" value="0"></div>
+      <div class="field"><label>SOCSO/PERKESO</label><input id="pr-socso" type="number" min="0" step="0.01" value="0"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>EIS</label><input id="pr-eis" type="number" min="0" step="0.01" value="0"></div>
+      <div class="field"><label>PCB</label><input id="pr-pcb" type="number" min="0" step="0.01" value="0"></div>
+    </div>
+    <div class="field"><label>${en?'Other Deductions':'Potongan Lain'}</label><input id="pr-other" type="number" min="0" step="0.01" value="0"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="confirm-payroll-payment" data-staffid="${staffId}">${en?'Confirm Payment':'Sahkan Bayaran'}</button>
+    </div>
   `;
 }

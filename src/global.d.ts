@@ -150,7 +150,16 @@ interface PayrollRecord {
   commissionRevenue: number;
   commissionPct: number;
   commission: number;
-  total: number;
+  total: number; // gross (baseSalary + commission)
+  // Statutory deductions -- entered manually by Admin (from their own
+  // KWSP/PERKESO/LHDN calculation), never computed by this app. See
+  // computeMonthlyPay()'s comment for why.
+  epf: number;
+  socso: number;
+  eis: number;
+  pcb: number;
+  otherDeductions: number;
+  netPay: number; // total - (epf+socso+eis+pcb+otherDeductions)
   paidAt: number;
   paidBy: string;
   notes?: string;
@@ -300,6 +309,7 @@ declare function computeMonthlyPay(staffMember: Staff, month: string): { baseSal
 declare function currentMonthStr(): string;
 declare function monthLabel(monthStr: string): string;
 declare function shiftMonth(monthStr: string, delta: number): string;
+declare function payrollPaymentModalHTML(staffId: string): string;
 declare function viewStaff(): string;
 declare function viewAppointments(): string;
 declare function viewSettings(): string;

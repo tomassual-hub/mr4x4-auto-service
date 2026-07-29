@@ -85,13 +85,18 @@ function printJobCard(job){
   window.print();
 }
 
-// Same letterhead style as printInvoice() -- a payslip is a formal document
-// too, not a receipt strip. Only ever called on an already-recorded
-// payment (see viewPayroll()'s history table), so record.paidAt/paidBy
-// always exist.
+// Standard Malaysian payslip structure: Pendapatan (Earnings) -> Potongan
+// (Deductions) -> Gaji Bersih (Net Pay). Same letterhead style as
+// printInvoice() -- a payslip is a formal document too, not a receipt strip.
+// Deduction fields default to 0 for records saved before this structure
+// existed (?? 0), so older payslips still print correctly instead of "RM NaN".
 function printPayslip(record){
   const s = db.settings;
   const en = state.language==='en';
+  const epf = record.epf ?? 0, socso = record.socso ?? 0, eis = record.eis ?? 0,
+        pcb = record.pcb ?? 0, otherDeductions = record.otherDeductions ?? 0;
+  const totalDeductions = epf+socso+eis+pcb+otherDeductions;
+  const netPay = record.netPay ?? record.total;
   const area = document.getElementById('print-area');
   area.innerHTML = `
     <div class="print-invoice">
@@ -115,16 +120,33 @@ function printPayslip(record){
         <div class="pi-billto-label">${en?'Employee':'Pekerja'}</div>
         <div class="pi-billto-name">${esc(record.staffName)}</div>
       </div>
-      <div class="pi-totals" style="margin-top:14px;">
+
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#999;margin-top:16px;">${en?'Earnings (Pendapatan)':'Pendapatan (Earnings)'}</div>
+      <div class="pi-totals" style="max-width:none;margin-left:0;">
         <div class="pi-row"><span>${en?'Base Salary':'Gaji Pokok'}</span><span>${fmtRM(record.baseSalary)}</span></div>
         <div class="pi-row"><span>${en?'Commission':'Komisen'} (${record.commissionPct}% ${en?'of':'daripada'} ${fmtRM(record.commissionRevenue)})</span><span>${fmtRM(record.commission)}</span></div>
-        <div class="pi-row pi-total"><span>${en?'GROSS TOTAL':'JUMLAH KASAR'}</span><span>${fmtRM(record.total)}</span></div>
+        <div class="pi-row" style="font-weight:700;border-top:1px solid #ddd;margin-top:4px;padding-top:6px;"><span>${en?'GROSS TOTAL':'JUMLAH KASAR'}</span><span>${fmtRM(record.total)}</span></div>
+      </div>
+
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#999;margin-top:16px;">${en?'Deductions (Potongan)':'Potongan (Deductions)'}</div>
+      <div class="pi-totals" style="max-width:none;margin-left:0;">
+        <div class="pi-row"><span>EPF / KWSP (${en?'Employee':'Pekerja'})</span><span>${fmtRM(epf)}</span></div>
+        <div class="pi-row"><span>SOCSO / PERKESO</span><span>${fmtRM(socso)}</span></div>
+        <div class="pi-row"><span>EIS</span><span>${fmtRM(eis)}</span></div>
+        <div class="pi-row"><span>PCB</span><span>${fmtRM(pcb)}</span></div>
+        ${otherDeductions>0 ? `<div class="pi-row"><span>${en?'Other Deductions':'Potongan Lain'}</span><span>${fmtRM(otherDeductions)}</span></div>` : ''}
+        <div class="pi-row" style="font-weight:700;border-top:1px solid #ddd;margin-top:4px;padding-top:6px;"><span>${en?'TOTAL DEDUCTIONS':'JUMLAH POTONGAN'}</span><span>${fmtRM(totalDeductions)}</span></div>
+      </div>
+
+      <div class="pi-line"></div>
+      <div class="pi-totals" style="max-width:none;margin-left:0;">
+        <div class="pi-row pi-total"><span>${en?'NET PAY':'GAJI BERSIH'}</span><span>${fmtRM(netPay)}</span></div>
       </div>
       <div class="pi-line"></div>
       <div style="font-size:10.5px;color:#666;margin-top:10px;">
         ${en
-          ? 'This is a gross pay statement only. It does NOT include EPF/SOCSO/EIS/PCB statutory deductions.'
-          : 'Penyata ini adalah gaji kasar sahaja. Potongan statutori KWSP/PERKESO/EIS/PCB TIDAK termasuk di sini.'}
+          ? 'Deduction amounts above were entered manually and are not calculated by this system — verify against LHDN/KWSP/PERKESO records.'
+          : 'Jumlah potongan di atas dimasukkan secara manual dan tidak dikira oleh sistem ini — sahkan dengan rekod LHDN/KWSP/PERKESO.'}
       </div>
       <div class="pi-foot">${en?'Paid by':'Dibayar oleh'} ${esc(record.paidBy)} &middot; ${en?'Printed':'Dicetak'} ${fmtDateTime(Date.now())}</div>
     </div>
