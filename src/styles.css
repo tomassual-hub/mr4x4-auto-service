@@ -183,7 +183,15 @@ body::before{
   .sidebar-account-mobile{display:block;margin-top:auto;padding:16px;border-top:1px solid var(--glass-border);}
   .sidebar-account-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
   .sidebar-account-row .user-avatar{flex-shrink:0;}
-  .sidebar-account-actions{display:flex;align-items:center;gap:10px;}
+  /* Split into two rows (preference toggles, then icon action buttons)
+     instead of one flex row -- with 2FA + Face ID + logout all as
+     btn-icons alongside both toggles, a single row no longer fits the
+     238px sidebar width and buttons spilled outside it. Each row alone
+     comfortably fits, and stays that way as more buttons get added. */
+  .sidebar-account-actions{display:flex;flex-direction:column;gap:8px;}
+  .sidebar-account-toggles{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .sidebar-account-buttons{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .sidebar-account-buttons [data-action="logout"]{margin-left:auto;}
 }
 @media screen and (max-width:600px){
   .grid-4,.grid-3{grid-template-columns:1fr 1fr;}

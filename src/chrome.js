@@ -39,17 +39,21 @@ function renderSidebar(){
         </div>
       </div>
       <div class="sidebar-account-actions">
-        <div class="theme-toggle" data-action="toggle-theme" title="Tukar tema">
-          <div class="t-icon ${state.theme==='light'?'active':''}">${ICONS.sun}</div>
-          <div class="t-icon ${state.theme==='dark'?'active':''}">${ICONS.moon}</div>
+        <div class="sidebar-account-toggles">
+          <div class="theme-toggle" data-action="toggle-theme" title="Tukar tema">
+            <div class="t-icon ${state.theme==='light'?'active':''}">${ICONS.sun}</div>
+            <div class="t-icon ${state.theme==='dark'?'active':''}">${ICONS.moon}</div>
+          </div>
+          <div class="theme-toggle" data-action="toggle-lang" title="Switch language">
+            <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
+            <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
+          </div>
         </div>
-        <div class="theme-toggle" data-action="toggle-lang" title="Switch language">
-          <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
-          <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
+        <div class="sidebar-account-buttons">
+          <button class="btn-icon" data-action="open-mfa-settings" title="2FA">${ICONS.shield}</button>
+          ${faceIdSupportedSync() ? `<button class="btn-icon" data-action="open-faceid-settings" title="Face ID">${ICONS.faceid}</button>` : ''}
+          <button class="btn-icon" data-action="logout" title="${t('btn_logout')}">${ICONS.logout}</button>
         </div>
-        <button class="btn-icon" data-action="open-mfa-settings" title="2FA">${ICONS.shield}</button>
-        ${faceIdSupportedSync() ? `<button class="btn-icon" data-action="open-faceid-settings" title="Face ID">${ICONS.faceid}</button>` : ''}
-        <button class="btn-icon" data-action="logout" title="${t('btn_logout')}" style="margin-left:auto;">${ICONS.logout}</button>
       </div>
     </div>
     <div class="sidebar-foot">${t('sidebar_foot')}</div>
