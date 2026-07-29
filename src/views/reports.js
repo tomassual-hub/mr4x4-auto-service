@@ -1,5 +1,12 @@
 /* ============================= REPORTS VIEW ============================= */
 function viewReports(){
+  // Kerani has full Admin-level access to this page structurally (see
+  // chrome.js's canManage()), but is specifically excluded from actual
+  // sales/revenue figures -- everything money-derived below (totals, P&L,
+  // sales trend, top items by revenue, commission $) is gated on this,
+  // while non-revenue sections (jobs completed count, stock forecast,
+  // churned customers, mechanic job counts) stay visible to everyone here.
+  const canRevenue = canSeeRevenue();
   const now = Date.now();
   const rangeMs = state.reportRange*24*3600*1000;
   const invInRange = db.invoices.filter(i=>now-i.createdAt<=rangeMs);
@@ -76,12 +83,13 @@ function viewReports(){
     </div>
   </div>
   <div class="grid grid-3" style="margin-bottom:20px;">
+    ${canRevenue ? `
     <div class="stat-card ok"><div class="stat-label">${tt('Jumlah Jualan')}</div><div class="stat-value">${fmtRM(totalSales)}</div><div class="stat-sub">${invInRange.length} ${tt('invois')}</div></div>
-    <div class="stat-card"><div class="stat-label">${tt('Purata Setiap Invois')}</div><div class="stat-value">${fmtRM(avgTicket)}</div></div>
+    <div class="stat-card"><div class="stat-label">${tt('Purata Setiap Invois')}</div><div class="stat-value">${fmtRM(avgTicket)}</div></div>` : ''}
     <div class="stat-card"><div class="stat-label">${tt('Kerja Disiapkan')}</div><div class="stat-value">${jobsCompleted}</div></div>
   </div>
 
-  ${db.settings.simpleMode ? '' : `
+  ${db.settings.simpleMode || !canRevenue ? '' : `
   <div class="panel" style="margin-bottom:20px;">
     <h2>${ICONS.gauge} ${tt('Untung/Rugi (P&L)')}</h2>
     <div class="grid grid-3">
@@ -91,12 +99,14 @@ function viewReports(){
     </div>
   </div>`}
 
+  ${canRevenue ? `
   <div class="panel" style="margin-bottom:20px;">
     <h2>${ICONS.reports} ${tt('Trend Jualan')}</h2>
     ${renderSalesChart(invInRange, state.reportRange)}
-  </div>
+  </div>` : ''}
 
   <div class="grid grid-2">
+    ${canRevenue ? `
     <div class="panel">
       <h2>${tt('Item / Servis Terlaris')}</h2>
       ${topItems.length===0 ? emptyState(tt('Belum cukup data jualan.')) : topItems.map(([name,val])=>`
@@ -105,20 +115,20 @@ function viewReports(){
           <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${(val/maxVal*100).toFixed(0)}%"></div></div>
           <div class="chart-bar-val">${fmtRM(val)}</div>
         </div>`).join('')}
-    </div>
+    </div>` : ''}
     ${db.settings.simpleMode ? '' : `
     <div class="panel">
       <h2>${ICONS.staff} ${tt('Prestasi Mekanik')}</h2>
       ${mechRows.length===0 ? emptyState(tt('Belum ada data mekanik.')) : `
       <div class="table-wrap"><table>
-        <thead><tr><th>${tt('Mekanik')}</th><th>${tt('Kerja')}</th><th>${tt('Purata Masa Siap')}</th><th>${tt('Komisen')}</th></tr></thead>
+        <thead><tr><th>${tt('Mekanik')}</th><th>${tt('Kerja')}</th><th>${tt('Purata Masa Siap')}</th>${canRevenue?`<th>${tt('Komisen')}</th>`:''}</tr></thead>
         <tbody>
           ${mechRows.map(([name,st])=>`
             <tr>
               <td style="font-weight:600;">${name}</td>
               <td>${st.count}</td>
               <td>${st.doneCount>0 ? Math.round(st.totalMs/st.doneCount/3600000)+' '+tt('jam') : '-'}</td>
-              <td style="color:var(--accent);font-weight:600;">${st.commissionPct>0 ? fmtRM(st.commission) : '-'}</td>
+              ${canRevenue?`<td style="color:var(--accent);font-weight:600;">${st.commissionPct>0 ? fmtRM(st.commission) : '-'}</td>`:''}
             </tr>`).join('')}
         </tbody>
       </table></div>`}

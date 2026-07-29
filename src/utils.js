@@ -40,3 +40,18 @@ function normalizePhone(phone){
   return p;
 }
 
+// Two separate permission questions, kept as two functions rather than one
+// "isAdmin" so a role can answer them differently: Kerani gets full
+// Admin-level access to Reports/Staff/Settings/Payroll (canManage) but is
+// excluded from actual sales/revenue figures (canSeeRevenue) -- Admin is
+// the only role where both are true. Mekanik/Ketua Mekanik are both false
+// for everything (handled by the existing role==='Admin' checks that were
+// already scoped to hide revenue from them, now reused via canSeeRevenue).
+function canManage(){
+  const role = state.currentStaff && state.currentStaff.role;
+  return role==='Admin' || role==='Kerani';
+}
+function canSeeRevenue(){
+  return !!(state.currentStaff && state.currentStaff.role==='Admin');
+}
+

@@ -1,7 +1,6 @@
 function renderSidebar(){
   const lowStockCount = db.inventory.filter(i=>i.qty<=i.lowStock).length;
   const activeJobs = db.jobs.filter(j=>j.status!=='delivered').length;
-  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
   let items = [
     {k:'dashboard', l:t('nav_dashboard'), icon:ICONS.dashboard},
     {k:'jobs', l:t('nav_jobs'), icon:ICONS.jobs, badge:activeJobs},
@@ -14,7 +13,10 @@ function renderSidebar(){
     {k:'appointments', l:t('nav_appointments'), icon:ICONS.calendar, advancedOnly:true},
     {k:'settings', l:t('nav_settings'), icon:ICONS.settings, adminOnly:true},
   ];
-  if(!isAdmin) items = items.filter(it=>!it.adminOnly);
+  // "adminOnly" here really means "management-level" (Admin or Kerani) --
+  // Kerani gets full access to these sections, just not the revenue
+  // figures inside them (see dashboard.js/pos.js/appointments.js/reports.js).
+  if(!canManage()) items = items.filter(it=>!it.adminOnly);
   if(db.settings.simpleMode) items = items.filter(it=>!it.advancedOnly);
   return `
   <div class="sidebar ${state.navOpen?'nav-open':''}">
@@ -273,13 +275,13 @@ function globalSearchResults(q){
 }
 
 function renderView(){
-  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
   const adminOnlyViews = ['reports','staffpage','settings','payroll'];
-  if(adminOnlyViews.includes(state.view) && !isAdmin){
+  if(adminOnlyViews.includes(state.view) && !canManage()){
+    const en = state.language==='en';
     return `<div class="panel" style="text-align:center;padding:50px 20px;">
       ${ICONS.alert}
-      <h2 style="margin-top:14px;">Akses Terhad</h2>
-      <p style="color:var(--text-muted);font-size:13px;">Bahagian ini hanya untuk staf peranan Admin. Sila hubungi admin bengkel anda.</p>
+      <h2 style="margin-top:14px;">${en?'Access Restricted':'Akses Terhad'}</h2>
+      <p style="color:var(--text-muted);font-size:13px;">${en?'This section is for Admin/Kerani roles only. Please contact your shop admin.':'Bahagian ini hanya untuk staf peranan Admin/Kerani. Sila hubungi admin bengkel anda.'}</p>
     </div>`;
   }
   switch(state.view){

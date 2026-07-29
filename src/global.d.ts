@@ -92,7 +92,7 @@ interface Invoice {
 interface Staff {
   id: string;
   name: string;
-  role: 'Admin' | 'Mekanik' | 'Ketua Mekanik';
+  role: 'Admin' | 'Mekanik' | 'Ketua Mekanik' | 'Kerani';
   email?: string;
   commissionPercent?: number;
   baseSalary?: number;
@@ -272,6 +272,8 @@ declare function fmtDate(ts: number): string;
 declare function fmtDateTime(ts: number): string;
 declare function localDateStr(d?: Date): string;
 declare function normalizePhone(phone: string): string;
+declare function canManage(): boolean;
+declare function canSeeRevenue(): boolean;
 declare function logAudit(action: string, detail: string): void;
 declare function getCustomer(id: string | null | undefined): Customer | undefined;
 declare function getVehicle(id: string | null | undefined): Vehicle | undefined;

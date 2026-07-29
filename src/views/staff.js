@@ -60,10 +60,14 @@ function staffModalHTML(staffMember){
     <div class="field"><label>${tt('Peranan')||'Peranan'}</label>
       <select id="sf-role">
         <option value="Admin" ${staffMember.role==='Admin'?'selected':''}>Admin</option>
+        <option value="Kerani" ${staffMember.role==='Kerani'?'selected':''}>Kerani</option>
         <option value="Ketua Mekanik" ${staffMember.role==='Ketua Mekanik'?'selected':''}>Ketua Mekanik</option>
         <option value="Mekanik" ${staffMember.role==='Mekanik'?'selected':''}>Mekanik</option>
       </select>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${en?'"Head Mechanic" is a title only — same restricted access as Mekanik (no sales/revenue figures).':'"Ketua Mekanik" cuma gelaran — akses terhad sama seperti Mekanik (tiada lihat jualan/hasil).'}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+        ${en?'"Head Mechanic" is a title only — same restricted access as Mekanik (no sales/revenue figures).':'"Ketua Mekanik" cuma gelaran — akses terhad sama seperti Mekanik (tiada lihat jualan/hasil).'}<br>
+        ${en?'"Kerani" has full Admin-level access (Staff, Settings, Payroll, Reports) EXCEPT sales/revenue figures.':'"Kerani" ada akses penuh setaraf Admin (Staf, Tetapan, Gaji, Laporan) KECUALI angka jualan/pendapatan.'}
+      </div>
     </div>
     <div class="field">
       <label>${en?'Login Email':'E-mel Log Masuk'}</label>
