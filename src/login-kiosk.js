@@ -120,6 +120,12 @@ function renderLoginScreen(){
         <div style="text-align:right;margin-top:8px;">
           <span class="clickable" data-action="auth-mode-forgot" style="font-size:11.5px;color:var(--text-muted);text-decoration:underline;">${en?'Forgot password?':'Lupa kata laluan?'}</span>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <span style="font-size:11px;color:var(--text-muted);">${en?'OR':'ATAU'}</span>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>
+        <button class="btn btn-outline" style="width:100%;justify-content:center;gap:10px;" data-action="do-google-login">${ICONS.google} ${en?'Sign in with Google':'Log Masuk dengan Google'}</button>
       </div>
       <div style="text-align:center;margin-top:18px;display:flex;flex-direction:column;gap:8px;">
         <span class="clickable" data-action="auth-mode-signup" style="font-size:12.5px;color:var(--text-muted);text-decoration:underline;">${en?'New staff? Create an account':'Staf baharu? Daftar akaun'}</span>
@@ -149,6 +155,26 @@ function attachLoginHandlers(){
   document.querySelectorAll('[data-action="auth-mode-login"]').forEach(el=>el.addEventListener('click', ()=>setAuthMode('login')));
   document.querySelectorAll('[data-action="auth-mode-signup"]').forEach(el=>el.addEventListener('click', ()=>setAuthMode('signup')));
   document.querySelectorAll('[data-action="auth-mode-forgot"]').forEach(el=>el.addEventListener('click', ()=>setAuthMode('forgot')));
+
+  // ---- Google sign-in ----
+  // signInWithOAuth() navigates the whole page away to Google immediately on
+  // success (no session/promise to await here) -- the return trip lands back
+  // on this same URL with a session in it, which initApp()'s onAuthStateChange
+  // listener picks up (see sync-engine.js) since this render cycle is gone by
+  // then. staff-matching (claim_staff_record) works identically to email
+  // signup -- it matches on the authenticated email regardless of provider.
+  const googleBtn = document.querySelector('[data-action="do-google-login"]');
+  if(googleBtn) googleBtn.addEventListener('click', async ()=>{
+    state.loginError = '';
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if(error){
+      state.loginError = en ? 'Could not start Google sign-in.' : 'Gagal mulakan log masuk Google.';
+      render();
+    }
+  });
 
   const bindEnter = (id, fn)=>{ const el = document.getElementById(id); if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') fn(); }); };
 
