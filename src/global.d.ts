@@ -92,7 +92,7 @@ interface Invoice {
 interface Staff {
   id: string;
   name: string;
-  role: 'Admin' | 'Mekanik';
+  role: 'Admin' | 'Mekanik' | 'Ketua Mekanik';
   email?: string;
   commissionPercent?: number;
   userId?: string | null;
