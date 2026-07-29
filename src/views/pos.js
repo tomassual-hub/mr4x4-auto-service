@@ -21,8 +21,8 @@ function viewPOS(){
     <div class="panel">
       <h2>${ICONS.inventory} ${tt('Pilih Item / Servis')}</h2>
       <div class="field">
-        <label>${ICONS.barcode} Imbas / Kod Pantas (SKU)</label>
-        <input id="pos-barcode" placeholder="Imbas kod bar atau taip SKU, tekan Enter" autocomplete="off">
+        <label>${ICONS.barcode} ${tt('Imbas / Kod Pantas (SKU)')}</label>
+        <input id="pos-barcode" placeholder="${tt('Imbas kod bar atau taip SKU, tekan Enter')}" autocomplete="off">
       </div>
       <div class="search-box">${ICONS.search}<input id="pos-search" placeholder="${tt('Cari item inventori...')}"></div>
       <div id="pos-item-list">${renderPOSItemList('')}</div>
@@ -163,12 +163,12 @@ function viewPOS(){
 
 function renderPOSItemList(filter){
   const items = db.inventory.filter(i=>i.name.toLowerCase().includes((filter||'').toLowerCase()));
-  if(items.length===0) return emptyState('Tiada item sepadan.');
+  if(items.length===0) return emptyState(tt('Tiada item sepadan.'));
   return items.map(i=>`
     <div class="pos-item" data-action="add-to-cart" data-id="${i.id}">
       <div>
         <div class="n">${esc(i.name)}</div>
-        <div class="m">Baki: ${i.qty} ${i.qty<=i.lowStock?'⚠️':''}</div>
+        <div class="m">${tt('Baki')}: ${i.qty} ${i.qty<=i.lowStock?'⚠️':''}</div>
       </div>
       <div class="p">${fmtRM(i.price)}</div>
     </div>`).join('');

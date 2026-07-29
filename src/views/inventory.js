@@ -125,8 +125,8 @@ function itemModalHTML(item){
       </select>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-outline" data-action="close-modal">Batal</button>
-      <button class="btn btn-primary" data-action="save-item" data-id="${item.id||''}">Simpan</button>
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="save-item" data-id="${item.id||''}">${t('btn_save')}</button>
     </div>
   `;
 }

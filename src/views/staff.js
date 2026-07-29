@@ -77,10 +77,10 @@ function staffModalHTML(staffMember){
         : (staffMember.userId ? 'Sudah ditautkan dengan akaun log masuk.' : 'Belum ditautkan — minta mereka buka aplikasi dan tekan "Staf baharu? Daftar akaun" menggunakan e-mel yang sama ini.')}</div>
     </div>
     <div class="field"><label>${en?'Base Salary (RM/month)':'Gaji Pokok (RM/bulan)'}</label><input id="sf-basesalary" type="number" min="0" step="0.01" value="${staffMember.baseSalary||0}"></div>
-    <div class="field"><label>Komisen (% daripada nilai kerja disiapkan)</label><input id="sf-commission" type="number" min="0" max="100" value="${staffMember.commissionPercent||0}"></div>
+    <div class="field"><label>${en?'Commission (% of completed job value)':'Komisen (% daripada nilai kerja disiapkan)'}</label><input id="sf-commission" type="number" min="0" max="100" value="${staffMember.commissionPercent||0}"></div>
     <div class="modal-foot">
-      <button class="btn btn-outline" data-action="close-modal">Batal</button>
-      <button class="btn btn-primary" data-action="save-staff" data-id="${staffMember.id||''}">Simpan</button>
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="save-staff" data-id="${staffMember.id||''}">${t('btn_save')}</button>
     </div>
   `;
 }

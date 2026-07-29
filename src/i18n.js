@@ -13,7 +13,7 @@ const I18N = {
     sidebar_foot:'Developed by Tomas Sual',
     title_dashboard:'Papan Pemuka', title_jobs:'Kad Kerja', title_pos:'Tempat Jualan (POS)', title_inventory:'Inventori Alat Ganti',
     title_customers:'Pelanggan & Kenderaan', title_reports:'Laporan', title_staffpage:'Pengurusan Staf',
-    title_appointments:'Tempahan & Kontrak Servis', title_settings:'Tetapan',
+    title_appointments:'Tempahan & Kontrak Servis', title_settings:'Tetapan', title_payroll:'Gaji',
     login_title:'Sila Log Masuk', kiosk_link:'Pelanggan? Semak Status Kenderaan Anda',
     stat_today_sales:'Jualan Hari Ini', stat_active_jobs:'Kerja Aktif', stat_low_stock:'Stok Rendah', stat_total_customers:'Jumlah Pelanggan',
     btn_save:'Simpan', btn_cancel:'Batal', btn_close:'Tutup', btn_delete:'Padam', btn_edit:'Sunting', btn_add:'Tambah',
@@ -25,7 +25,7 @@ const I18N = {
     sidebar_foot:'Developed by Tomas Sual',
     title_dashboard:'Dashboard', title_jobs:'Job Cards', title_pos:'Point of Sale (POS)', title_inventory:'Parts Inventory',
     title_customers:'Customers & Vehicles', title_reports:'Reports', title_staffpage:'Staff Management',
-    title_appointments:'Appointments & Service Contracts', title_settings:'Settings',
+    title_appointments:'Appointments & Service Contracts', title_settings:'Settings', title_payroll:'Payroll',
     login_title:'Please Log In', kiosk_link:'Customer? Check Your Vehicle Status',
     stat_today_sales:"Today's Sales", stat_active_jobs:'Active Jobs', stat_low_stock:'Low Stock', stat_total_customers:'Total Customers',
     btn_save:'Save', btn_cancel:'Cancel', btn_close:'Close', btn_delete:'Delete', btn_edit:'Edit', btn_add:'Add',
@@ -220,6 +220,16 @@ const MS_EN = {
   'Gagal muat turun sandaran.':'Could not download backup.',
   'Pesanan Belian Baharu':'New Purchase Order',
   'Baki':'Remaining',
+  // Dashboard stat-card sub-lines and a POS scan field were raw string
+  // literals with no tt() call at all -- not just a missing dictionary
+  // entry, so the earlier tt()-vs-MS_EN audit couldn't have caught them.
+  'invois dikeluarkan':'invoices issued',
+  'menunggu tindakan':'awaiting action',
+  'item perlu ditambah':'items to restock',
+  'kenderaan direkod':'vehicles recorded',
+  'Imbas / Kod Pantas (SKU)':'Scan / Quick Code (SKU)',
+  'Imbas kod bar atau taip SKU, tekan Enter':'Scan barcode or type SKU, press Enter',
+  'Tiada item sepadan.':'No matching items.',
 };
 function tt(msText){ return state.language==='en' ? (MS_EN[msText]||msText) : msText; }
 

@@ -19,25 +19,25 @@ function viewDashboard(){
       <div class="stat-icon">${ICONS.pos}</div>
       <div class="stat-label">${t('stat_today_sales')}</div>
       <div class="stat-value">${fmtRM(todaySales)}</div>
-      <div class="stat-sub">${todaysInvoices.length} invois dikeluarkan</div>
+      <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
     </div>` : ''}
     <div class="stat-card">
       <div class="stat-icon">${ICONS.jobs}</div>
       <div class="stat-label">${t('stat_active_jobs')}</div>
       <div class="stat-value">${activeJobs.length}</div>
-      <div class="stat-sub">${waitingJobs.length} menunggu tindakan</div>
+      <div class="stat-sub">${waitingJobs.length} ${tt('menunggu tindakan')}</div>
     </div>
     <div class="stat-card ${lowStock.length ? 'warn' : 'ok'}">
       <div class="stat-icon">${ICONS.inventory}</div>
       <div class="stat-label">${t('stat_low_stock')}</div>
       <div class="stat-value">${lowStock.length}</div>
-      <div class="stat-sub">item perlu ditambah</div>
+      <div class="stat-sub">${tt('item perlu ditambah')}</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon">${ICONS.customers}</div>
       <div class="stat-label">${t('stat_total_customers')}</div>
       <div class="stat-value">${db.customers.length}</div>
-      <div class="stat-sub">${db.vehicles.length} kenderaan direkod</div>
+      <div class="stat-sub">${db.vehicles.length} ${tt('kenderaan direkod')}</div>
     </div>
   </div>
 

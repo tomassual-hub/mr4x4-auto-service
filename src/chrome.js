@@ -22,7 +22,7 @@ function renderSidebar(){
   <div class="sidebar ${state.navOpen?'nav-open':''}">
     <div class="brand" style="position:relative;text-align:center;">
       <div class="brand-mark" style="justify-content:center;">${logoMarkHtml(58)}</div>
-      <div class="brand-sub">Pakar Servis 4x4</div>
+      <div class="brand-sub">${tt('Pakar Servis 4x4')}</div>
       <button class="btn-icon hamburger-btn" data-action="close-nav" style="position:absolute;top:0;right:0;">${ICONS.x}</button>
     </div>
     <div class="nav">
@@ -42,7 +42,7 @@ function renderSidebar(){
       </div>
       <div class="sidebar-account-actions">
         <div class="sidebar-account-toggles">
-          <div class="theme-toggle" data-action="toggle-theme" title="Tukar tema">
+          <div class="theme-toggle" data-action="toggle-theme" title="${tt('Tukar tema')}">
             <div class="t-icon ${state.theme==='light'?'active':''}">${ICONS.sun}</div>
             <div class="t-icon ${state.theme==='dark'?'active':''}">${ICONS.moon}</div>
           </div>
@@ -128,7 +128,8 @@ function updateSyncIndicator(){
 }
 
 function renderTopbar(){
-  const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings')};
+  const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll')};
+  const en = state.language==='en';
   const s = state.currentStaff;
   const q = state.globalSearch||'';
   const results = q.trim() ? globalSearchResults(q.trim()) : [];
@@ -145,7 +146,7 @@ function renderTopbar(){
       <div class="search-box" style="margin-bottom:0;">${ICONS.search}<input id="global-search" placeholder="${t('search_placeholder')}" value="${esc(q)}"></div>
       ${q.trim() ? `
       <div class="global-search-results">
-        ${results.length===0 ? `<div class="gs-empty">Tiada padanan untuk "${esc(q)}".</div>` : results.map((r,idx)=>`
+        ${results.length===0 ? `<div class="gs-empty">${en?`No matches for "${esc(q)}".`:`Tiada padanan untuk "${esc(q)}".`}</div>` : results.map((r,idx)=>`
           <div class="gs-item" data-gs-idx="${idx}">
             <div class="gs-type">${esc(r.typeLabel)}</div>
             <div>
@@ -159,10 +160,10 @@ function renderTopbar(){
       <div id="sync-indicator" class="sync-indicator ${syncIndicatorClass()}" title="${syncIndicatorLabel()}"><span class="sync-dot"></span></div>
       ${db.branches.length>1 ? `
       <select id="branch-selector" style="width:auto;padding:8px 10px;font-size:12px;">
-        <option value="all" ${state.currentBranch==='all'?'selected':''}>Semua Cawangan</option>
+        <option value="all" ${state.currentBranch==='all'?'selected':''}>${en?'All Branches':'Semua Cawangan'}</option>
         ${db.branches.map(b=>`<option value="${b.id}" ${state.currentBranch===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}
       </select>` : ''}      <div class="notif-wrap">
-        <button class="btn-icon" data-action="toggle-notif" title="Notifikasi" style="position:relative;">
+        <button class="btn-icon" data-action="toggle-notif" title="${en?'Notifications':'Notifikasi'}" style="position:relative;">
           ${ICONS.bell}
           ${(()=>{ const n = getNotifications(); return n.length>0 ? `<span class="notif-badge">${n.length}</span>` : ''; })()}
         </button>
@@ -170,7 +171,7 @@ function renderTopbar(){
         <div class="global-search-results" style="width:300px;right:0;left:auto;">
           ${(()=>{
             const n = getNotifications();
-            if(n.length===0) return `<div class="gs-empty">Tiada notifikasi baharu.</div>`;
+            if(n.length===0) return `<div class="gs-empty">${en?'No new notifications.':'Tiada notifikasi baharu.'}</div>`;
             return n.map(item=>`
               <div class="gs-item" data-notif-nav="${item.view}">
                 <div class="gs-type" style="background:${item.urgent?'rgba(225,75,75,.18)':'var(--panel-alt)'};color:${item.urgent?'var(--danger)':'var(--text-muted)'};">${item.tag}</div>
@@ -180,7 +181,7 @@ function renderTopbar(){
         </div>` : ''}
       </div>
       <div class="topbar-account">
-        <div class="theme-toggle" data-action="toggle-theme" title="Tukar tema">
+        <div class="theme-toggle" data-action="toggle-theme" title="${tt('Tukar tema')}">
           <div class="t-icon ${state.theme==='light'?'active':''}">${ICONS.sun}</div>
           <div class="t-icon ${state.theme==='dark'?'active':''}">${ICONS.moon}</div>
         </div>
@@ -203,13 +204,14 @@ function renderTopbar(){
 function getNotifications(){
   const out = [];
   const now = Date.now();
+  const en = state.language==='en';
   const lowStock = db.inventory.filter(i=>i.qty<=i.lowStock);
-  if(lowStock.length>0) out.push({tag:'Stok', label:lowStock.length+' item stok rendah', sub:lowStock.slice(0,3).map(i=>i.name).join(', '), view:'inventory', urgent:true});
+  if(lowStock.length>0) out.push({tag:en?'Stock':'Stok', label:lowStock.length+(en?' item(s) low on stock':' item stok rendah'), sub:lowStock.slice(0,3).map(i=>i.name).join(', '), view:'inventory', urgent:true});
   const todayStr = localDateStr();
   const todayAppts = db.appointments.filter(a=>a.status==='scheduled' && a.date===todayStr);
-  if(todayAppts.length>0) out.push({tag:'Tempahan', label:todayAppts.length+' tempahan hari ini', sub:todayAppts.map(a=>a.time).join(', '), view:'appointments', urgent:false});
+  if(todayAppts.length>0) out.push({tag:en?'Appointments':'Tempahan', label:todayAppts.length+(en?' appointment(s) today':' tempahan hari ini'), sub:todayAppts.map(a=>a.time).join(', '), view:'appointments', urgent:false});
   const overdueContracts = db.contracts.filter(c=>c.nextDue<=now);
-  if(overdueContracts.length>0) out.push({tag:'Kontrak', label:overdueContracts.length+' kontrak tertunggak', sub:overdueContracts.map(c=>c.label).join(', '), view:'appointments', urgent:true});
+  if(overdueContracts.length>0) out.push({tag:en?'Contracts':'Kontrak', label:overdueContracts.length+(en?' overdue contract(s)':' kontrak tertunggak'), sub:overdueContracts.map(c=>c.label).join(', '), view:'appointments', urgent:true});
   const sizeBytes = JSON.stringify(db).length;
   const sizeMB = sizeBytes/1024/1024;
   if(sizeMB >= 4){
@@ -247,28 +249,29 @@ function getNotifications(){
 
 function globalSearchResults(q){
   const ql = q.toLowerCase();
+  const en = state.language==='en';
   const out = [];
   db.customers.forEach(c=>{
     if(c.name.toLowerCase().includes(ql) || (c.phone||'').includes(ql)){
-      out.push({typeLabel:'Pelanggan', label:c.name, sub:c.phone||'-', action:{type:'customer', id:c.id}});
+      out.push({typeLabel:en?'Customer':'Pelanggan', label:c.name, sub:c.phone||'-', action:{type:'customer', id:c.id}});
     }
   });
   db.vehicles.forEach(v=>{
     if(v.plate.toLowerCase().includes(ql)){
       const c = getCustomer(v.customerId);
-      out.push({typeLabel:'Kenderaan', label:v.plate, sub:(v.model||'')+' · '+(c?c.name:'-'), action:{type:'vehicle', id:v.id}});
+      out.push({typeLabel:en?'Vehicle':'Kenderaan', label:v.plate, sub:(v.model||'')+' · '+(c?c.name:'-'), action:{type:'vehicle', id:v.id}});
     }
   });
   db.jobs.forEach(j=>{
     if(j.jobNo.toLowerCase().includes(ql)){
       const v = getVehicle(j.vehicleId);
-      out.push({typeLabel:'Kad Kerja', label:j.jobNo, sub:v?v.plate:'-', action:{type:'job', id:j.id}});
+      out.push({typeLabel:en?'Job Card':'Kad Kerja', label:j.jobNo, sub:v?v.plate:'-', action:{type:'job', id:j.id}});
     }
   });
   db.invoices.forEach(inv=>{
     if(inv.invoiceNo.toLowerCase().includes(ql)){
       const c = getCustomer(inv.customerId);
-      out.push({typeLabel:'Invois', label:inv.invoiceNo, sub:(c?c.name:'Walk-in')+' · '+fmtRM(inv.total), action:{type:'invoice', id:inv.id}});
+      out.push({typeLabel:en?'Invoice':'Invois', label:inv.invoiceNo, sub:(c?c.name:'Walk-in')+' · '+fmtRM(inv.total), action:{type:'invoice', id:inv.id}});
     }
   });
   return out.slice(0,8);

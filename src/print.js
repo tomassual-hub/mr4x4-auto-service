@@ -70,21 +70,24 @@ function printInvoice(inv){
 function printJobCard(job){
   const c = getCustomer(job.customerId);
   const v = getVehicle(job.vehicleId);
-  const statusLabel = {waiting:'Menunggu', progress:'Dalam Proses', done:'Siap', delivered:'Dihantar'}[job.status];
+  const en = state.language==='en';
+  const statusLabel = en
+    ? {waiting:'Waiting', progress:'In Progress', done:'Ready', delivered:'Delivered'}[job.status]
+    : {waiting:'Menunggu', progress:'Dalam Proses', done:'Siap', delivered:'Dihantar'}[job.status];
   const area = document.getElementById('print-area');
   area.innerHTML = `
     <div class="print-invoice">
       <h2>${esc(db.settings.shopName)}</h2>
-      <div class="pi-sub">Kad Kerja Servis — Letak di Dashboard Kereta</div>
-      <div class="pi-row"><span>No. Kad Kerja</span><span>${job.jobNo}</span></div>
-      <div class="pi-row"><span>Tarikh Masuk</span><span>${fmtDateTime(job.createdAt)}</span></div>
+      <div class="pi-sub">${en?'Service Job Card — Place on Car Dashboard':'Kad Kerja Servis — Letak di Dashboard Kereta'}</div>
+      <div class="pi-row"><span>${en?'Job Card No.':'No. Kad Kerja'}</span><span>${job.jobNo}</span></div>
+      <div class="pi-row"><span>${en?'Date In':'Tarikh Masuk'}</span><span>${fmtDateTime(job.createdAt)}</span></div>
       <div class="pi-row"><span>Status</span><span>${statusLabel}</span></div>
       <div class="pi-line"></div>
-      <div class="pi-row"><span>Pelanggan</span><span>${c?esc(c.name):'-'}</span></div>
-      ${v?`<div class="pi-row"><span>Kenderaan</span><span>${esc(v.plate)} (${esc(v.model)})</span></div>`:''}
-      <div class="pi-row"><span>Mekanik</span><span>${esc(job.mechanic||'-')}</span></div>
+      <div class="pi-row"><span>${en?'Customer':'Pelanggan'}</span><span>${c?esc(c.name):'-'}</span></div>
+      ${v?`<div class="pi-row"><span>${en?'Vehicle':'Kenderaan'}</span><span>${esc(v.plate)} (${esc(v.model)})</span></div>`:''}
+      <div class="pi-row"><span>${en?'Mechanic':'Mekanik'}</span><span>${esc(job.mechanic||'-')}</span></div>
       <div class="pi-line"></div>
-      <div style="font-size:12px;margin-bottom:6px;"><strong>Penerangan Kerja:</strong></div>
+      <div style="font-size:12px;margin-bottom:6px;"><strong>${en?'Job Description:':'Penerangan Kerja:'}</strong></div>
       <div style="font-size:12.5px;margin-bottom:14px;">${esc(job.description||'-')}</div>
       <div class="pi-foot">${esc(db.settings.shopPhone||'')}</div>
     </div>
@@ -162,11 +165,12 @@ function printPayslip(record){
 }
 
 function printVehicleQR(v){
+  const en = state.language==='en';
   const area = document.getElementById('print-area');
   area.innerHTML = `
     <div class="print-invoice" style="text-align:center;">
       <h2>${esc(db.settings.shopName)}</h2>
-      <div class="pi-sub">Label Kod QR Kenderaan</div>
+      <div class="pi-sub">${en?'Vehicle QR Code Label':'Label Kod QR Kenderaan'}</div>
       <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(v.plate)}" width="180" height="180" alt="QR ${esc(v.plate)}" style="margin:14px auto;display:block;">
       <div style="font-size:20px;font-weight:700;letter-spacing:2px;">${esc(v.plate)}</div>
       <div style="font-size:12px;color:#666;margin-top:4px;">${esc(v.model||'')}</div>
