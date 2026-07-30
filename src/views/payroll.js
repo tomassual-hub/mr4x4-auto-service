@@ -23,7 +23,9 @@ function shiftMonth(monthStr, delta){
 
 // Commission math mirrors viewReports()'s mechanic-performance calculation
 // exactly (job.mechanic name match, invoice total attributed to that
-// mechanic's jobs) — just scoped to a calendar month instead of "last N days".
+// mechanic's jobs, net of any credit notes issued against that invoice —
+// see creditNotesForInvoice()'s comment for why) — just scoped to a
+// calendar month instead of "last N days".
 function computeMonthlyPay(staffMember, month){
   const [y,m] = month.split('-').map(Number);
   const periodStart = new Date(y, m-1, 1).getTime();
@@ -35,7 +37,10 @@ function computeMonthlyPay(staffMember, month){
     if(inv.createdAt<periodStart || inv.createdAt>=periodEnd) return;
     if(!inv.jobId) return;
     const job = jobsById.get(inv.jobId);
-    if(job && job.mechanic===staffMember.name) commissionRevenue += inv.total;
+    if(job && job.mechanic===staffMember.name){
+      const credited = creditNotesForInvoice(inv.id).reduce((s,cn)=>s+cn.total,0);
+      commissionRevenue += Math.max(0, inv.total - credited);
+    }
   });
   const commissionPct = Number(staffMember.commissionPercent)||0;
   const commission = commissionRevenue*commissionPct/100;

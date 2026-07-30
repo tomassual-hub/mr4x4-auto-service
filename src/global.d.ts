@@ -425,6 +425,7 @@ declare function fmtRM(n: number): string;
 declare function invoiceCashAmount(inv: Invoice): number;
 declare function invoiceAmountPaid(inv: Invoice): number;
 declare function invoiceBalanceDue(inv: Invoice): number;
+declare function creditNotesForInvoice(invoiceId: string): CreditNote[];
 declare function fmtDate(ts: number): string;
 declare function fmtDateTime(ts: number): string;
 declare function localDateStr(d?: Date): string;

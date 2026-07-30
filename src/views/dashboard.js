@@ -145,7 +145,7 @@ function viewDashboard(){
       ${recentInvoices.length===0 ? emptyState(tt('Belum ada invois.')) : recentInvoices.map(inv=>{
         const cust = getCustomer(inv.customerId);
         return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px;">
-          <span>${inv.invoiceNo} — ${cust?cust.name:tt('Walk-in')}</span>
+          <span>${inv.invoiceNo} — ${cust?esc(cust.name):tt('Walk-in')}</span>
           <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">${fmtRM(inv.total)}</span>
         </div>`;
       }).join('')}` : ''}

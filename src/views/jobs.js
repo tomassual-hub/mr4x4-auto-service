@@ -11,8 +11,8 @@ function renderJobTicket(j){
     <div class="jt-head">
       <div>
         <div class="jt-num">${j.jobNo} · ${fmtDate(j.createdAt)}${bay?` · ${ICONS.bay} ${esc(bay.name)}`:''}</div>
-        <div class="jt-plate">${v?v.plate:'—'}</div>
-        <div class="jt-model">${v?v.model:'—'}</div>
+        <div class="jt-plate">${v?esc(v.plate):'—'}</div>
+        <div class="jt-model">${v?esc(v.model):'—'}</div>
       </div>
     </div>
     <div class="jt-desc">${esc(j.description) || tt('Tiada penerangan')}</div>
@@ -143,14 +143,14 @@ function jobDetailModalHTML(j){
         ${db.bays.filter(b=>b.active || b.id===j.bayId).map(b=>`<option value="${b.id}" ${j.bayId===b.id?'selected':''}>${esc(b.name)}${b.category?' — '+esc(b.category):''}</option>`).join('')}
       </select>
     </div>` : ''}
-    <div class="field"><label>${en?'Internal Note (not shown to customer)':'Nota Dalaman (tidak dipaparkan kepada pelanggan)'}</label><textarea id="job-note-edit" rows="2" placeholder="Cth: brake pad belakang nipis, cadang tukar servis akan datang">${esc(j.internalNote||'')}</textarea></div>
+    <div class="field"><label>${en?'Internal Note (not shown to customer)':'Nota Dalaman (tidak dipaparkan kepada pelanggan)'}</label><textarea id="job-note-edit" rows="2" placeholder="${en?'e.g. rear brake pad thin, suggest replacing next service':'Cth: brake pad belakang nipis, cadang tukar servis akan datang'}">${esc(j.internalNote||'')}</textarea></div>
     <div class="field">
       <label>${tt('Status')}</label>
       <select id="job-status-select">
         ${statuses.map(s=>`<option value="${s.k}" ${j.status===s.k?'selected':''}>${s.l}</option>`).join('')}
       </select>
     </div>
-    <div class="field"><label>${en?'Date Opened':'Tarikh Dibuka'}</label><div style="font-size:12.5px;color:var(--text-muted);">${fmtDateTime(j.createdAt)} ${j.createdBy?(en?'· By: ':'· Oleh: ')+j.createdBy:''}</div></div>
+    <div class="field"><label>${en?'Date Opened':'Tarikh Dibuka'}</label><div style="font-size:12.5px;color:var(--text-muted);">${fmtDateTime(j.createdAt)} ${j.createdBy?(en?'· By: ':'· Oleh: ')+esc(j.createdBy):''}</div></div>
     <div class="field">
       <label>${ICONS.gauge} ${en?'Before/After Photos (max. 4)':'Gambar Sebelum/Selepas (maks. 4)'}</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
@@ -201,7 +201,7 @@ function newJobModalHTML(){
     </div>
     <div id="nj-new-customer-fields" style="display:none;">
       <div class="field-row">
-        <div class="field"><label>${state.language==='en'?'Customer Name':'Nama Pelanggan'}</label><input id="nj-new-name" placeholder="Cth: Ahmad Faizal"></div>
+        <div class="field"><label>${state.language==='en'?'Customer Name':'Nama Pelanggan'}</label><input id="nj-new-name" placeholder="${state.language==='en'?'e.g. Ahmad Faizal':'Cth: Ahmad Faizal'}"></div>
         <div class="field"><label>${state.language==='en'?'Phone No.':'No. Telefon'}</label><input id="nj-new-phone" placeholder="012-3456789"></div>
       </div>
     </div>
@@ -211,11 +211,11 @@ function newJobModalHTML(){
     <div id="nj-new-vehicle-fields" style="display:none;">
       <div class="field-row">
         <div class="field"><label>${state.language==='en'?'Plate No.':'No. Plat'}</label><input id="nj-new-plate" placeholder="WXY 1234"></div>
-        <div class="field"><label>${state.language==='en'?'Model / Color':'Model / Warna'}</label><input id="nj-new-model" placeholder="Perodua Myvi 2019, Putih"></div>
+        <div class="field"><label>${state.language==='en'?'Model / Color':'Model / Warna'}</label><input id="nj-new-model" placeholder="${state.language==='en'?'Perodua Myvi 2019, White':'Perodua Myvi 2019, Putih'}"></div>
       </div>
     </div>
-    <div class="field"><label>${state.language==='en'?'Job Description':'Penerangan Kerja'}</label><textarea id="nj-desc" rows="3" placeholder="Cth: Servis biasa, tukar minyak enjin & penapis"></textarea></div>
-    <div class="field"><label>${state.language==='en'?'Assigned Mechanic':'Mekanik Bertugas'}</label><input id="nj-mechanic" placeholder="Cth: Encik Razak"></div>
+    <div class="field"><label>${state.language==='en'?'Job Description':'Penerangan Kerja'}</label><textarea id="nj-desc" rows="3" placeholder="${state.language==='en'?'e.g. Regular service, engine oil & filter change':'Cth: Servis biasa, tukar minyak enjin & penapis'}"></textarea></div>
+    <div class="field"><label>${state.language==='en'?'Assigned Mechanic':'Mekanik Bertugas'}</label><input id="nj-mechanic" placeholder="${state.language==='en'?'e.g. Mr. Razak':'Cth: Encik Razak'}"></div>
     ${!db.settings.simpleMode && (db.bays||[]).length>0 ? `
     <div class="field"><label>${ICONS.bay} ${state.language==='en'?'Bay (optional)':'Bay (pilihan)'}</label>
       <select id="nj-bay">

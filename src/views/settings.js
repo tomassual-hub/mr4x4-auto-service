@@ -5,8 +5,8 @@ function viewSettings(){
   <div class="grid grid-2" id="settings-view">
     <div class="panel">
       <h2>${ICONS.settings} ${tt('Maklumat Kedai')}</h2>
-      <div class="field"><label>${tt('Nama Bengkel')}</label><input id="set-shopname" value="${s.shopName}"></div>
-      <div class="field"><label>${tt('No. Telefon Bengkel')}</label><input id="set-shopphone" value="${s.shopPhone||''}" placeholder="012-3456789"></div>
+      <div class="field"><label>${tt('Nama Bengkel')}</label><input id="set-shopname" value="${esc(s.shopName)}"></div>
+      <div class="field"><label>${tt('No. Telefon Bengkel')}</label><input id="set-shopphone" value="${esc(s.shopPhone||'')}" placeholder="012-3456789"></div>
       <div class="field"><label>${state.language==='en'?'Business Address':'Alamat Perniagaan'}</label><textarea id="set-shopaddress" rows="2" placeholder="${state.language==='en'?'For printed invoices':'Untuk invois cetak'}">${esc(s.shopAddress||'')}</textarea></div>
       <div class="field"><label>${state.language==='en'?'Vehicle Brands Serviced':'Jenama Kenderaan Diservis'}</label>
         <input id="set-brands" value="${esc((s.servicedBrands||[]).join(', '))}" placeholder="${state.language==='en'?'e.g. Toyota, Honda, Perodua (comma-separated)':'cth: Toyota, Honda, Perodua (pisah dengan koma)'}">

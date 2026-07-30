@@ -173,8 +173,8 @@ function viewPOS(){
             <td style="white-space:nowrap;">
               ${balanceDue>0.004 ? `<button class="btn-icon" data-action="settle-invoice-balance" data-id="${inv.id}" title="${state.language==='en'?'Record balance payment':'Rekod bayaran baki'}">${ICONS.wallet}</button>` : ''}
               ${!db.settings.simpleMode ? `<button class="btn-icon" data-action="open-credit-note" data-id="${inv.id}" title="${state.language==='en'?'Issue Credit Note':'Keluarkan Nota Kredit'}">${ICONS.repeat}</button>` : ''}
-              <button class="btn-icon" data-action="print-invoice" data-id="${inv.id}" title="Cetak invois">${ICONS.printer}</button>
-              ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="Hantar via WhatsApp" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}
+              <button class="btn-icon" data-action="print-invoice" data-id="${inv.id}" title="${state.language==='en'?'Print invoice':'Cetak invois'}">${ICONS.printer}</button>
+              ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="${state.language==='en'?'Send via WhatsApp':'Hantar via WhatsApp'}" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}
             </td>
           </tr>`;
         }).join('')}
@@ -242,7 +242,7 @@ function viewPOS(){
           <div style="color:${variance===0?'var(--success)':'var(--danger)'};font-weight:600;margin-top:6px;">
             ${variance===0 ? '✓ '+tt('Padan sepenuhnya') : (variance>0 ? tt('Lebihan')+' '+fmtRM(variance) : tt('Kekurangan')+' '+fmtRM(Math.abs(variance)))}
           </div>
-          <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">${tt('Ditutup oleh')} ${alreadyClosed.closedBy} ${tt('pada')} ${fmtDateTime(alreadyClosed.closedAt)}</div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">${tt('Ditutup oleh')} ${esc(alreadyClosed.closedBy)} ${tt('pada')} ${fmtDateTime(alreadyClosed.closedAt)}</div>
         </div>`;
       }
       return `

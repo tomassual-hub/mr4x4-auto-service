@@ -121,6 +121,41 @@ async function run(){
   r.checkTrue('P&L gross profit shows RM40', reportText.includes('RM 40.00'));
   r.checkTrue('commission shows RM12 (20% of RM60)', reportText.includes('RM 12.00'));
 
+  // Credit note for 1 of the 2 units (RM30 of the RM60 invoice) must reduce
+  // P&L revenue/gross profit AND mechanic commission by the credited amount
+  // -- COGS stays put (the part was genuinely consumed regardless of the
+  // refund). This is the exact bug class fixed via creditNotesForInvoice().
+  await page.evaluate(() => setState({ view: 'pos' }));
+  await page.waitForTimeout(200);
+  await clickInPage(page, `[data-action="open-credit-note"][data-id="${invoice.id}"]`);
+  await page.waitForTimeout(300);
+  await page.fill('[data-cn-qty-idx="0"]', '1');
+  await page.fill('#cn-reason', 'RCI credit note test');
+  await page.click('[data-action="save-credit-note"]');
+  await page.waitForTimeout(600);
+  const creditNote = await page.evaluate(() => (db.creditNotes||[]).find(cn=>cn.reason==='RCI credit note test'));
+  r.checkTrue('credit note created', !!creditNote);
+  r.check('credit note subtotal RM30 (1x RM30)', creditNote?.subtotal, 30);
+  await waitForSyncIdle(page);
+
+  await page.evaluate(() => setState({ view: 'reports', reportRange: 30 }));
+  await page.waitForTimeout(300);
+  const reportTextAfterCredit = await page.evaluate(() => document.querySelector('.content').textContent);
+  r.checkTrue('P&L revenue drops to RM30 after RM30 credit note', reportTextAfterCredit.includes('RM 30.00'));
+  r.checkTrue('P&L COGS unchanged at RM20 (credited part was still consumed)', reportTextAfterCredit.includes('RM 20.00'));
+  r.checkTrue('commission drops to RM6 (20% of RM60-RM30=RM30, was RM12)', reportTextAfterCredit.includes('RM 6.00'));
+
+  await page.evaluate(() => setState({ view: 'payroll' }));
+  await page.waitForTimeout(300);
+  const payrollText = await page.evaluate(() => document.querySelector('.content').textContent);
+  r.checkTrue('Payroll also shows the reduced RM6 commission for this mechanic', payrollText.includes('RM 6.00'));
+
+  await page.evaluate(() => {
+    db.creditNotes = (db.creditNotes||[]).filter(cn => cn.reason !== 'RCI credit note test');
+    queueSave();
+  });
+  await page.waitForTimeout(1200);
+
   // Cash closure (lives in the POS view)
   await page.evaluate(() => setState({ view: 'pos' }));
   await page.waitForTimeout(300);

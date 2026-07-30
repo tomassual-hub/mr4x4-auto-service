@@ -22,10 +22,16 @@ function viewReports(){
   }));
   const topItems = Object.entries(itemSales).sort((a,b)=>b[1]-a[1]).slice(0,6);
 
-  // P&L: revenue vs cost of goods sold
+  // P&L: revenue vs cost of goods sold. Credit notes reduce revenue by
+  // however much of that invoice was actually refunded -- attributed to
+  // the ORIGINAL invoice's period (the sale is what happened this period;
+  // a later refund just corrects its true value), not the credit note's
+  // own date. COGS is NOT reduced: a credited part was still consumed/
+  // installed, that real cost already happened regardless of the refund.
   let cogs = 0, revenue = 0;
   invInRange.forEach(inv=>{
-    revenue += inv.subtotal - (inv.discount||0);
+    const credited = creditNotesForInvoice(inv.id).reduce((s,cn)=>s+cn.subtotal,0);
+    revenue += inv.subtotal - (inv.discount||0) - credited;
     inv.items.forEach(it=>{
       if(it.refId){
         const invItem = getItem(it.refId);
@@ -53,6 +59,15 @@ function viewReports(){
         servicesRevenue += lineRevenue;
       }
     });
+    // Credit note items mirror the same {name,qty,price,refId} shape as
+    // invoice items, so the same refId check attributes each credited
+    // line back to whichever bucket (part/service) it actually came from,
+    // instead of guessing with a flat proportional split.
+    creditNotesForInvoice(inv.id).forEach(cn=>cn.items.forEach(ci=>{
+      const lineCredit = ci.price*ci.qty;
+      if(ci.refId) partsRevenue -= lineCredit;
+      else servicesRevenue -= lineCredit;
+    }));
   });
   const partsProfit = partsRevenue - partsCost;
   const servicesProfit = servicesRevenue; // no cost tracked for labor
@@ -72,7 +87,10 @@ function viewReports(){
   invInRange.forEach(inv=>{
     if(!inv.jobId) return;
     const job = jobsById.get(inv.jobId);
-    if(job && job.mechanic && mechStats[job.mechanic]) mechStats[job.mechanic].revenue += inv.total;
+    if(job && job.mechanic && mechStats[job.mechanic]){
+      const credited = creditNotesForInvoice(inv.id).reduce((s,cn)=>s+cn.total,0);
+      mechStats[job.mechanic].revenue += Math.max(0, inv.total - credited);
+    }
   });
   const mechRows = Object.entries(mechStats).map(([name,st])=>{
     const staffMember = db.staff.find(s=>s.name===name);

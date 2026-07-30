@@ -30,6 +30,17 @@ function invoiceAmountPaid(inv){
   return inv.total;
 }
 function invoiceBalanceDue(inv){ return Math.max(0, inv.total - invoiceAmountPaid(inv)); }
+// Credit notes (partial/full refunds against a past invoice) were, until
+// this fix, invisible to every revenue-derived figure -- P&L revenue,
+// mechanic commission (Reports), and payroll commission all kept counting
+// an invoice's full original total forever, even after some of it was
+// refunded. A shop issuing a credit note for a returned/defective part
+// would see overstated profit AND pay real commission on money that was
+// actually given back to the customer. Shared here so Reports and Payroll
+// can't drift into disagreeing about how much of an invoice was credited.
+function creditNotesForInvoice(invoiceId){
+  return (db.creditNotes||[]).filter(cn=>cn.invoiceId===invoiceId);
+}
 function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('ms-MY',{day:'2-digit',month:'short',year:'numeric'}); }
 function fmtDateTime(ts){ const d=new Date(ts); return d.toLocaleDateString('ms-MY',{day:'2-digit',month:'short'}) + ' ' + d.toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'}); }
 function logAudit(action, detail){
