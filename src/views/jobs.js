@@ -2,6 +2,7 @@
 function renderJobTicket(j){
   const v = getVehicle(j.vehicleId);
   const c = getCustomer(j.customerId);
+  const bay = j.bayId ? (db.bays||[]).find(b=>b.id===j.bayId) : null;
   const stripeClass = j.status==='progress'?'st-progress':j.status==='done'?'st-done':j.status==='delivered'?'st-delivered':'';
   const statusLabel = {waiting:tt('Menunggu'), progress:tt('Dalam Proses'), done:tt('Siap'), delivered:tt('Dihantar')}[j.status];
   return `
@@ -9,7 +10,7 @@ function renderJobTicket(j){
     <div class="jt-stripe ${stripeClass}"></div>
     <div class="jt-head">
       <div>
-        <div class="jt-num">${j.jobNo} · ${fmtDate(j.createdAt)}</div>
+        <div class="jt-num">${j.jobNo} · ${fmtDate(j.createdAt)}${bay?` · ${ICONS.bay} ${esc(bay.name)}`:''}</div>
         <div class="jt-plate">${v?v.plate:'—'}</div>
         <div class="jt-model">${v?v.model:'—'}</div>
       </div>
@@ -135,6 +136,13 @@ function jobDetailModalHTML(j){
     </div>
     <div class="field"><label>${en?'Job Description':'Penerangan Kerja'}</label><textarea id="job-desc-edit" rows="2">${esc(j.description||'')}</textarea></div>
     <div class="field"><label>${tt('Mekanik')}</label><input id="job-mechanic-edit" value="${esc(j.mechanic||'')}"></div>
+    ${(db.bays||[]).length>0 ? `
+    <div class="field"><label>${ICONS.bay} ${en?'Bay':'Bay'}</label>
+      <select id="job-bay-edit">
+        <option value="">— ${en?'Not Assigned':'Belum Ditugaskan'} —</option>
+        ${db.bays.filter(b=>b.active || b.id===j.bayId).map(b=>`<option value="${b.id}" ${j.bayId===b.id?'selected':''}>${esc(b.name)}${b.category?' — '+esc(b.category):''}</option>`).join('')}
+      </select>
+    </div>` : ''}
     <div class="field"><label>${en?'Internal Note (not shown to customer)':'Nota Dalaman (tidak dipaparkan kepada pelanggan)'}</label><textarea id="job-note-edit" rows="2" placeholder="Cth: brake pad belakang nipis, cadang tukar servis akan datang">${esc(j.internalNote||'')}</textarea></div>
     <div class="field">
       <label>${tt('Status')}</label>
@@ -208,6 +216,13 @@ function newJobModalHTML(){
     </div>
     <div class="field"><label>${state.language==='en'?'Job Description':'Penerangan Kerja'}</label><textarea id="nj-desc" rows="3" placeholder="Cth: Servis biasa, tukar minyak enjin & penapis"></textarea></div>
     <div class="field"><label>${state.language==='en'?'Assigned Mechanic':'Mekanik Bertugas'}</label><input id="nj-mechanic" placeholder="Cth: Encik Razak"></div>
+    ${(db.bays||[]).length>0 ? `
+    <div class="field"><label>${ICONS.bay} ${state.language==='en'?'Bay (optional)':'Bay (pilihan)'}</label>
+      <select id="nj-bay">
+        <option value="">— ${state.language==='en'?'Not Assigned':'Belum Ditugaskan'} —</option>
+        ${db.bays.filter(b=>b.active).map(b=>`<option value="${b.id}">${esc(b.name)}${b.category?' — '+esc(b.category):''}</option>`).join('')}
+      </select>
+    </div>` : ''}
     <div class="modal-foot">
       <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
       <button class="btn btn-primary" data-action="create-job">${ICONS.plus} ${state.language==='en'?'Create Job Card':'Cipta Kad Kerja'}</button>

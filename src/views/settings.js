@@ -22,6 +22,11 @@ function viewSettings(){
         <div class="field"><label>${tt('Lawatan Layak Diskaun')}</label><input id="set-loyalty-visits" type="number" min="1" value="${s.loyaltyVisits||5}"></div>
       </div>
       <div class="field"><label>${tt('Anggap "Senyap" selepas (hari)')}</label><input id="set-churn-days" type="number" min="1" value="${s.churnDays||180}"></div>
+      <div class="field-row">
+        <div class="field"><label>${state.language==='en'?'Monthly Sales Target (RM)':'Sasaran Jualan Bulanan (RM)'}</label><input id="set-sales-target" type="number" min="0" step="0.01" value="${s.monthlySalesTarget||0}"></div>
+        <div class="field"><label>${state.language==='en'?'Monthly Unit Target':'Sasaran Unit Bulanan'}</label><input id="set-unit-target" type="number" min="0" value="${s.monthlyUnitTarget||0}"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:-8px;margin-bottom:14px;">${state.language==='en'?'Shown as progress on the Dashboard. Leave at 0 to hide.':'Dipaparkan sebagai progres pada Papan Pemuka. Biar 0 untuk sembunyikan.'}</div>
       <div class="field" style="display:flex;align-items:center;justify-content:space-between;background:var(--panel-alt);padding:12px;border-radius:8px;">
         <div>
           <label style="margin-bottom:2px;">${state.language==='en'?'Simple Mode':'Mod Ringkas'}</label>
@@ -111,6 +116,55 @@ function viewSettings(){
       </div>
     </div>
   </div>
+
+  ${(()=>{
+    const en = state.language==='en';
+    const bays = db.bays||[];
+    return `
+    <div class="panel" style="margin-top:20px;">
+      <div class="section-head">
+        <div><h2 style="margin:0;">${ICONS.bay} ${en?'Bay Management':'Pengurusan Bay'}</h2>
+        <div class="sub">${en?'Track which physical lift/bay each job is parked on (optional).':'Jejak lif/bay fizikal mana setiap kad kerja diletakkan (pilihan).'}</div></div>
+        <button class="btn btn-primary" data-action="new-bay">${ICONS.plus} ${en?'New Bay':'Bay Baharu'}</button>
+      </div>
+      ${bays.length===0 ? emptyState(en?'No bays set up yet.':'Belum ada bay ditetapkan.') : `
+      <div class="grid grid-4">
+        ${bays.map(b=>{
+          const occupied = db.jobs.find(j=>j.bayId===b.id && j.status!=='delivered');
+          return `<div class="panel" style="text-align:center;">
+            <div style="color:var(--accent);margin-bottom:6px;">${ICONS.bay}</div>
+            <div style="font-weight:700;font-size:14px;">${esc(b.name)}</div>
+            <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;">${esc(b.category||'-')}</div>
+            ${occupied ? `<div class="pill pill-wait" style="margin-bottom:8px;">${esc(occupied.jobNo)}</div>` : `<div class="pill ${b.active?'pill-done':''}" style="background:${b.active?'':'var(--border)'};color:${b.active?'':'var(--text-muted)'};margin-bottom:8px;">${b.active?(en?'Active':'Aktif'):(en?'Inactive':'Tidak Aktif')}</div>`}
+            <div style="display:flex;gap:6px;justify-content:center;">
+              <button class="btn-icon" data-action="toggle-bay-active" data-id="${b.id}" title="${b.active?(en?'Deactivate':'Nyahaktifkan'):(en?'Activate':'Aktifkan')}">${ICONS.done}</button>
+              <button class="btn-icon" data-action="edit-bay" data-id="${b.id}">${ICONS.edit}</button>
+              <button class="btn-icon" data-action="delete-bay" data-id="${b.id}">${ICONS.trash}</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`}
+    </div>`;
+  })()}
+  `;
+}
+
+function bayModalHTML(bay){
+  const isEdit = !!bay;
+  const en = state.language==='en';
+  bay = bay || {name:'', category:'', active:true};
+  return `
+    <h2>${ICONS.bay} ${isEdit ? (en?'Edit Bay':'Sunting Bay') : (en?'New Bay':'Bay Baharu')}</h2>
+    <div class="field"><label>${en?'Bay Name':'Nama Bay'}</label><input id="bay-name" value="${esc(bay.name)}" placeholder="${en?'e.g. Bay 1':'cth: Bay 1'}"></div>
+    <div class="field"><label>${en?'Category':'Kategori'}</label><input id="bay-category" value="${esc(bay.category||'')}" placeholder="${en?'e.g. General Repair, Body Repair, Paint Booth':'cth: Baik Pulih Umum, Baik Pulih Badan, Bilik Cat'}"></div>
+    <div class="field" style="display:flex;align-items:center;justify-content:space-between;background:var(--panel-alt);padding:12px;border-radius:8px;">
+      <label style="margin-bottom:0;">${en?'Active':'Aktif'}</label>
+      <input type="checkbox" id="bay-active" ${bay.active!==false?'checked':''} style="width:18px;height:18px;">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="save-bay" data-id="${bay.id||''}">${t('btn_save')}</button>
+    </div>
   `;
 }
 

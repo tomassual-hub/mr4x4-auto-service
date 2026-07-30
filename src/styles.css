@@ -382,6 +382,17 @@ tr:hover td{background:var(--glass-highlight);}
 .search-box input{padding-left:36px;}
 .search-box svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);}
 
+.progress-ring{
+  width:118px;height:118px;border-radius:50%;flex-shrink:0;
+  background:conic-gradient(var(--accent) calc(var(--pct,0)*1%), var(--glass-2) 0);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  box-shadow:var(--e-1), inset 0 1px 0 var(--glass-highlight);
+}
+.progress-ring::before{content:'';position:absolute;inset:9px;border-radius:50%;background:var(--panel-alt);}
+.progress-ring-label{position:relative;z-index:1;text-align:center;}
+.progress-ring-pct{font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;line-height:1.1;}
+.progress-ring-sub{font-size:9.5px;color:var(--text-muted);margin-top:2px;}
+
 .chart-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
 .chart-bar-label{width:130px;font-size:12px;color:var(--text-muted);flex-shrink:0;}
 .chart-bar-track{flex:1;background:var(--glass-2);border-radius:20px;height:20px;overflow:hidden;}

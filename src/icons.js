@@ -40,5 +40,6 @@ const ICONS = {
   chevronRight: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>`,
   mail: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`,
   userPlus: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>`,
+  bay: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 11h14l-1.5-4.5a1 1 0 0 0-1-.5H7.5a1 1 0 0 0-1 .5L5 11z"/><path d="M4 11h16v4a1 1 0 0 1-1 1h-1v2M6 16v2M4 14h16"/><circle cx="8" cy="11.5" r="1"/><circle cx="16" cy="11.5" r="1"/><path d="M3 3v18M21 3v18"/></svg>`,
 };
 

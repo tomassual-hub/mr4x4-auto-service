@@ -54,6 +54,7 @@ interface Job {
   diagramMarks?: { x: number; y: number; severity: 'ok' | 'attention' | 'replace'; note?: string }[];
   customerInspectionSignature?: string | null;
   inspectionToken?: string;
+  bayId?: string | null;
 }
 
 interface InventoryItem {
@@ -173,6 +174,17 @@ interface Quotation {
   convertedInvoiceId?: string;
 }
 
+// Bays: physical workshop lifts/stations (e.g. "Bay 1 — General Repair").
+// Optional, purely a job-to-location assignment for shops that want to
+// track which car is on which lift -- a job with no bayId just means the
+// shop isn't using this or hasn't parked it on a tracked bay yet.
+interface Bay {
+  id: string;
+  name: string;
+  category: string;
+  active: boolean;
+}
+
 interface Appointment {
   id: string;
   customerId: string | null;
@@ -254,6 +266,8 @@ interface ShopSettings {
   paymentQR: string;
   lastBackupAt: number | null;
   servicedBrands?: string[];
+  monthlySalesTarget?: number;
+  monthlyUnitTarget?: number;
 }
 
 interface Counters { job: number; invoice: number; po: number; creditNote: number; quote: number; }
@@ -315,6 +329,7 @@ interface DB {
   creditNotes: CreditNote[];
   attendance: AttendanceRecord[];
   quotations: Quotation[];
+  bays: Bay[];
   settings: ShopSettings;
   counters: Counters;
 }
@@ -506,6 +521,7 @@ declare function vehicleHistoryModalHTML(v: Vehicle): string;
 declare function vehicleModalHTML(customerId: string): string;
 declare function itemModalHTML(item?: InventoryItem | null): string;
 declare function packageModalHTML(pkg?: Package | null): string;
+declare function bayModalHTML(bay?: Bay | null): string;
 declare function supplierModalHTML(supplier?: Supplier | null): string;
 declare function poModalHTML(): string;
 declare function receivePoModalHTML(po: PurchaseOrder): string;

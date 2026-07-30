@@ -1,6 +1,8 @@
 /* ============================= DASHBOARD ============================= */
 function viewDashboard(){
+  const en = state.language==='en';
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayStr = localDateStr();
   const branchFilter = rec => state.currentBranch==='all' || rec.branchId===state.currentBranch || (!rec.branchId && state.currentBranch==='main');
   const todaysInvoices = db.invoices.filter(inv=>inv.createdAt>=todayStart.getTime() && branchFilter(inv));
   const todaySales = todaysInvoices.reduce((s,i)=>s+i.total,0);
@@ -11,6 +13,14 @@ function viewDashboard(){
   // Sales figures (today's total, recent invoice amounts) are Admin-only —
   // Mekanik still sees everything else (active jobs, stock, customer count).
   const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
+
+  const bookingsToday = db.appointments.filter(a=>a.date===todayStr).length;
+  const completedToday = db.jobs.filter(j=>(j.status==='done'||j.status==='delivered') && j.doneAt && localDateStr(new Date(j.doneAt))===todayStr).length;
+  const staffCount = db.staff.length;
+  const presentToday = db.staff.filter(s=>{
+    const todaysPunches = (db.attendance||[]).filter(a=>a.staffId===s.id && localDateStr(new Date(a.ts))===todayStr).sort((a,b)=>b.ts-a.ts);
+    return todaysPunches[0] && todaysPunches[0].type==='in';
+  }).length;
 
   return `
   <div class="grid ${isAdmin?'grid-4':'grid-3'}" style="margin-bottom:22px;">
@@ -40,6 +50,61 @@ function viewDashboard(){
       <div class="stat-sub">${db.vehicles.length} ${tt('kenderaan direkod')}</div>
     </div>
   </div>
+
+  <div class="grid grid-3" style="margin-bottom:22px;">
+    <div class="stat-card">
+      <div class="stat-icon">${ICONS.calendar}</div>
+      <div class="stat-label">${en?'Bookings Today':'Tempahan Hari Ini'}</div>
+      <div class="stat-value">${bookingsToday}</div>
+      <div class="stat-sub">${en?'appointments scheduled':'tempahan dijadualkan'}</div>
+    </div>
+    <div class="stat-card ok">
+      <div class="stat-icon">${ICONS.done}</div>
+      <div class="stat-label">${en?'Completed Today':'Selesai Hari Ini'}</div>
+      <div class="stat-value">${completedToday}</div>
+      <div class="stat-sub">${en?'job cards marked ready/delivered':'kad kerja siap/dihantar'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">${ICONS.staff}</div>
+      <div class="stat-label">${en?'Attendance Today':'Kehadiran Hari Ini'}</div>
+      <div class="stat-value">${presentToday}/${staffCount}</div>
+      <div class="stat-sub">${en?'staff clocked in':'staf clock in'}</div>
+    </div>
+  </div>
+
+  ${isAdmin && (db.settings.monthlySalesTarget>0 || db.settings.monthlyUnitTarget>0) ? (()=>{
+    const monthKey = currentMonthStr();
+    const monthInvoices = db.invoices.filter(inv=>{
+      const d = new Date(inv.createdAt);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===monthKey;
+    });
+    const monthSales = monthInvoices.reduce((s,i)=>s+i.total,0);
+    const monthUnits = monthInvoices.length;
+    const salesTarget = db.settings.monthlySalesTarget||0;
+    const unitTarget = db.settings.monthlyUnitTarget||0;
+    const salesPct = salesTarget>0 ? Math.min(100, Math.round(monthSales/salesTarget*100)) : 0;
+    const unitPct = unitTarget>0 ? Math.min(100, Math.round(monthUnits/unitTarget*100)) : 0;
+    return `
+    <div class="panel" style="margin-bottom:22px;">
+      <h2>${ICONS.reports} ${en?'Monthly Target':'Sasaran Bulanan'} <span class="tag">${monthLabel(monthKey)}</span></h2>
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;justify-content:center;">
+        ${salesTarget>0 ? `
+        <div style="text-align:center;">
+          <div class="progress-ring" style="--pct:${salesPct};margin:0 auto 10px;">
+            <div class="progress-ring-label"><div class="progress-ring-pct">${salesPct}%</div><div class="progress-ring-sub">${en?'Sales':'Jualan'}</div></div>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;">${fmtRM(monthSales)} / ${fmtRM(salesTarget)}</div>
+        </div>` : ''}
+        ${unitTarget>0 ? `
+        <div style="text-align:center;">
+          <div class="progress-ring" style="--pct:${unitPct};margin:0 auto 10px;">
+            <div class="progress-ring-label"><div class="progress-ring-pct">${unitPct}%</div><div class="progress-ring-sub">${en?'Units':'Unit'}</div></div>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;">${monthUnits} / ${unitTarget} ${en?'invoices':'invois'}</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  })() : ''}
 
   <div class="grid grid-2">
     <div class="panel">

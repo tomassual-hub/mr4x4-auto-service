@@ -44,7 +44,8 @@ function defaultDB(){
     creditNotes: [],
     attendance: [],
     quotations: [],
-    settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null, servicedBrands:[] },
+    bays: [],
+    settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null, servicedBrands:[], monthlySalesTarget:0, monthlyUnitTarget:0 },
     counters: { job: 1, invoice: 1, po: 1, creditNote: 1, quote: 1 }
   };
 }
@@ -60,7 +61,7 @@ const TABLE_MAP = {
   suppliers:'suppliers', purchaseOrders:'purchase_orders', auditLog:'audit_log',
   branches:'branches', cashClosures:'cash_closures', payrollRecords:'payroll_records',
   techRefs:'tech_refs', leads:'leads', packages:'packages', creditNotes:'credit_notes',
-  attendance:'attendance', quotations:'quotations'
+  attendance:'attendance', quotations:'quotations', bays:'bays'
 };
 const REVERSE_TABLE_MAP = Object.fromEntries(Object.entries(TABLE_MAP).map(([k,v])=>[v,k]));
 let lastSynced = null; // per-table Map(id -> JSON snapshot), set once db is first loaded

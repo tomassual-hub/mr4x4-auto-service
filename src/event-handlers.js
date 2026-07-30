@@ -902,9 +902,51 @@ function attachHandlers(){
     db.settings.loyaltyVisits = Number(document.getElementById('set-loyalty-visits').value)||5;
     db.settings.churnDays = Number(document.getElementById('set-churn-days').value)||180;
     db.settings.simpleMode = document.getElementById('set-simple-mode').checked;
+    db.settings.monthlySalesTarget = Math.max(0, Number(document.getElementById('set-sales-target').value)||0);
+    db.settings.monthlyUnitTarget = Math.max(0, Number(document.getElementById('set-unit-target').value)||0);
     queueSave();
     render();
     showToast(tt('Tetapan disimpan.'));
+  });
+  bindAction('new-bay', ()=>setState({modal:{type:'new-bay'}}));
+  bindAllAction('edit-bay', el=>{
+    const bay = (db.bays||[]).find(b=>b.id===el.dataset.id);
+    if(bay) setState({modal:{type:'edit-bay', bay}});
+  });
+  bindAction('save-bay', ()=>{
+    const en = state.language==='en';
+    const name = document.getElementById('bay-name').value.trim();
+    const category = document.getElementById('bay-category').value.trim();
+    const active = document.getElementById('bay-active').checked;
+    if(!name){ showToast(en?'Please enter a bay name.':'Sila masukkan nama bay.'); return; }
+    if(!db.bays) db.bays = [];
+    const id = document.querySelector('[data-action="save-bay"]').dataset.id;
+    if(id){
+      const bay = db.bays.find(b=>b.id===id);
+      Object.assign(bay, {name, category, active});
+      logAudit('Sunting Bay', name);
+    } else {
+      db.bays.push({id:uid(), name, category, active});
+      logAudit('Tambah Bay', name);
+    }
+    queueSave();
+    setState({modal:null});
+    showToast(en?'Bay saved.':'Bay disimpan.');
+  });
+  bindAllAction('toggle-bay-active', el=>{
+    const bay = (db.bays||[]).find(b=>b.id===el.dataset.id);
+    if(!bay) return;
+    bay.active = !bay.active;
+    queueSave();
+    render();
+  });
+  bindAllAction('delete-bay', el=>{
+    const en = state.language==='en';
+    askConfirm(en?'Delete this bay? Jobs already assigned to it keep their record but the bay itself will be gone.':'Padam bay ini? Kad kerja yang ditugaskan akan kekal rekodnya tetapi bay itu sendiri akan hilang.', ()=>{
+      db.bays = (db.bays||[]).filter(b=>b.id!==el.dataset.id);
+      queueSave(); render();
+      showToast(en?'Bay deleted.':'Bay dipadam.');
+    });
   });
   bindAction('add-branch', ()=>{
     const name = document.getElementById('new-branch-name').value.trim();
@@ -1097,6 +1139,8 @@ function attachHandlers(){
     let vehicleId = document.getElementById('nj-vehicle') ? document.getElementById('nj-vehicle').value : '';
     const desc = document.getElementById('nj-desc').value.trim();
     const mechanic = document.getElementById('nj-mechanic').value.trim();
+    const bayEl = document.getElementById('nj-bay');
+    const bayId = bayEl && bayEl.value ? bayEl.value : null;
 
     if(customerId==='__new__'){
       const name = document.getElementById('nj-new-name').value.trim();
@@ -1121,7 +1165,7 @@ function attachHandlers(){
       // handleAuthenticated), but stay defensive here too rather than
       // crash on db.branches[0].id if it's ever empty when this runs.
       const fallbackBranchId = (db.branches && db.branches[0]) ? db.branches[0].id : 'main';
-      const job = {id:uid(), jobNo, customerId, vehicleId, description:desc, mechanic, status:'waiting', items:[], createdAt:Date.now(), invoiced:false, createdBy: state.currentStaff ? state.currentStaff.name : '', internalNote:'', doneAt:null, photos:[], branchId: state.currentBranch!=='all' ? state.currentBranch : fallbackBranchId};
+      const job = {id:uid(), jobNo, customerId, vehicleId, description:desc, mechanic, status:'waiting', items:[], createdAt:Date.now(), invoiced:false, createdBy: state.currentStaff ? state.currentStaff.name : '', internalNote:'', doneAt:null, photos:[], branchId: state.currentBranch!=='all' ? state.currentBranch : fallbackBranchId, bayId};
       db.jobs.push(job);
       queueSave();
       setState({modal:null, view:'jobs'});
@@ -1219,6 +1263,8 @@ function attachHandlers(){
     job.description = document.getElementById('job-desc-edit').value.trim();
     job.mechanic = document.getElementById('job-mechanic-edit').value.trim();
     job.internalNote = document.getElementById('job-note-edit').value.trim();
+    const bayEl = document.getElementById('job-bay-edit');
+    if(bayEl) job.bayId = bayEl.value || null;
     queueSave();
     setState({modal:null});
     showToast(tt('Kad kerja dikemaskini.'));

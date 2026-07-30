@@ -47,6 +47,10 @@ create table if not exists attendance     (id text primary key, data jsonb not n
 -- (see save-quotation/convert-quote-to-invoice) -- same open trust tier as
 -- invoices, not Admin-restricted.
 create table if not exists quotations     (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- bays: physical workshop lifts/stations a job can optionally be parked on
+-- (see the "Bay Management" section in Settings and the Bay field on job
+-- cards) -- same open trust tier as branches, not Admin-restricted.
+create table if not exists bays           (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 
 -- Staff needs a real column linking to Supabase Auth (real per-staff login),
 -- everything else about a staff member stays in data jsonb (name, role).
@@ -108,7 +112,7 @@ begin
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
     'cash_closures','staff','shop_meta','counters','tech_refs','leads',
-    'packages','credit_notes','attendance','quotations'
+    'packages','credit_notes','attendance','quotations','bays'
   ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -394,7 +398,7 @@ begin
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
     'cash_closures','staff','shop_meta','tech_refs','leads',
-    'packages','credit_notes','attendance','quotations'
+    'packages','credit_notes','attendance','quotations','bays'
   ])
   loop
     if not exists (

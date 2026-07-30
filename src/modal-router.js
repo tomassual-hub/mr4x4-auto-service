@@ -7,6 +7,8 @@ function renderModal(){
   else if(m.type==='new-item') inner = itemModalHTML(null);
   else if(m.type==='new-package') inner = packageModalHTML(null);
   else if(m.type==='edit-package') inner = packageModalHTML(m.pkg);
+  else if(m.type==='new-bay') inner = bayModalHTML(null);
+  else if(m.type==='edit-bay') inner = bayModalHTML(m.bay);
   else if(m.type==='edit-item') inner = itemModalHTML(m.item);
   else if(m.type==='new-customer') inner = customerModalHTML();
   else if(m.type==='new-lead') inner = leadModalHTML();
