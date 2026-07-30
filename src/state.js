@@ -50,6 +50,9 @@ let state = {
   payrollMonth: /** @type {string|null} */ (null),
   techRefSearch: '',
   techRefEditingSectionId: /** @type {string|null} */ (null),
+  calendarMonth: currentMonthStr(),
+  customerTab: 'customers',
+  leadStatusFilter: 'all',
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

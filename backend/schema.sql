@@ -25,6 +25,10 @@ create table if not exists cash_closures  (id text primary key, data jsonb not n
 -- inventory: any authenticated staff can read and maintain it (covered by
 -- the blanket policy below), not Admin-restricted.
 create table if not exists tech_refs      (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- leads: Workshop CRM prospects who haven't had a job/invoice yet (see
+-- src/views/customers.js's leadsTabHTML/LEAD_STAGES) -- same open trust
+-- tier as customers/jobs, not Admin-restricted.
+create table if not exists leads          (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 
 -- Staff needs a real column linking to Supabase Auth (real per-staff login),
 -- everything else about a staff member stays in data jsonb (name, role).
@@ -85,7 +89,7 @@ begin
   for t in select unnest(array[
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
-    'cash_closures','staff','shop_meta','counters','tech_refs'
+    'cash_closures','staff','shop_meta','counters','tech_refs','leads'
   ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -370,7 +374,7 @@ begin
   for t in select unnest(array[
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
-    'cash_closures','staff','shop_meta','tech_refs'
+    'cash_closures','staff','shop_meta','tech_refs','leads'
   ])
   loop
     if not exists (

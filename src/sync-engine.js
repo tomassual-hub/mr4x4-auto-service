@@ -37,6 +37,7 @@ function defaultDB(){
     cashClosures: [],
     payrollRecords: [],
     techRefs: [],
+    leads: [],
     settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null },
     counters: { job: 1, invoice: 1, po: 1 }
   };
@@ -52,7 +53,7 @@ const TABLE_MAP = {
   invoices:'invoices', appointments:'appointments', contracts:'contracts',
   suppliers:'suppliers', purchaseOrders:'purchase_orders', auditLog:'audit_log',
   branches:'branches', cashClosures:'cash_closures', payrollRecords:'payroll_records',
-  techRefs:'tech_refs'
+  techRefs:'tech_refs', leads:'leads'
 };
 const REVERSE_TABLE_MAP = Object.fromEntries(Object.entries(TABLE_MAP).map(([k,v])=>[v,k]));
 let lastSynced = null; // per-table Map(id -> JSON snapshot), set once db is first loaded

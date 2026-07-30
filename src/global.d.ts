@@ -122,7 +122,7 @@ interface Contract {
   lastGenerated?: number;
 }
 
-interface Supplier { id: string; name: string; phone?: string; }
+interface Supplier { id: string; name: string; phone?: string; email?: string; }
 interface POItem { name: string; qty: number; cost: number; }
 interface PurchaseOrder {
   id: string;
@@ -204,6 +204,21 @@ interface TechRef {
   createdAt: number;
 }
 
+// Workshop CRM: a prospect who hasn't had a job/invoice yet. Separate from
+// Customer (which is only ever someone who's actually been served) -- a
+// lead becomes a real Customer explicitly via "Tukar kepada Pelanggan"
+// (convert-lead), never automatically.
+interface Lead {
+  id: string;
+  name: string;
+  phone?: string;
+  source?: string;
+  notes?: string;
+  status: 'new' | 'contacted' | 'quoted' | 'won' | 'lost';
+  createdAt: number;
+  convertedCustomerId?: string;
+}
+
 interface DB {
   customers: Customer[];
   vehicles: Vehicle[];
@@ -220,6 +235,7 @@ interface DB {
   cashClosures: CashClosure[];
   payrollRecords: PayrollRecord[];
   techRefs: TechRef[];
+  leads: Lead[];
   settings: ShopSettings;
   counters: Counters;
 }
@@ -244,6 +260,9 @@ interface AppState {
   customerSearch?: string;
   techRefSearch?: string;
   techRefEditingSectionId?: string | null;
+  calendarMonth?: string;
+  customerTab?: string;
+  leadStatusFilter?: string;
   posCart: CartLine[];
   posCustomerId: string;
   posVehicleId: string;
@@ -331,6 +350,12 @@ declare function viewJobs(): string;
 declare function viewPOS(): string;
 declare function viewInventory(): string;
 declare function viewCustomers(): string;
+declare function customersTabHTML(): string;
+declare const LEAD_STAGES: string[];
+declare function leadStageLabel(stage: string): string;
+declare function leadStagePill(stage: string): string;
+declare function leadsTabHTML(): string;
+declare function leadModalHTML(): string;
 declare const TECH_REF_CATEGORIES: { key: string; ms: string; en: string }[];
 declare function techRefCategoryLabel(key: string): string;
 declare function viewTechRef(): string;
@@ -358,7 +383,10 @@ declare function renderJobTicket(j: Job): string;
 declare function renderPOSItemList(filter: string): string;
 declare function emptyState(msg: string): string;
 declare function staffModalHTML(staffMember?: Staff | null): string;
-declare function appointmentModalHTML(): string;
+declare function appointmentModalHTML(presetDate?: string): string;
+declare function getCalendarGrid(monthStr: string): { dateStr: string; inMonth: boolean; day: number }[];
+declare function viewCalendarGrid(): string;
+declare function dayAppointmentsModalHTML(dateStr: string): string;
 declare function contractModalHTML(): string;
 declare function customerModalHTML(): string;
 declare function customerEditModalHTML(c: Customer): string;
@@ -366,7 +394,7 @@ declare function vehicleEditModalHTML(v: Vehicle): string;
 declare function vehicleHistoryModalHTML(v: Vehicle): string;
 declare function vehicleModalHTML(customerId: string): string;
 declare function itemModalHTML(item?: InventoryItem | null): string;
-declare function supplierModalHTML(): string;
+declare function supplierModalHTML(supplier?: Supplier | null): string;
 declare function poModalHTML(): string;
 declare function jobDetailModalHTML(j: Job): string;
 declare function newJobModalHTML(): string;

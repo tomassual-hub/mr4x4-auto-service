@@ -50,9 +50,13 @@ function viewInventory(){
       const itemCount = db.inventory.filter(i=>i.supplierId===s.id).length;
       return `<div class="panel">
         <h2>${esc(s.name)}</h2>
-        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px;">📞 ${esc(s.phone||'-')}</div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:2px;">📞 ${esc(s.phone||'-')}</div>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px;">${ICONS.mail} ${esc(s.email||'-')}</div>
         <div style="font-size:12px;color:var(--text-muted);">${itemCount} ${tt('item dibekalkan')}</div>
-        <button class="btn btn-danger btn-sm" style="margin-top:10px;width:100%;" data-action="delete-supplier" data-id="${s.id}">${ICONS.trash} ${tt('Padam')}</button>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-outline btn-sm" style="flex:1;" data-action="edit-supplier" data-id="${s.id}">${ICONS.edit} ${t('btn_edit')}</button>
+          <button class="btn btn-danger btn-sm" data-action="delete-supplier" data-id="${s.id}">${ICONS.trash}</button>
+        </div>
       </div>`;
     }).join('')}
   </div>`}
@@ -77,13 +81,21 @@ function viewInventory(){
         ${[...db.purchaseOrders].sort((a,b)=>b.createdAt-a.createdAt).map(po=>{
           const sup = db.suppliers.find(s=>s.id===po.supplierId);
           const total = po.items.reduce((s,i)=>s+i.cost*i.qty,0);
+          const poLines = po.items.map(i=>`- ${i.name} x${i.qty} (${fmtRM(i.cost)}/unit)`).join('\n');
+          const poMsg = `Salam ${sup?sup.name:''}, berikut Pesanan Belian ${po.poNo} daripada ${db.settings.shopName}:\n\n${poLines}\n\nJumlah: ${fmtRM(total)}\n\nSila sahkan penerimaan pesanan ini. Terima kasih!`;
+          const waHref = sup && sup.phone ? `https://wa.me/${normalizePhone(sup.phone)}?text=${encodeURIComponent(poMsg)}` : null;
+          const mailHref = sup && sup.email ? `mailto:${encodeURIComponent(sup.email)}?subject=${encodeURIComponent('Pesanan Belian '+po.poNo+' — '+db.settings.shopName)}&body=${encodeURIComponent(poMsg)}` : null;
           return `<tr>
             <td style="font-family:'IBM Plex Mono',monospace;">${po.poNo}</td>
             <td>${sup?sup.name:'-'}</td>
             <td style="font-size:12px;color:var(--text-muted);">${po.items.map(i=>esc(i.name)+' ×'+i.qty).join(', ')}</td>
             <td style="color:var(--accent);font-weight:600;">${fmtRM(total)}</td>
             <td><span class="pill ${po.status==='received'?'pill-done':'pill-wait'}">${po.status==='received'?tt('Diterima'):tt('Belum Diterima')}</span></td>
-            <td>${po.status!=='received' ? `<button class="btn-icon" data-action="receive-po" data-id="${po.id}" title="Tandakan diterima & tambah stok">${ICONS.download}</button>` : ''}</td>
+            <td style="white-space:nowrap;">
+              ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="${state.language==='en'?'Send PO via WhatsApp':'Hantar PO via WhatsApp'}" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}
+              ${mailHref ? `<a class="btn-icon" href="${mailHref}" title="${state.language==='en'?'Send PO via Email':'Hantar PO via E-mel'}" style="display:inline-flex;">${ICONS.mail}</a>` : ''}
+              ${po.status!=='received' ? `<button class="btn-icon" data-action="receive-po" data-id="${po.id}" title="Tandakan diterima & tambah stok">${ICONS.download}</button>` : ''}
+            </td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -131,14 +143,18 @@ function itemModalHTML(item){
   `;
 }
 
-function supplierModalHTML(){
+function supplierModalHTML(supplier){
+  const isEdit = !!supplier;
+  const en = state.language==='en';
+  supplier = supplier || {name:'', phone:'', email:''};
   return `
-    <h2>${tt('Pembekal Baharu')}</h2>
-    <div class="field"><label>${state.language==='en'?'Supplier Name':'Nama Pembekal'}</label><input id="sup-name" placeholder="Cth: Auto Parts Sdn Bhd"></div>
-    <div class="field"><label>${state.language==='en'?'Phone No.':'No. Telefon'}</label><input id="sup-phone" placeholder="012-3456789"></div>
+    <h2>${isEdit ? (en?'Edit Supplier':'Sunting Pembekal') : tt('Pembekal Baharu')}</h2>
+    <div class="field"><label>${en?'Supplier Name':'Nama Pembekal'}</label><input id="sup-name" value="${esc(supplier.name)}" placeholder="Cth: Auto Parts Sdn Bhd"></div>
+    <div class="field"><label>${en?'Phone No.':'No. Telefon'}</label><input id="sup-phone" value="${esc(supplier.phone||'')}" placeholder="012-3456789"></div>
+    <div class="field"><label>${en?'Email (optional — to send POs)':'E-mel (pilihan — untuk hantar PO)'}</label><input id="sup-email" type="email" value="${esc(supplier.email||'')}" placeholder="pembekal@contoh.com"></div>
     <div class="modal-foot">
       <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
-      <button class="btn btn-primary" data-action="save-supplier">${t('btn_save')}</button>
+      <button class="btn btn-primary" data-action="save-supplier" data-id="${supplier.id||''}">${t('btn_save')}</button>
     </div>
   `;
 }

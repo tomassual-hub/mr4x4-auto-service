@@ -1,5 +1,16 @@
 /* ============================= CUSTOMERS VIEW ============================= */
 function viewCustomers(){
+  const tab = state.customerTab || 'customers';
+  return `
+  <div class="tabs">
+    <div class="tab-btn ${tab==='customers'?'active':''}" data-customertab="customers">${ICONS.customers} ${tt('Pelanggan')}</div>
+    <div class="tab-btn ${tab==='leads'?'active':''}" data-customertab="leads">${ICONS.userPlus} ${state.language==='en'?'Leads':'Prospek'}</div>
+  </div>
+  ${tab==='customers' ? customersTabHTML() : leadsTabHTML()}
+  `;
+}
+
+function customersTabHTML(){
   const q = (state.customerSearch||'').toLowerCase();
   let customers = db.customers;
   if(q){
@@ -44,6 +55,77 @@ function viewCustomers(){
   ${totalCustomers > shownCustomers.length ? `<div style="text-align:center;margin-top:18px;">
     <button class="btn btn-outline" data-action="load-more-customers">${state.language==='en'?'Load More':'Muat Lagi'} (${shownCustomers.length}/${totalCustomers})</button>
   </div>` : ''}`}
+  `;
+}
+
+/* ---------- WORKSHOP CRM: LEADS / PIPELINE ---------- */
+// Tracks prospects who haven't had a job/invoice yet -- separate from
+// db.customers (which is only ever people who've actually been served).
+// A lead becomes a real customer explicitly via "Tukar kepada Pelanggan",
+// never automatically, so the shop stays in control of when a prospect
+// actually counts as a customer.
+const LEAD_STAGES = ['new','contacted','quoted','won','lost'];
+function leadStageLabel(stage){
+  const en = state.language==='en';
+  return {
+    new: en?'New':'Baharu', contacted: en?'Contacted':'Dihubungi',
+    quoted: en?'Quoted':'Disebut Harga', won: en?'Won':'Menang', lost: en?'Lost':'Hilang',
+  }[stage] || stage;
+}
+function leadStagePill(stage){
+  const cls = stage==='won' ? 'pill-done' : stage==='lost' ? 'pill-low' : stage==='new' ? 'pill-wait' : 'pill-progress';
+  return `<span class="pill ${cls}">${leadStageLabel(stage)}</span>`;
+}
+function leadsTabHTML(){
+  const en = state.language==='en';
+  const filter = state.leadStatusFilter || 'all';
+  let leads = [...(db.leads||[])].sort((a,b)=>b.createdAt-a.createdAt);
+  if(filter!=='all') leads = leads.filter(l=>l.status===filter);
+  const counts = {all:(db.leads||[]).length};
+  LEAD_STAGES.forEach(s=>counts[s] = (db.leads||[]).filter(l=>l.status===s).length);
+  return `
+  <div class="section-head">
+    <div><div class="sub">${en?"Prospects who haven't had a job yet — track them here until they convert to a real customer.":'Prospek yang belum ada kerja lagi — jejak di sini sehingga mereka jadi pelanggan sebenar.'}</div></div>
+    <button class="btn btn-primary" data-action="new-lead">${ICONS.plus} ${en?'New Lead':'Prospek Baharu'}</button>
+  </div>
+  <div class="tabs">
+    <div class="tab-btn ${filter==='all'?'active':''}" data-leadfilter="all">${en?'All':'Semua'} (${counts.all})</div>
+    ${LEAD_STAGES.map(s=>`<div class="tab-btn ${filter===s?'active':''}" data-leadfilter="${s}">${leadStageLabel(s)} (${counts[s]})</div>`).join('')}
+  </div>
+  ${leads.length===0 ? emptyState(en?'No leads in this stage.':'Tiada prospek pada peringkat ini.') : `
+  <div class="grid grid-3">
+    ${leads.map(l=>{
+      const waHref = l.phone ? `https://wa.me/${normalizePhone(l.phone)}` : null;
+      const nextStage = l.status==='new' ? 'contacted' : l.status==='contacted' ? 'quoted' : null;
+      return `<div class="panel">
+        <h2 style="flex-wrap:wrap;"><span style="flex:1;min-width:100px;">${esc(l.name)}</span>${leadStagePill(l.status)}</h2>
+        <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:4px;">📞 ${esc(l.phone||'-')}</div>
+        ${l.source ? `<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:4px;">${en?'Source':'Sumber'}: ${esc(l.source)}</div>` : ''}
+        ${l.notes ? `<div style="font-size:12px;margin:8px 0;">${esc(l.notes)}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+          ${nextStage ? `<button class="btn btn-outline btn-sm" data-action="advance-lead" data-id="${l.id}" data-stage="${nextStage}">${en?'Mark':'Tanda'} ${leadStageLabel(nextStage)}</button>` : ''}
+          ${l.status!=='won' && l.status!=='lost' ? `<button class="btn btn-primary btn-sm" data-action="convert-lead" data-id="${l.id}">${en?'Convert to Customer':'Tukar kepada Pelanggan'}</button>` : ''}
+          ${l.status!=='lost' && l.status!=='won' ? `<button class="btn-icon" data-action="advance-lead" data-id="${l.id}" data-stage="lost" title="${en?'Mark lost':'Tanda hilang'}">${ICONS.x}</button>` : ''}
+          ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="WhatsApp">${ICONS.whatsapp}</a>` : ''}
+          <button class="btn-icon" data-action="delete-lead" data-id="${l.id}">${ICONS.trash}</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`}
+  `;
+}
+function leadModalHTML(){
+  const en = state.language==='en';
+  return `
+    <h2>${en?'New Lead':'Prospek Baharu'}</h2>
+    <div class="field"><label>${tt('Nama')}</label><input id="lead-name" placeholder="Nama penuh"></div>
+    <div class="field"><label>${en?'Phone No.':'No. Telefon'}</label><input id="lead-phone" placeholder="012-3456789"></div>
+    <div class="field"><label>${en?'Source (optional)':'Sumber (pilihan)'}</label><input id="lead-source" placeholder="${en?'e.g. Facebook, walk-in, referral':'cth: Facebook, walk-in, rujukan'}"></div>
+    <div class="field"><label>${tt('Nota')}</label><textarea id="lead-notes" rows="2" placeholder="${en?'What do they need?':'Apa yang mereka perlukan?'}"></textarea></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="save-lead">${t('btn_save')}</button>
+    </div>
   `;
 }
 

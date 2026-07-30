@@ -73,6 +73,18 @@ function viewReports(){
     return {item:i, dailyRate, daysLeft};
   }).filter(r=>r.dailyRate>0).sort((a,b)=>(a.daysLeft||999)-(b.daysLeft||999)).slice(0,6);
 
+  // Inventory turnover: COGS in this period / current inventory value. No
+  // historical inventory-value snapshots exist (only a live qty per item),
+  // so current value stands in for a true opening/closing average -- close
+  // enough to be directionally useful, but labelled as an estimate rather
+  // than a precise accounting figure.
+  const inventoryValue = db.inventory.reduce((s,i)=>s+(i.cost||0)*i.qty, 0);
+  const turnoverRatio = inventoryValue>0 ? cogs/inventoryValue : 0;
+  const daysInventoryOutstanding = turnoverRatio>0 ? state.reportRange/turnoverRatio : null;
+  const itemTurnover = db.inventory.map(i=>({item:i, sold: itemQtySold[i.id]||0, ratio: i.qty>0 ? (itemQtySold[i.id]||0)/i.qty : 0}));
+  const fastMovers = itemTurnover.filter(r=>r.sold>0).sort((a,b)=>b.ratio-a.ratio).slice(0,5);
+  const deadStock = itemTurnover.filter(r=>r.sold===0 && r.item.qty>0).sort((a,b)=>(b.item.qty*b.item.cost)-(a.item.qty*a.item.cost)).slice(0,5);
+
   return `
   <div class="section-head">
     <div><div class="sub">${tt('Ringkasan prestasi bengkel')}</div></div>
@@ -96,6 +108,32 @@ function viewReports(){
       <div class="stat-card"><div class="stat-label">${tt('Hasil (Revenue)')}</div><div class="stat-value">${fmtRM(revenue)}</div></div>
       <div class="stat-card warn"><div class="stat-label">${tt('Kos Barangan (COGS)')}</div><div class="stat-value">${fmtRM(cogs)}</div></div>
       <div class="stat-card ok"><div class="stat-label">${tt('Untung Kasar')}</div><div class="stat-value">${fmtRM(grossProfit)}</div><div class="stat-sub">${tt('Margin')} ${marginPct.toFixed(1)}%</div></div>
+    </div>
+  </div>`}
+
+  ${db.settings.simpleMode || !canRevenue ? '' : `
+  <div class="panel" style="margin-bottom:20px;">
+    <h2>${ICONS.inventory} ${state.language==='en'?'Inventory Turnover':'Kadar Pusingan Stok'} <span class="tag">${state.language==='en'?'estimate':'anggaran'}</span></h2>
+    <div class="grid grid-3" style="margin-bottom:16px;">
+      <div class="stat-card"><div class="stat-label">${state.language==='en'?'Turnover Ratio':'Nisbah Pusingan'}</div><div class="stat-value">${turnoverRatio.toFixed(2)}×</div><div class="stat-sub">${state.language==='en'?`COGS ÷ current stock value, over ${state.reportRange} days`:`Kos Barangan ÷ nilai stok semasa, dalam ${state.reportRange} hari`}</div></div>
+      <div class="stat-card"><div class="stat-label">${state.language==='en'?'Days of Stock on Hand':'Hari Stok Tersedia'}</div><div class="stat-value">${daysInventoryOutstanding!==null ? Math.round(daysInventoryOutstanding) : '-'}</div></div>
+      <div class="stat-card"><div class="stat-label">${state.language==='en'?'Stock Value on Hand':'Nilai Stok Tersedia'}</div><div class="stat-value" style="font-size:26px;">${fmtRM(inventoryValue)}</div></div>
+    </div>
+    <div class="grid grid-2">
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:700;margin-bottom:8px;">${state.language==='en'?'Fastest Moving':'Bergerak Paling Laju'}</div>
+        ${fastMovers.length===0 ? `<div style="font-size:12px;color:var(--text-muted);">${state.language==='en'?'No sales data yet.':'Belum ada data jualan.'}</div>` : fastMovers.map(r=>`
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--glass-border);">
+            <span>${esc(r.item.name)}</span><span style="color:var(--success);font-weight:600;">${r.sold} ${state.language==='en'?'sold':'terjual'}</span>
+          </div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);font-weight:700;margin-bottom:8px;">${state.language==='en'?'Dead Stock (0 sold, capital tied up)':'Stok Pegun (0 terjual, modal tertahan)'}</div>
+        ${deadStock.length===0 ? `<div style="font-size:12px;color:var(--text-muted);">${state.language==='en'?'None — everything in stock has moved.':'Tiada — semua stok telah bergerak.'}</div>` : deadStock.map(r=>`
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--glass-border);">
+            <span>${esc(r.item.name)}</span><span style="color:var(--danger);font-weight:600;">${fmtRM(r.item.qty*r.item.cost)}</span>
+          </div>`).join('')}
+      </div>
     </div>
   </div>`}
 

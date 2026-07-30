@@ -59,12 +59,24 @@ function attachHandlers(){
   document.querySelectorAll('[data-invtab]').forEach(el=>el.addEventListener('click', ()=>setState({invTab:el.dataset.invtab})));
   document.querySelectorAll('[data-invmaintab]').forEach(el=>el.addEventListener('click', ()=>setState({invMainTab:el.dataset.invmaintab})));
   bindAction('new-supplier', ()=>setState({modal:{type:'new-supplier'}}));
+  bindAllAction('edit-supplier', el=>{
+    const supplier = db.suppliers.find(s=>s.id===el.dataset.id);
+    if(supplier) setState({modal:{type:'edit-supplier', supplier}});
+  });
   bindAction('save-supplier', ()=>{
     const name = document.getElementById('sup-name').value.trim();
     const phone = document.getElementById('sup-phone').value.trim();
+    const email = document.getElementById('sup-email').value.trim();
     if(!name){ showToast(tt('Sila masukkan nama pembekal.')); return; }
-    db.suppliers.push({id:uid(), name, phone});
-    logAudit('Tambah Pembekal', name);
+    const id = document.querySelector('[data-action="save-supplier"]').dataset.id;
+    if(id){
+      const supplier = db.suppliers.find(s=>s.id===id);
+      Object.assign(supplier, {name, phone, email});
+      logAudit('Kemaskini Pembekal', name);
+    } else {
+      db.suppliers.push({id:uid(), name, phone, email});
+      logAudit('Tambah Pembekal', name);
+    }
     queueSave();
     setState({modal:null});
     showToast(tt('Pembekal disimpan.'));
@@ -332,6 +344,55 @@ function attachHandlers(){
   bindAction('new-item', ()=>setState({modal:{type:'new-item'}}));
   bindAction('new-customer', ()=>setState({modal:{type:'new-customer'}}));
 
+  // Workshop CRM: leads / pipeline
+  document.querySelectorAll('[data-customertab]').forEach(el=>el.addEventListener('click', ()=>setState({customerTab:el.dataset.customertab})));
+  document.querySelectorAll('[data-leadfilter]').forEach(el=>el.addEventListener('click', ()=>setState({leadStatusFilter:el.dataset.leadfilter})));
+  bindAction('new-lead', ()=>setState({modal:{type:'new-lead'}}));
+  bindAction('save-lead', ()=>{
+    const en = state.language==='en';
+    const name = document.getElementById('lead-name').value.trim();
+    const phone = document.getElementById('lead-phone').value.trim();
+    const source = document.getElementById('lead-source').value.trim();
+    const notes = document.getElementById('lead-notes').value.trim();
+    if(!name){ showToast(en?'Please enter a name.':'Sila masukkan nama.'); return; }
+    if(!db.leads) db.leads = [];
+    db.leads.push({id:uid(), name, phone, source, notes, status:'new', createdAt:Date.now()});
+    logAudit('Tambah Prospek', name);
+    queueSave();
+    setState({modal:null});
+    showToast(en?'Lead saved.':'Prospek disimpan.');
+  });
+  bindAllAction('advance-lead', el=>{
+    const lead = db.leads.find(l=>l.id===el.dataset.id);
+    if(!lead) return;
+    lead.status = el.dataset.stage;
+    queueSave(); render();
+    showToast((state.language==='en'?'Marked as ':'Ditanda sebagai ')+leadStageLabel(lead.status)+'.');
+  });
+  bindAllAction('convert-lead', el=>{
+    const en = state.language==='en';
+    const lead = db.leads.find(l=>l.id===el.dataset.id);
+    if(!lead) return;
+    askConfirm(en?`Convert "${lead.name}" to a full customer record?`:`Tukar "${lead.name}" kepada rekod pelanggan penuh?`, ()=>{
+      const customer = {id:uid(), name:lead.name, phone:lead.phone||'', visits:0, loyaltyPoints:0};
+      db.customers.push(customer);
+      lead.status = 'won';
+      lead.convertedCustomerId = customer.id;
+      logAudit('Tukar Prospek kepada Pelanggan', lead.name);
+      queueSave();
+      render();
+      showToast(en?'Converted to customer.':'Ditukar kepada pelanggan.');
+    });
+  });
+  bindAllAction('delete-lead', el=>{
+    const en = state.language==='en';
+    askConfirm(en?'Delete this lead?':'Padam prospek ini?', ()=>{
+      db.leads = db.leads.filter(l=>l.id!==el.dataset.id);
+      queueSave(); render();
+      showToast(en?'Lead deleted.':'Prospek dipadam.');
+    });
+  });
+
   bindAllAction('edit-item', el=>{
     const item = getItem(el.dataset.id);
     setState({modal:{type:'edit-item', item}});
@@ -529,6 +590,13 @@ function attachHandlers(){
   document.querySelectorAll('[data-appttab]').forEach(el=>el.addEventListener('click', ()=>setState({apptTab:el.dataset.appttab})));
   document.querySelectorAll('[data-stafftab]').forEach(el=>el.addEventListener('click', ()=>setState({staffTab:el.dataset.stafftab})));
   bindAction('new-appointment', ()=>setState({modal:{type:'new-appointment'}}));
+
+  // Centralized calendar
+  bindAction('cal-prev', ()=>setState({calendarMonth: shiftMonth(state.calendarMonth||currentMonthStr(), -1)}));
+  bindAction('cal-next', ()=>setState({calendarMonth: shiftMonth(state.calendarMonth||currentMonthStr(), 1)}));
+  bindAction('cal-today', ()=>setState({calendarMonth: currentMonthStr()}));
+  bindAllAction('open-cal-day', el=>setState({modal:{type:'day-appointments', date: el.dataset.date}}));
+  bindAllAction('new-appointment-on-date', el=>setState({modal:{type:'new-appointment', presetDate: el.dataset.date}}));
   const apCustomer = document.getElementById('ap-customer');
   if(apCustomer) apCustomer.addEventListener('change', ()=>{
     const vehSel = document.getElementById('ap-vehicle');
