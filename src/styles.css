@@ -180,15 +180,42 @@ body::before{
 
 .sidebar-account-mobile{display:none;}
 
+/* ---------- MOBILE BOTTOM TAB BAR ----------
+   Replaces the hamburger + off-canvas sidebar as the PRIMARY nav on
+   small screens -- only the 4 most-used sections get a permanent tab;
+   everything else (Customers, Tech Reference, Reports, Payroll, Staff,
+   Appointments, Settings, plus account/logout/theme/language) stays
+   reachable through "Lagi"/"More", which still opens the exact same
+   sidebar drawer as before, just triggered from the bottom instead of
+   a top-corner icon. Desktop is untouched -- the sidebar remains the
+   primary nav there, this bar simply never renders. */
+.mobile-tabbar{display:none;}
+
 @media screen and (max-width:880px){
   .sidebar{position:fixed;left:0;top:0;height:100vh;transform:translateX(-100%);transition:transform .28s ease;z-index:50;box-shadow:12px 0 32px var(--shadow);}
   .sidebar.nav-open{transform:translateX(0);}
-  .hamburger-btn{display:flex;align-items:center;justify-content:center;}
+  .hamburger-btn{display:none;}
   .sidebar-backdrop.show{display:block;}
   .topbar{padding:16px 16px;}
   .topbar h1{font-size:17px;}
   .topbar .date{display:none;}
-  .content{padding:16px 16px 50px;}
+  .content{padding:16px 16px 86px;}
+  .mobile-tabbar{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;
+    background:var(--glass-sidebar);border-top:1px solid var(--glass-border);
+    backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));
+    box-shadow:0 -10px 26px var(--shadow);
+    padding:7px 4px calc(7px + env(safe-area-inset-bottom));
+  }
+  .mobile-tab-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:6px 2px;border-radius:var(--r-sm);color:var(--text-muted);cursor:pointer;position:relative;
+  }
+  .mobile-tab-item svg{width:20px;height:20px;opacity:.9;}
+  .mobile-tab-item span{font-size:10px;font-weight:700;letter-spacing:.1px;}
+  .mobile-tab-item.active{color:var(--accent);}
+  .mobile-tab-item.active svg{opacity:1;}
+  .mobile-tab-badge{position:absolute;top:2px;right:22%;background:var(--danger);color:#fff;font-size:9px;font-weight:700;border-radius:20px;min-width:15px;height:15px;display:flex;align-items:center;justify-content:center;padding:0 3px;line-height:1;}
   .user-name,.user-role{display:none;}
   .topbar-account{display:none;}
   .sidebar-account-mobile{display:block;margin-top:auto;padding:16px;border-top:1px solid var(--glass-border);}

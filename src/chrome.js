@@ -63,6 +63,36 @@ function renderSidebar(){
   </div>`;
 }
 
+// The 4 most-used sections get a permanent bottom tab on mobile (only
+// rendered ≤880px, see .mobile-tabbar in styles.css); everything else
+// (Customers, Tech Reference, Reports, Payroll, Staff, Appointments,
+// Settings, account/logout/theme/language) stays reachable through
+// "Lagi"/"More", which opens the same sidebar drawer as before via the
+// existing open-nav action -- nothing about the drawer itself changes,
+// only what triggers it on a small screen.
+function renderMobileTabBar(){
+  const en = state.language==='en';
+  const activeJobs = db.jobs.filter(j=>j.status!=='delivered').length;
+  const primary = [
+    {k:'dashboard', l:t('nav_dashboard'), icon:ICONS.dashboard},
+    {k:'jobs', l:t('nav_jobs'), icon:ICONS.jobs, badge:activeJobs},
+    {k:'pos', l:t('nav_pos'), icon:ICONS.pos},
+    {k:'inventory', l:t('nav_inventory'), icon:ICONS.inventory},
+  ];
+  const isPrimaryView = primary.some(it=>it.k===state.view);
+  return `
+  <div class="mobile-tabbar">
+    ${primary.map(it=>`
+      <div class="mobile-tab-item ${state.view===it.k?'active':''}" data-nav="${it.k}">
+        ${it.icon}<span>${it.l}</span>
+        ${it.badge ? `<span class="mobile-tab-badge">${it.badge}</span>` : ''}
+      </div>`).join('')}
+    <div class="mobile-tab-item ${!isPrimaryView?'active':''}" data-action="open-nav">
+      ${ICONS.menu}<span>${en?'More':'Lagi'}</span>
+    </div>
+  </div>`;
+}
+
 // Self-service 2FA (TOTP) management — reachable by EVERY staff member
 // (Mekanik included), unlike the rest of Settings which is Admin-only, so
 // this lives in its own modal rather than inside the Settings view.

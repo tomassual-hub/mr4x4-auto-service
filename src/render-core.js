@@ -41,6 +41,7 @@ function render(){
         ${renderTopbar()}
         <div class="content">${renderView()}</div>
       </div>
+      ${renderMobileTabBar()}
     </div>
     ${state.modal ? renderModal() : ''}
     ${state.confirmAction ? renderConfirmModal() : ''}

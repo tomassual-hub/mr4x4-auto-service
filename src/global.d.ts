@@ -489,6 +489,7 @@ declare function viewAppointments(): string;
 declare function viewSettings(): string;
 declare function renderView(): string;
 declare function renderSidebar(): string;
+declare function renderMobileTabBar(): string;
 declare function renderTopbar(): string;
 declare function renderModal(): string;
 declare function renderConfirmModal(): string;
