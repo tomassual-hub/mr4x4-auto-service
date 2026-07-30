@@ -20,12 +20,39 @@ function downloadCSV(filename, headers, rows){
   showToast(tt('Fail ')+filename+tt(' dimuat turun.'));
 }
 
+// Re-entrancy guard: without this, a fast double-click/double-tap on a
+// submit-style button (checkout, create-job, save-po, save-credit-note,
+// save-quotation, ...) fires the click listener twice before the first
+// call's counter RPC (nextInvNo/nextJobNo/...) has even resolved, since
+// none of these async handlers disabled their own button — both calls run
+// to completion, producing two invoices (with inventory/loyalty deducted
+// twice), two job cards, etc. Keyed by action name (+ data-id for
+// bindAllAction, since the same action name is reused across many rows'
+// buttons and those are independent operations, not duplicates of each
+// other) rather than the DOM element itself, so it still works correctly
+// even if a handler calls render() — which replaces the element — partway
+// through its own async work.
+const inFlightActions = new Set();
+async function runGuardedAction(key, el, fn){
+  if(inFlightActions.has(key)) return;
+  inFlightActions.add(key);
+  if('disabled' in el) el.disabled = true;
+  try{
+    await fn();
+  } finally {
+    inFlightActions.delete(key);
+    if('disabled' in el) el.disabled = false;
+  }
+}
 function bindAction(name, fn){
   const el = document.querySelector(`[data-action="${name}"]`);
-  if(el) el.addEventListener('click', fn);
+  if(el) el.addEventListener('click', () => runGuardedAction(name, el, fn));
 }
 function bindAllAction(name, fn){
-  document.querySelectorAll(`[data-action="${name}"]`).forEach(el=>el.addEventListener('click', ()=>fn(el)));
+  document.querySelectorAll(`[data-action="${name}"]`).forEach(el=>{
+    const htmlEl = /** @type {HTMLElement} */ (el);
+    htmlEl.addEventListener('click', ()=>runGuardedAction(name+':'+(htmlEl.dataset.id||''), htmlEl, ()=>fn(htmlEl)));
+  });
 }
 
 // A <div>/<span> with only a 'click' listener (nav items, .clickable links,

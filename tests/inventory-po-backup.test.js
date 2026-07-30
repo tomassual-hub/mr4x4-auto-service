@@ -99,6 +99,11 @@ async function run(){
   // Hardened restore: a backup missing branches (and other fields) must not crash
   const broken = { ...backupJson, branches: [] };
   delete broken.staff;
+  // Simulate a backup taken before creditNote/quote counters existed --
+  // counters is PRESENT (so the top-level "field missing" backfill never
+  // triggers) but missing those two sub-keys specifically.
+  const { creditNote, quote, ...oldShapeCounters } = backupJson.counters || {};
+  broken.counters = oldShapeCounters;
   const brokenPath = path.join(__dirname, '.tmp-backup-broken.json');
   fs.writeFileSync(brokenPath, JSON.stringify(broken));
   const currentStaffId = await page.evaluate(() => state.currentStaff.id);
@@ -123,6 +128,14 @@ async function run(){
   r.checkTrue('restoring a backup missing the staff field keeps OTHER staff too (no teammate-lockout)', decoyStaffKept);
   await page.evaluate((id) => { db.staff = db.staff.filter(s => s.id !== id); queueSave(); }, decoyStaffId);
   await page.waitForTimeout(1200);
+
+  // Restoring a backup whose counters object predates creditNote/quote must
+  // backfill those two sub-keys to real numbers, not leave them undefined
+  // (allocateCounter()'s offline fallback does ++db.counters[name], and
+  // ++undefined is NaN -- permanently, since NaN+1 stays NaN).
+  const countersAfterRestore = await page.evaluate(() => db.counters);
+  r.checkTrue('restoring an old-shape counters object backfills creditNote counter', typeof countersAfterRestore.creditNote === 'number' && !Number.isNaN(countersAfterRestore.creditNote));
+  r.checkTrue('restoring an old-shape counters object backfills quote counter', typeof countersAfterRestore.quote === 'number' && !Number.isNaN(countersAfterRestore.quote));
 
   // Confirm the app is actually usable post-restore (this is what crashed before the fix)
   let jobCreateError = null;

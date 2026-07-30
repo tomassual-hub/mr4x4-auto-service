@@ -1055,6 +1055,15 @@ function attachHandlers(){
           const preRestoreStaff = db.staff;
           db = { ...base, ...parsed };
           Object.keys(base).forEach(key=>{ if(db[key]===undefined || db[key]===null) db[key] = base[key]; });
+          // The check above only catches a MISSING counters object outright
+          // — a backup taken before creditNote/quote counters existed still
+          // has a present-but-incomplete one, which passes that check and
+          // leaves e.g. db.counters.creditNote undefined. allocateCounter()'s
+          // offline fallback path does `++db.counters[name]`, and
+          // ++undefined is NaN — permanently "CN-NaN" from then on (NaN+1
+          // stays NaN), not just a one-off glitch. Merge sub-keys instead of
+          // trusting the backup's counters object wholesale.
+          db.counters = { ...base.counters, ...db.counters };
           if(staffFieldMissing) db.staff = preRestoreStaff;
           if(db.settings.paymentQR===undefined) db.settings.paymentQR='';
           if(db.settings.lastBackupAt===undefined) db.settings.lastBackupAt=null;

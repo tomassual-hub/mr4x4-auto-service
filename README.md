@@ -76,28 +76,42 @@ Laman GitHub Pages di atas ialah yang sebenarnya live.
 
 - **Kad Kerja** — tiket kerja servis bergaya bengkel sebenar, dengan status,
   nota dalaman, tandatangan digital, gambar sebelum/selepas, senarai semak
-  pemeriksaan
-- **POS/Invois** — troli jualan, diskaun, SST, cetak invois/kad kerja, kod
+  pemeriksaan dengan diagram kerosakan boleh ditanda, tugaskan ke Bay/lif
+  fizikal (pilihan), dan Kad Kerja Pemulangan untuk kes waranti
+- **POS/Invois** — troli jualan (termasuk Pakej harga istimewa), diskaun,
+  SST, bayaran berbilang/sebahagian dalam satu invois, Sebut Harga (boleh
+  ditukar jadi invois kemudian), Nota Kredit, cetak invois/kad kerja, kod
   bar/kod pantas
-- **Inventori** — stok alat ganti, pembekal, pesanan belian (manual & auto)
+- **Inventori** — stok alat ganti, pembekal, pesanan belian (manual & auto,
+  termasuk terima penghantaran sebahagian), cadangan pesanan semula ikut
+  pembekal, import CSV pukal
 - **Pelanggan & Kenderaan** — sejarah servis penuh, waranti alat ganti,
   amaran servis ikut kilometer (dipaparkan juga di Papan Pemuka dengan
-  butang peringatan WhatsApp sekali klik), kod QR kenderaan
-- **Tempahan & Kontrak Servis** — janji temu, invois berulang untuk
-  pelanggan korporat
+  butang peringatan WhatsApp sekali klik), kod QR kenderaan, prospek/leads
+  (CRM) sebelum jadi pelanggan sebenar
+- **Tempahan & Kontrak Servis** — janji temu (dengan kalendar bulanan
+  berpusat), invois berulang untuk pelanggan korporat
 - **Rujukan Teknikal** — perpustakaan nota bengkel sendiri ikut jenama/model
   kenderaan (jadual servis, jenis minyak, spesifikasi tork, lokasi
   komponen, gambar rajah/kod kerosakan, dll.) dengan lampiran gambar —
   diisi oleh staf sendiri, bukan data pra-dimuat
-- **Laporan** — untung/rugi (P&L), prestasi & komisen mekanik, ramalan
-  stok, analitik pelanggan senyap, carta jualan
+- **Kehadiran QR & Layan Diri Pelanggan** — kod QR peribadi staf untuk
+  clock in/out tanpa log masuk; pautan laporan pemeriksaan kenderaan yang
+  boleh dikongsi & ditandatangan pelanggan dari telefon sendiri; Papan
+  Paparan kawasan menunggu (status kerja masa nyata, tanpa log masuk)
+- **Laporan & Sasaran** — untung/rugi (P&L), pecahan untung alat ganti vs
+  servis, prestasi & komisen mekanik, ramalan stok, analitik pusing ganti
+  inventori, analitik pelanggan senyap, carta jualan, sasaran jualan/unit
+  bulanan dengan progres di Papan Pemuka
 - **Staf** — log masuk e-mel/kata laluan sebenar, kebenaran ikut peranan
-  (Admin/Mekanik) dengan sekatan Admin terakhir tak boleh dipadam/diturun
-  pangkat, log aktiviti (audit trail)
+  (Admin / Kerani / Ketua Mekanik / Mekanik) dengan sekatan Admin terakhir
+  tak boleh dipadam/diturun pangkat, log aktiviti (audit trail)
 - **Loceng Notifikasi**, **Mod Kiosk** (semak status tanpa log masuk),
   **Sokongan Berbilang Cawangan**
 - **Dwibahasa** — suis Bahasa Melayu ⇄ English (MS/EN)
-- **Tema Terang/Gelap**, **Mod Ringkas/Lanjutan**, **Tutorial Onboarding**
+- **Tema Terang/Gelap**, **Mod Ringkas/Lanjutan** (sorok ciri lanjutan
+  untuk paparan harian lebih ringkas), **Tutorial Onboarding**, **Tab
+  navigasi bawah untuk mobile**
 - **Sandaran & Pemulihan Data** — muat turun manual, ATAU automatik ke
   pelayan (setiap 7 hari bila Admin log masuk, boleh muat turun balik di
   Tetapan), eksport CSV & format perakaunan
