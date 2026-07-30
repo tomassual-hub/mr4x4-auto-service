@@ -5,11 +5,15 @@ function renderModal(){
   if(m.type==='new-job') inner = newJobModalHTML();
   else if(m.type==='job-detail') inner = jobDetailModalHTML(m.job);
   else if(m.type==='new-item') inner = itemModalHTML(null);
+  else if(m.type==='new-package') inner = packageModalHTML(null);
+  else if(m.type==='edit-package') inner = packageModalHTML(m.pkg);
   else if(m.type==='edit-item') inner = itemModalHTML(m.item);
   else if(m.type==='new-customer') inner = customerModalHTML();
   else if(m.type==='new-lead') inner = leadModalHTML();
   else if(m.type==='new-vehicle') inner = vehicleModalHTML(m.customerId);
   else if(m.type==='new-staff') inner = staffModalHTML(null);
+  else if(m.type==='attendance-qr') inner = attendanceQrModalHTML(m.staffMember);
+  else if(m.type==='edit-attendance') inner = editAttendanceModalHTML(m.record);
   else if(m.type==='edit-staff') inner = staffModalHTML(m.staffMember);
   else if(m.type==='edit-customer') inner = customerEditModalHTML(m.customer);
   else if(m.type==='edit-vehicle') inner = vehicleEditModalHTML(m.vehicle);
@@ -17,9 +21,12 @@ function renderModal(){
   else if(m.type==='new-appointment') inner = appointmentModalHTML(m.presetDate);
   else if(m.type==='day-appointments') inner = dayAppointmentsModalHTML(m.date);
   else if(m.type==='new-contract') inner = contractModalHTML();
+  else if(m.type==='settle-balance') inner = settleBalanceModalHTML(m.invoice);
+  else if(m.type==='credit-note') inner = creditNoteModalHTML(m.invoice);
   else if(m.type==='new-supplier') inner = supplierModalHTML();
   else if(m.type==='edit-supplier') inner = supplierModalHTML(m.supplier);
   else if(m.type==='new-po') inner = poModalHTML();
+  else if(m.type==='receive-po') inner = receivePoModalHTML(m.po);
   else if(m.type==='inspection') inner = inspectionModalHTML(m.job);
   else if(m.type==='mfa-settings') inner = mfaSettingsModalHTML();
   else if(m.type==='faceid-offer') inner = faceIdOfferModalHTML(m.email);

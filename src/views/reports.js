@@ -37,6 +37,26 @@ function viewReports(){
   const marginPct = revenue>0 ? (grossProfit/revenue*100) : 0;
   const maxVal = topItems.length ? topItems[0][1] : 1;
 
+  // Parts vs services breakdown -- parts are cart lines linked to an
+  // inventory item (refId), services are everything else (custom charges,
+  // labor). Only parts carry a tracked cost; labor/service cost isn't
+  // tracked anywhere in this app, so "services profit" is just its revenue.
+  let partsRevenue = 0, partsCost = 0, servicesRevenue = 0;
+  invInRange.forEach(inv=>{
+    inv.items.forEach(it=>{
+      const lineRevenue = it.price*it.qty;
+      if(it.refId){
+        partsRevenue += lineRevenue;
+        const invItem = getItem(it.refId);
+        if(invItem) partsCost += (invItem.cost||0)*it.qty;
+      } else {
+        servicesRevenue += lineRevenue;
+      }
+    });
+  });
+  const partsProfit = partsRevenue - partsCost;
+  const servicesProfit = servicesRevenue; // no cost tracked for labor
+
   // mechanic performance
   const mechStats = {};
   jobsInRange.forEach(j=>{
@@ -109,6 +129,28 @@ function viewReports(){
       <div class="stat-card warn"><div class="stat-label">${tt('Kos Barangan (COGS)')}</div><div class="stat-value">${fmtRM(cogs)}</div></div>
       <div class="stat-card ok"><div class="stat-label">${tt('Untung Kasar')}</div><div class="stat-value">${fmtRM(grossProfit)}</div><div class="stat-sub">${tt('Margin')} ${marginPct.toFixed(1)}%</div></div>
     </div>
+  </div>`}
+
+  ${db.settings.simpleMode || !canRevenue ? '' : `
+  <div class="panel" style="margin-bottom:20px;">
+    <h2>${ICONS.reports} ${state.language==='en'?'Sales: Parts vs Services':'Jualan: Alat Ganti vs Servis'}</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th>${state.language==='en'?'Revenue':'Hasil'}</th><th>${state.language==='en'?'Cost':'Kos'}</th><th>${state.language==='en'?'Profit':'Untung'}</th></tr></thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:600;">${ICONS.inventory} ${state.language==='en'?'Parts':'Alat Ganti'}</td>
+          <td>${fmtRM(partsRevenue)}</td>
+          <td style="color:var(--text-muted);">${fmtRM(partsCost)}</td>
+          <td style="color:var(--success);font-weight:600;">${fmtRM(partsProfit)}</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600;">${ICONS.wrench} ${state.language==='en'?'Services / Labor':'Servis / Buruh'}</td>
+          <td>${fmtRM(servicesRevenue)}</td>
+          <td style="color:var(--text-muted);">${state.language==='en'?'not tracked':'tidak dijejak'}</td>
+          <td style="color:var(--success);font-weight:600;">${fmtRM(servicesProfit)}</td>
+        </tr>
+      </tbody>
+    </table></div>
   </div>`}
 
   ${db.settings.simpleMode || !canRevenue ? '' : `

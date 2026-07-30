@@ -59,7 +59,13 @@ async function run(){
   r.checkTrue('purchase order created', !!poId);
   await waitForSyncIdle(page); // let this PO's own creation echo settle before receiving it
 
-  await clickInPage(page, `[data-action="receive-po"][data-id="${poId}"]`);
+  // Receiving is now a two-step flow (open-receive-po opens a modal that
+  // supports partial receiving, confirm-receive-po commits it) instead of
+  // one click -- the "Receive Now" input defaults to the full outstanding
+  // qty per line, so confirming immediately is equivalent to a full receive.
+  await clickInPage(page, `[data-action="open-receive-po"][data-id="${poId}"]`);
+  await page.waitForTimeout(200);
+  await clickInPage(page, `[data-action="confirm-receive-po"][data-id="${poId}"]`);
   await page.waitForTimeout(600);
   r.check('stock qty updated on receive (2+15=17)', await page.evaluate(() => db.inventory.find(i=>i.sku==='IPB-ITEM-1')?.qty), 17);
 

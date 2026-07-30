@@ -14,6 +14,22 @@ function localDateStr(d){ d = d||new Date(); return d.getFullYear()+'-'+String(d
 // since sync is realtime across devices. Wrap every such field with esc().
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtRM(n){ return 'RM ' + (Number(n)||0).toFixed(2); }
+// Split-payment invoices (invoice.payments[]) can mix cash with card/online
+// in one sale, or leave a balance due (deposit/partial payment) -- cash
+// reconciliation must only count the CASH portion actually collected, not
+// the invoice's full total. Single-payment invoices (the common case, no
+// .payments array) fall back to the original payment==='Tunai' check.
+// Used by both the daily cash-closing panel and the close-cash handler so
+// they can never drift into disagreeing about "today's cash sales".
+function invoiceCashAmount(inv){
+  if(inv.payments && inv.payments.length) return inv.payments.filter(p=>p.method==='Tunai').reduce((s,p)=>s+p.amount,0);
+  return inv.payment==='Tunai' ? inv.total : 0;
+}
+function invoiceAmountPaid(inv){
+  if(inv.payments && inv.payments.length) return inv.payments.reduce((s,p)=>s+p.amount,0);
+  return inv.total;
+}
+function invoiceBalanceDue(inv){ return Math.max(0, inv.total - invoiceAmountPaid(inv)); }
 function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('ms-MY',{day:'2-digit',month:'short',year:'numeric'}); }
 function fmtDateTime(ts){ const d=new Date(ts); return d.toLocaleDateString('ms-MY',{day:'2-digit',month:'short'}) + ' ' + d.toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'}); }
 function logAudit(action, detail){

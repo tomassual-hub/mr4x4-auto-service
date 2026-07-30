@@ -64,13 +64,17 @@ const INSPECTION_ITEMS = [
 
 function inspectionModalHTML(job){
   const insp = job.inspection || {};
+  const marks = job.diagramMarks || [];
   const en = state.language==='en';
   const statusLabel = {ok:tt('OK'), attention:en?'Needs Attention':'Perlu Perhatian', replace:en?'Needs Replacement':'Perlu Tukar'};
   const statusClass = {ok:'pill-done', attention:'pill-wait', replace:'pill-low'};
+  const markColor = {ok:'var(--success)', attention:'#d99a2b', replace:'var(--danger)'};
+  const c = getCustomer(job.customerId);
+  const hasFindings = Object.keys(insp).length>0 || marks.length>0 || (job.photos||[]).length>0;
   return `
     <h2>${ICONS.done||'✓'} ${en?'Inspection Checklist':'Senarai Semak Pemeriksaan'} — ${job.jobNo}</h2>
     <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?'Click each item to cycle status: Not Checked → OK → Needs Attention → Needs Replacement':'Klik setiap item untuk tukar status: Belum Semak → OK → Perlu Perhatian → Perlu Tukar'}</p>
-    <div style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;">
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
       ${INSPECTION_ITEMS.map(name=>{
         const st = insp[name];
         return `<div class="clickable" data-inspect-item="${name}" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--panel-alt);border-radius:6px;">
@@ -79,8 +83,37 @@ function inspectionModalHTML(job){
         </div>`;
       }).join('')}
     </div>
+
+    <div class="field" style="margin-top:16px;">
+      <label>${en?'Damage Diagram':'Diagram Kerosakan'}</label>
+      <div id="diagram-wrap" style="position:relative;width:100%;max-width:220px;margin:0 auto;background:var(--panel-alt);border-radius:10px;border:1px solid var(--border);padding:10px 0;cursor:crosshair;user-select:none;">
+        <svg viewBox="0 0 200 380" style="width:100%;display:block;pointer-events:none;">
+          <rect x="30" y="20" width="140" height="340" rx="28" fill="none" stroke="var(--text-muted)" stroke-width="3"/>
+          <rect x="45" y="55" width="110" height="55" rx="8" fill="none" stroke="var(--text-muted)" stroke-width="2"/>
+          <rect x="45" y="270" width="110" height="55" rx="8" fill="none" stroke="var(--text-muted)" stroke-width="2"/>
+          <rect x="14" y="70" width="14" height="45" rx="4" fill="var(--text-muted)"/>
+          <rect x="172" y="70" width="14" height="45" rx="4" fill="var(--text-muted)"/>
+          <rect x="14" y="265" width="14" height="45" rx="4" fill="var(--text-muted)"/>
+          <rect x="172" y="265" width="14" height="45" rx="4" fill="var(--text-muted)"/>
+          <circle cx="60" cy="35" r="4" fill="var(--text-muted)"/>
+          <circle cx="140" cy="35" r="4" fill="var(--text-muted)"/>
+        </svg>
+        ${marks.map((m,idx)=>`<div class="clickable" data-diagram-mark-idx="${idx}" title="${esc(m.note||'')}" style="position:absolute;left:${m.x}%;top:${m.y}%;width:20px;height:20px;margin:-10px 0 0 -10px;background:${markColor[m.severity]};color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;box-shadow:0 0 0 2px #fff;">${idx+1}</div>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin:6px 0;text-align:center;">${en?'Click the diagram to add a mark. Click a mark to cycle its severity.':'Klik diagram untuk tambah tanda. Klik tanda untuk tukar tahap keterukan.'}</div>
+      ${marks.length ? `<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+        ${marks.map((m,idx)=>`
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span class="pill" style="background:${markColor[m.severity]};color:#fff;min-width:20px;text-align:center;padding:2px 6px;">${idx+1}</span>
+            <input data-diagram-note-idx="${idx}" value="${esc(m.note||'')}" placeholder="${en?'e.g. Scratch on door':'cth: Calar pada pintu'}" style="flex:1;">
+            <button class="btn-icon" data-action="remove-diagram-mark" data-idx="${idx}">${ICONS.x}</button>
+          </div>`).join('')}
+      </div>` : ''}
+    </div>
+
     <div class="modal-foot">
       <button class="btn btn-outline" data-action="close-modal">${t('btn_close')}</button>
+      ${hasFindings ? `<button class="btn btn-outline" data-action="share-inspection-report" data-id="${job.id}">${ICONS.whatsapp||''} ${en?'Share Report':'Kongsi Laporan'}</button>` : ''}
     </div>
   `;
 }
@@ -135,9 +168,11 @@ function jobDetailModalHTML(j){
       `}
     </div>
     ${waHref ? `<a class="btn btn-outline" style="width:100%;justify-content:center;margin-bottom:6px;" href="${waHref}" target="_blank" rel="noopener">${ICONS.whatsapp} ${en?'Send Update via WhatsApp':'Hantar Kemas Kini via WhatsApp'}</a>` : ''}
+    ${j.returnFromJobId ? `<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;">${en?'Return job from':'Kad kerja pemulangan daripada'} ${db.jobs.find(x=>x.id===j.returnFromJobId)?.jobNo || '-'}</div>` : ''}
     <div class="modal-foot">
       <button class="btn btn-danger" data-action="delete-job" data-id="${j.id}">${ICONS.trash} ${t('btn_delete')}</button>
       <button class="btn btn-outline" data-action="open-inspection" data-id="${j.id}">${ICONS.done||'✓'} ${en?'Checklist':'Senarai Semak'}</button>
+      <button class="btn btn-outline" data-action="return-job" data-id="${j.id}" title="${en?'Create a new job card from this one (e.g. warranty comeback)':'Cipta kad kerja baharu daripada ini (cth. kes pemulangan/waranti)'}">${ICONS.repeat} ${en?'Return Job':'Kad Kerja Pemulangan'}</button>
       <button class="btn btn-outline" data-action="print-jobcard" data-id="${j.id}">${ICONS.printer} ${en?'Print Card':'Cetak Kad'}</button>
       <button class="btn btn-outline" data-action="close-modal">${t('btn_close')}</button>
       ${!j.invoiced ? `<button class="btn btn-primary" data-action="job-to-pos" data-id="${j.id}">${ICONS.pos} ${en?'Send to POS':'Hantar ke POS'}</button>` : `<span class="pill pill-paid" style="align-self:center;">${en?'Already Invoiced':'Sudah Diinvois'}</span>`}

@@ -137,17 +137,52 @@ function attachHandlers(){
       showToast(state.language==='en' ? 'Could not generate automatic purchase orders. Try again.' : 'Gagal jana pesanan belian automatik. Cuba lagi.');
     }
   });
-  bindAllAction('receive-po', el=>{
+  bindAllAction('create-po-for-supplier', async el=>{
+    const en = state.language==='en';
+    const supplierId = el.dataset.supplier==='none' ? null : el.dataset.supplier;
+    const lowItems = db.inventory.filter(i=>i.qty<=i.lowStock && (i.supplierId||'none')===(el.dataset.supplier));
+    if(lowItems.length===0) return;
+    try{
+      const items = lowItems.map(i=>({name:i.name, qty:Math.max(i.lowStock*2 - i.qty, i.lowStock), cost:i.cost}));
+      const poNo = await nextPoNo();
+      const po = {id:uid(), poNo, supplierId, items, status:'pending', createdAt:Date.now()};
+      db.purchaseOrders.push(po);
+      logAudit('Jana Pesanan Belian', poNo+' ('+items.length+' '+(en?'items':'item')+')');
+      queueSave();
+      setState({view:'inventory', invMainTab:'po'});
+      showToast(en?`Purchase order ${poNo} created.`:`Pesanan belian ${poNo} dicipta.`);
+    }catch(e){
+      reportError(e, 'Jana PO daripada cadangan pesanan gagal');
+      showToast(en?'Could not create the purchase order. Try again.':'Gagal jana pesanan belian. Cuba lagi.');
+    }
+  });
+  bindAllAction('open-receive-po', el=>{
     const po = db.purchaseOrders.find(p=>p.id===el.dataset.id);
-    po.items.forEach(poi=>{
+    if(po) setState({modal:{type:'receive-po', po}});
+  });
+  bindAllAction('confirm-receive-po', el=>{
+    const en = state.language==='en';
+    const po = db.purchaseOrders.find(p=>p.id===el.dataset.id);
+    if(!po) return;
+    const inputs = document.querySelectorAll('[data-po-receive-idx]');
+    let anyReceived = false;
+    inputs.forEach(input=>{
+      const idx = Number(input.dataset.poReceiveIdx);
+      const poi = po.items[idx];
+      const outstanding = Math.max(0, poi.qty-(poi.receivedQty||0));
+      const receiveNow = Math.min(outstanding, Math.max(0, Number(input.value)||0));
+      if(receiveNow<=0) return;
+      anyReceived = true;
+      poi.receivedQty = (poi.receivedQty||0)+receiveNow;
       const item = db.inventory.find(i=>i.name===poi.name);
-      if(item) item.qty += poi.qty;
+      if(item) item.qty += receiveNow;
     });
-    po.status = 'received';
-    logAudit('Terima Pesanan Belian', po.poNo);
+    if(!anyReceived){ showToast(en?'Enter a quantity to receive.':'Masukkan kuantiti untuk diterima.'); return; }
+    po.status = po.items.every(i=>(i.receivedQty||0)>=i.qty) ? 'received' : 'partial';
+    logAudit('Terima Pesanan Belian', po.poNo+(po.status==='partial'?' ('+(en?'partial':'sebahagian')+')':''));
     queueSave();
-    render();
-    showToast(tt('Stok dikemaskini daripada ')+po.poNo+'.');
+    setState({modal:null});
+    showToast(po.status==='received' ? (en?'Fully received.':'Diterima sepenuhnya.') : (en?'Partial receipt recorded.':'Penerimaan sebahagian direkodkan.'));
   });
 
   // Technical reference library
@@ -342,6 +377,105 @@ function attachHandlers(){
   bindAction('new-job', ()=>setState({modal:{type:'new-job'}}));
   bindAction('close-modal', ()=>setState({modal:null}));
   bindAction('new-item', ()=>setState({modal:{type:'new-item'}}));
+  bindAction('new-package', ()=>setState({modal:{type:'new-package'}}));
+  bindAllAction('edit-package', el=>{
+    const pkg = (db.packages||[]).find(p=>p.id===el.dataset.id);
+    if(pkg) setState({modal:{type:'edit-package', pkg}});
+  });
+  bindAction('save-package', ()=>{
+    const en = state.language==='en';
+    const name = document.getElementById('pkg-name').value.trim();
+    const price = Number(document.getElementById('pkg-price').value)||0;
+    const active = document.getElementById('pkg-active').checked;
+    const raw = document.getElementById('pkg-items').value.trim();
+    if(!name){ showToast(en?'Please enter a package name.':'Sila masukkan nama pakej.'); return; }
+    const items = raw.split('\n').map(line=>{
+      const parts = line.split(':');
+      if(parts.length<2) return null;
+      const itemName = parts[0].trim();
+      const qty = Number(parts[1].trim())||0;
+      const invItem = db.inventory.find(i=>i.name.toLowerCase()===itemName.toLowerCase());
+      return (invItem && qty>0) ? {refId:invItem.id, qty} : null;
+    }).filter(Boolean);
+    if(items.length===0){ showToast(en?'No matching inventory items found in the component list (format: item name:qty).':'Tiada item inventori sepadan dalam senarai komponen (format: nama item:kuantiti).'); return; }
+    if(!db.packages) db.packages = [];
+    const id = document.querySelector('[data-action="save-package"]').dataset.id;
+    if(id){
+      const pkg = db.packages.find(p=>p.id===id);
+      Object.assign(pkg, {name, items, price, active});
+      logAudit('Kemaskini Pakej', name);
+    } else {
+      db.packages.push({id:uid(), name, items, price, active});
+      logAudit('Tambah Pakej', name);
+    }
+    queueSave();
+    setState({modal:null});
+    showToast(en?'Package saved.':'Pakej disimpan.');
+  });
+  bindAllAction('delete-package', el=>{
+    const en = state.language==='en';
+    askConfirm(en?'Delete this package?':'Padam pakej ini?', ()=>{
+      db.packages = (db.packages||[]).filter(p=>p.id!==el.dataset.id);
+      queueSave(); render();
+      showToast(en?'Package deleted.':'Pakej dipadam.');
+    });
+  });
+  const csvInput = document.getElementById('inventory-csv-input');
+  if(csvInput){
+    csvInput.addEventListener('change', (e)=>{
+      const en = state.language==='en';
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        try{
+          const text = String(ev.target.result||'');
+          // Minimal CSV parser -- no quoted-comma support, matches the
+          // simplicity of this app's own CSV *exports* (downloadCSV in
+          // main.js). Good enough for a plain spreadsheet export/import
+          // round trip, not a general-purpose CSV engine.
+          const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+          if(lines.length<2){ showToast(en?'CSV file has no data rows.':'Fail CSV tiada baris data.'); return; }
+          const header = lines[0].split(',').map(h=>h.trim().toLowerCase());
+          const col = (names)=>names.map(n=>header.indexOf(n)).find(i=>i>=0);
+          const nameIdx = col(['name','nama']);
+          const skuIdx = col(['part_number','partnumber','sku']);
+          const qtyIdx = col(['qty','kuantiti']);
+          const costIdx = col(['cost','kos']);
+          const priceIdx = col(['price','harga']);
+          const lowIdx = col(['low_stock','lowstock']);
+          if(nameIdx===undefined){ showToast(en?'CSV must have a "name" column.':'CSV mesti ada lajur "name".'); return; }
+          let added=0, updated=0;
+          for(let i=1;i<lines.length;i++){
+            const cells = lines[i].split(',').map(c=>c.trim());
+            const name = cells[nameIdx];
+            if(!name) continue;
+            const sku = skuIdx!==undefined ? (cells[skuIdx]||'') : '';
+            const qty = qtyIdx!==undefined ? Number(cells[qtyIdx])||0 : 0;
+            const cost = costIdx!==undefined ? Number(cells[costIdx])||0 : 0;
+            const price = priceIdx!==undefined ? Number(cells[priceIdx])||0 : 0;
+            const lowStock = lowIdx!==undefined ? Number(cells[lowIdx])||5 : 5;
+            const existing = sku ? db.inventory.find(it=>it.sku && it.sku===sku) : null;
+            if(existing){
+              Object.assign(existing, {name, qty, cost, price, lowStock});
+              updated++;
+            } else {
+              db.inventory.push({id:uid(), name, sku, qty, cost, price, lowStock});
+              added++;
+            }
+          }
+          logAudit('Import Inventori CSV', `${added} ${en?'added':'ditambah'}, ${updated} ${en?'updated':'dikemaskini'}`);
+          queueSave();
+          render();
+          showToast(en?`Import done: ${added} added, ${updated} updated.`:`Import selesai: ${added} ditambah, ${updated} dikemaskini.`);
+        }catch(err){
+          reportError(err, 'Import CSV inventori gagal');
+          showToast(en?'Could not read that CSV file.':'Gagal baca fail CSV tersebut.');
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
   bindAction('new-customer', ()=>setState({modal:{type:'new-customer'}}));
 
   // Workshop CRM: leads / pipeline
@@ -471,6 +605,60 @@ function attachHandlers(){
 
   // Staff management
   bindAction('new-staff', ()=>setState({modal:{type:'new-staff'}}));
+  bindAllAction('show-attendance-qr', el=>{
+    const staffMember = db.staff.find(s=>s.id===el.dataset.id);
+    if(!staffMember) return;
+    if(!staffMember.attendanceToken){
+      staffMember.attendanceToken = uid()+uid();
+      queueSave();
+    }
+    setState({modal:{type:'attendance-qr', staffMember}});
+  });
+  bindAllAction('regenerate-attendance-token', el=>{
+    const en = state.language==='en';
+    askConfirm(en?"Regenerate this staff member's QR code? Their old printed code will stop working immediately.":'Jana semula kod QR staf ini? Kod lama yang telah dicetak akan berhenti berfungsi serta-merta.', ()=>{
+      const staffMember = db.staff.find(s=>s.id===el.dataset.id);
+      if(!staffMember) return;
+      staffMember.attendanceToken = uid()+uid();
+      logAudit('Jana Semula Token Kehadiran', staffMember.name);
+      queueSave();
+      setState({modal:{type:'attendance-qr', staffMember}});
+      showToast(en?'New QR code generated.':'Kod QR baharu dijana.');
+    });
+  });
+  bindAction('print-attendance-qr', ()=>{
+    if(state.modal && state.modal.staffMember) printAttendanceQr(state.modal.staffMember);
+  });
+  bindAllAction('edit-attendance', el=>{
+    const record = (db.attendance||[]).find(a=>a.id===el.dataset.id);
+    if(record) setState({modal:{type:'edit-attendance', record}});
+  });
+  bindAllAction('save-attendance-edit', el=>{
+    const en = state.language==='en';
+    const record = (db.attendance||[]).find(a=>a.id===el.dataset.id);
+    if(!record) return;
+    const type = document.getElementById('att-edit-type').value;
+    const dateStr = document.getElementById('att-edit-date').value;
+    const timeStr = document.getElementById('att-edit-time').value;
+    if(!dateStr || !timeStr){ showToast(en?'Please enter both date and time.':'Sila masukkan tarikh dan masa.'); return; }
+    const ts = new Date(`${dateStr}T${timeStr}:00`).getTime();
+    if(isNaN(ts)){ showToast(en?'Invalid date/time.':'Tarikh/masa tidak sah.'); return; }
+    record.type = type;
+    record.ts = ts;
+    record.editedBy = state.currentStaff ? state.currentStaff.name : '';
+    logAudit('Sunting Rekod Kehadiran', record.staffName+' — '+fmtDateTime(ts));
+    queueSave();
+    setState({modal:null});
+    showToast(en?'Attendance record updated.':'Rekod kehadiran dikemaskini.');
+  });
+  bindAllAction('delete-attendance', el=>{
+    const en = state.language==='en';
+    askConfirm(en?'Delete this attendance record?':'Padam rekod kehadiran ini?', ()=>{
+      db.attendance = (db.attendance||[]).filter(a=>a.id!==el.dataset.id);
+      queueSave(); render();
+      showToast(en?'Record deleted.':'Rekod dipadam.');
+    });
+  });
   bindAllAction('edit-staff', el=>{
     const staffMember = db.staff.find(s=>s.id===el.dataset.id);
     setState({modal:{type:'edit-staff', staffMember}});
@@ -705,6 +893,7 @@ function attachHandlers(){
     db.settings.shopName = document.getElementById('set-shopname').value.trim() || 'Mr 4x4 Auto Service';
     db.settings.shopPhone = document.getElementById('set-shopphone').value.trim();
     db.settings.shopAddress = document.getElementById('set-shopaddress').value.trim();
+    db.settings.servicedBrands = document.getElementById('set-brands').value.split(',').map(x=>x.trim()).filter(Boolean);
     db.settings.shopRegNo = document.getElementById('set-shopregno').value.trim();
     db.settings.shopSstNo = document.getElementById('set-shopsstno').value.trim();
     db.settings.shopTin = document.getElementById('set-shoptin').value.trim();
@@ -1048,6 +1237,30 @@ function attachHandlers(){
     });
   });
 
+  bindAllAction('return-job', async el=>{
+    const en = state.language==='en';
+    const original = db.jobs.find(j=>j.id===el.dataset.id);
+    if(!original) return;
+    try{
+      const jobNo = await nextJobNo();
+      const fallbackBranchId = (db.branches && db.branches[0]) ? db.branches[0].id : 'main';
+      const job = {
+        id:uid(), jobNo, customerId: original.customerId, vehicleId: original.vehicleId,
+        description: (en?'[Return job for ':'[Kad kerja pemulangan untuk ')+original.jobNo+'] '+(original.description||''),
+        mechanic: original.mechanic, status:'waiting', items:[], createdAt:Date.now(), invoiced:false,
+        createdBy: state.currentStaff ? state.currentStaff.name : '', internalNote:'', doneAt:null, photos:[],
+        branchId: original.branchId || fallbackBranchId, returnFromJobId: original.id,
+      };
+      db.jobs.push(job);
+      logAudit('Kad Kerja Pemulangan', job.jobNo+' ('+(en?'from ':'daripada ')+original.jobNo+')');
+      queueSave();
+      setState({modal:{type:'job-detail', job}});
+      showToast(en?`Return job ${job.jobNo} created.`:`Kad kerja pemulangan ${job.jobNo} dicipta.`);
+    }catch(e){
+      reportError(e, 'Cipta kad kerja pemulangan gagal');
+      showToast(en ? 'Could not create the return job. Try again.' : 'Gagal cipta kad kerja pemulangan. Cuba lagi.');
+    }
+  });
   bindAllAction('job-to-pos', el=>{
     const job = db.jobs.find(j=>j.id===el.dataset.id);
     state.posCustomerId = job.customerId;
@@ -1071,6 +1284,60 @@ function attachHandlers(){
     queueSave();
     render();
   }));
+  const diagramWrap = document.getElementById('diagram-wrap');
+  if(diagramWrap){
+    diagramWrap.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-diagram-mark-idx]')) return;
+      const job = state.modal.job;
+      const rect = diagramWrap.getBoundingClientRect();
+      const x = Math.min(100, Math.max(0, ((e.clientX-rect.left)/rect.width)*100));
+      const y = Math.min(100, Math.max(0, ((e.clientY-rect.top)/rect.height)*100));
+      if(!job.diagramMarks) job.diagramMarks = [];
+      job.diagramMarks.push({x:Math.round(x*10)/10, y:Math.round(y*10)/10, severity:'attention', note:''});
+      queueSave();
+      render();
+    });
+  }
+  document.querySelectorAll('[data-diagram-mark-idx]').forEach(el=>el.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const job = state.modal.job;
+    const idx = Number(el.dataset.diagramMarkIdx);
+    const mark = job.diagramMarks[idx];
+    if(!mark) return;
+    mark.severity = mark.severity==='ok' ? 'attention' : mark.severity==='attention' ? 'replace' : 'ok';
+    queueSave();
+    render();
+  }));
+  document.querySelectorAll('[data-diagram-note-idx]').forEach(el=>el.addEventListener('change', ()=>{
+    const job = state.modal.job;
+    const idx = Number(el.dataset.diagramNoteIdx);
+    if(job.diagramMarks[idx]) job.diagramMarks[idx].note = el.value;
+    queueSave();
+  }));
+  bindAllAction('remove-diagram-mark', el=>{
+    const job = state.modal.job;
+    job.diagramMarks.splice(Number(el.dataset.idx),1);
+    queueSave();
+    render();
+  });
+  bindAllAction('share-inspection-report', el=>{
+    const en = state.language==='en';
+    const job = db.jobs.find(j=>j.id===el.dataset.id);
+    if(!job) return;
+    if(!job.inspectionToken) job.inspectionToken = uid()+uid();
+    queueSave();
+    const url = `${location.origin}${location.pathname}?inspect=${encodeURIComponent(job.id)}&token=${encodeURIComponent(job.inspectionToken)}`;
+    const cust = getCustomer(job.customerId);
+    const waText = encodeURIComponent(`${en?"Here's the inspection report for your vehicle":'Ini laporan pemeriksaan untuk kenderaan anda'} (${job.jobNo}): ${url}`);
+    if(cust && cust.phone){
+      window.open(`https://wa.me/${normalizePhone(cust.phone)}?text=${waText}`, '_blank');
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(url);
+      showToast(en?'Report link copied — no customer phone number on file.':'Pautan laporan disalin — tiada no. telefon pelanggan direkodkan.');
+    } else {
+      showToast(url);
+    }
+  });
 
   bindAction('save-item', ()=>{
     const id = document.querySelector('[data-action="save-item"]').dataset.id;
@@ -1141,6 +1408,14 @@ function attachHandlers(){
     else state.posCart.push({refId:item.id, name:item.name, price:item.price, qty:1});
     render();
   });
+  bindAllAction('add-package-to-cart', el=>{
+    const pkg = (db.packages||[]).find(p=>p.id===el.dataset.id);
+    if(!pkg) return;
+    const existing = state.posCart.find(c=>c.packageId===pkg.id);
+    if(existing) existing.qty++;
+    else state.posCart.push({packageId:pkg.id, name:pkg.name, price:pkg.price, qty:1});
+    render();
+  });
   bindAction('add-custom-cart', ()=>{
     const name = document.getElementById('pos-custom-name').value.trim();
     const price = Number(document.getElementById('pos-custom-price').value)||0;
@@ -1170,12 +1445,69 @@ function attachHandlers(){
     if(isNaN(actual)){ showToast(tt('Sila masukkan jumlah tunai.')); return; }
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const dateStr = localDateStr(todayStart);
-    const expected = db.invoices.filter(inv=>inv.createdAt>=todayStart.getTime() && inv.payment==='Tunai').reduce((s,i)=>s+i.total,0);
+    const expected = db.invoices.filter(inv=>inv.createdAt>=todayStart.getTime()).reduce((s,i)=>s+invoiceCashAmount(i),0);
     db.cashClosures.push({id:uid(), date:dateStr, expected, actual, closedBy: state.currentStaff?state.currentStaff.name:'', closedAt:Date.now()});
     logAudit('Tutup Kunci Tunai', dateStr+': jangka '+fmtRM(expected)+' vs sebenar '+fmtRM(actual));
     queueSave();
     render();
     showToast(tt('Kunci tunai hari ini ditutup.'));
+  });
+  bindAction('save-quotation', async ()=>{
+    const en = state.language==='en';
+    if(state.posCart.length===0) return;
+    try{
+      const subtotal = state.posCart.reduce((s,c)=>s+c.price*c.qty,0);
+      let discountAmt = 0;
+      if(state.posDiscountType==='percent') discountAmt = subtotal * (Number(state.posDiscountValue)||0) / 100;
+      else discountAmt = Number(state.posDiscountValue)||0;
+      discountAmt = Math.min(Math.max(discountAmt,0), subtotal);
+      const afterDiscount = subtotal - discountAmt;
+      const taxRate = Number(db.settings.taxRate)||0;
+      const taxAmt = afterDiscount * taxRate/100;
+      const total = afterDiscount + taxAmt;
+      const quoteNo = await nextQuoteNo();
+      const quotation = {
+        id:uid(), quoteNo, customerId:state.posCustomerId||null, vehicleId:state.posVehicleId||null,
+        items:[...state.posCart], subtotal, discount:discountAmt, taxRate, tax:taxAmt, total, status:'draft',
+        createdAt:Date.now(), createdBy: state.currentStaff ? state.currentStaff.name : '',
+      };
+      if(!db.quotations) db.quotations = [];
+      db.quotations.push(quotation);
+      logAudit('Jana Sebut Harga', quotation.quoteNo+' — '+fmtRM(quotation.total));
+      queueSave();
+      state.posCart = []; state.posCustomerId=''; state.posVehicleId=''; state.posDiscountValue=0; state.posDiscountType='flat';
+      render();
+      showToast(en?`Quotation ${quoteNo} saved.`:`Sebut harga ${quoteNo} disimpan.`);
+      printQuotation(quotation);
+    }catch(e){
+      reportError(e, 'Simpan sebut harga gagal');
+      showToast(en?'Could not save the quotation. Try again.':'Gagal simpan sebut harga. Cuba lagi.');
+    }
+  });
+  bindAllAction('convert-quote-to-invoice', el=>{
+    const en = state.language==='en';
+    const quote = (db.quotations||[]).find(q=>q.id===el.dataset.id);
+    if(!quote) return;
+    state.posCart = quote.items.map(it=>({...it}));
+    state.posCustomerId = quote.customerId||'';
+    state.posVehicleId = quote.vehicleId||'';
+    state.posDiscountType = 'flat';
+    state.posDiscountValue = quote.discount||0;
+    state.posConvertingQuoteId = quote.id;
+    setState({view:'pos'});
+    showToast(en?'Quotation loaded into cart — complete checkout to convert it to an invoice.':'Sebut harga dimuatkan ke troli — lengkapkan checkout untuk tukar kepada invois.');
+  });
+  bindAllAction('print-quotation', el=>{
+    const q = (db.quotations||[]).find(x=>x.id===el.dataset.id);
+    if(q) printQuotation(q);
+  });
+  bindAllAction('delete-quotation', el=>{
+    const en = state.language==='en';
+    askConfirm(en?'Delete this quotation?':'Padam sebut harga ini?', ()=>{
+      db.quotations = (db.quotations||[]).filter(q=>q.id!==el.dataset.id);
+      queueSave(); render();
+      showToast(en?'Quotation deleted.':'Sebut harga dipadam.');
+    });
   });
   bindAction('checkout', async ()=>{
     if(state.posCart.length===0) return;
@@ -1186,13 +1518,33 @@ function attachHandlers(){
     // now surfaces (to the user AND to Sentry) instead of looking like
     // nothing happened at all.
     try{
-      const paymentEl = document.getElementById('pos-payment');
-      const payment = paymentEl ? paymentEl.value : 'Tunai';
-      // deduct inventory
+      const en = state.language==='en';
+      let payment, payments;
+      if(state.posSplitMode){
+        const methodEls = document.querySelectorAll('[data-split-method-idx]');
+        payments = Array.from(methodEls).map(el=>{
+          const idx = el.dataset.splitMethodIdx;
+          const amountEl = document.querySelector(`[data-split-amount-idx="${idx}"]`);
+          return { method: el.value, amount: Math.max(0, Number(amountEl?amountEl.value:0)||0) };
+        }).filter(p=>p.amount>0);
+        if(payments.length===0){ showToast(en?'Enter at least one payment amount.':'Masukkan sekurang-kurangnya satu jumlah bayaran.'); return; }
+        payment = payments.length>1 ? (en?'Split':'Berbilang') : payments[0].method;
+      } else {
+        const paymentEl = document.getElementById('pos-payment');
+        payment = paymentEl ? paymentEl.value : 'Tunai';
+      }
+      // deduct inventory -- a package line deducts each of its component
+      // items instead of itself (the bundle isn't a real stock item)
       state.posCart.forEach(c=>{
         if(c.refId){
           const item = getItem(c.refId);
           if(item) item.qty = Math.max(0, item.qty-c.qty);
+        } else if(c.packageId){
+          const pkg = (db.packages||[]).find(p=>p.id===c.packageId);
+          if(pkg) pkg.items.forEach(pi=>{
+            const item = getItem(pi.refId);
+            if(item) item.qty = Math.max(0, item.qty - pi.qty*c.qty);
+          });
         }
       });
       const subtotal = state.posCart.reduce((s,c)=>s+c.price*c.qty,0);
@@ -1212,10 +1564,13 @@ function attachHandlers(){
       const invoice = {
         id:uid(), invoiceNo, customerId:state.posCustomerId||null, vehicleId:state.posVehicleId||null,
         jobId: state.posJobId||null, items:[...state.posCart], subtotal, discount:discountAmt, taxRate, tax:taxAmt, total, payment, createdAt:Date.now(),
-        createdBy: state.currentStaff ? state.currentStaff.name : '', branchId: state.currentBranch!=='all' ? state.currentBranch : fallbackBranchId
+        createdBy: state.currentStaff ? state.currentStaff.name : '', branchId: state.currentBranch!=='all' ? state.currentBranch : fallbackBranchId,
+        ...(payments ? {payments} : {}),
       };
       db.invoices.push(invoice);
-      logAudit('Jana Invois', invoice.invoiceNo+' — '+fmtRM(invoice.total));
+      const amountPaid = invoiceAmountPaid(invoice);
+      const balanceNote = amountPaid<total-0.004 ? ' — '+(en?'balance due':'baki tertunggak')+' '+fmtRM(total-amountPaid) : '';
+      logAudit('Jana Invois', invoice.invoiceNo+' — '+fmtRM(invoice.total)+balanceNote);
       if(state.posCustomerId){
         const cust = getCustomer(state.posCustomerId);
         if(cust){
@@ -1227,8 +1582,13 @@ function attachHandlers(){
         const job = db.jobs.find(j=>j.id===state.posJobId);
         if(job){ job.invoiced = true; job.status='delivered'; }
       }
+      if(state.posConvertingQuoteId){
+        const quote = (db.quotations||[]).find(q=>q.id===state.posConvertingQuoteId);
+        if(quote){ quote.status='converted'; quote.convertedInvoiceId = invoice.id; }
+      }
       queueSave();
       state.posCart = []; state.posCustomerId=''; state.posVehicleId=''; state.posJobId=''; state.posDiscountValue=0; state.posDiscountType='flat';
+      state.posSplitMode = false; state.posSplitPayments = []; state.posConvertingQuoteId = null;
       render();
       showToast(tt('Invois ')+invoice.invoiceNo+tt(' berjaya dijana!'));
     }catch(e){
@@ -1237,6 +1597,72 @@ function attachHandlers(){
     }
   });
 
+  bindAllAction('open-credit-note', el=>{
+    const invoice = db.invoices.find(i=>i.id===el.dataset.id);
+    if(invoice) setState({modal:{type:'credit-note', invoice}});
+  });
+  bindAllAction('save-credit-note', async el=>{
+    const en = state.language==='en';
+    const invoice = db.invoices.find(i=>i.id===el.dataset.id);
+    if(!invoice) return;
+    const reason = document.getElementById('cn-reason').value.trim();
+    if(!reason){ showToast(en?'Please enter a reason.':'Sila masukkan sebab.'); return; }
+    const qtyInputs = document.querySelectorAll('[data-cn-qty-idx]');
+    const items = [];
+    qtyInputs.forEach(inp=>{
+      const idx = Number(inp.dataset.cnQtyIdx);
+      const qty = Math.max(0, Number(inp.value)||0);
+      if(qty<=0) return;
+      const invItem = invoice.items[idx];
+      items.push({name:invItem.name, qty, price:invItem.price, refId:invItem.refId||undefined});
+    });
+    if(items.length===0){ showToast(en?'Enter a quantity to credit for at least one item.':'Masukkan kuantiti kredit untuk sekurang-kurangnya satu item.'); return; }
+    try{
+      const subtotal = items.reduce((s,i)=>s+i.price*i.qty,0);
+      const tax = invoice.taxRate>0 ? subtotal*invoice.taxRate/100 : 0;
+      const creditNoteNo = await nextCreditNoteNo();
+      const creditNote = {
+        id:uid(), creditNoteNo, invoiceId:invoice.id, customerId:invoice.customerId, items, reason,
+        subtotal, tax, total:subtotal+tax, createdAt:Date.now(), createdBy: state.currentStaff?state.currentStaff.name:'',
+      };
+      if(!db.creditNotes) db.creditNotes = [];
+      db.creditNotes.push(creditNote);
+      logAudit('Keluarkan Nota Kredit', creditNoteNo+' — '+invoice.invoiceNo+' — '+fmtRM(creditNote.total));
+      queueSave();
+      setState({modal:null});
+      showToast(en?`Credit note ${creditNoteNo} issued.`:`Nota kredit ${creditNoteNo} dikeluarkan.`);
+      printCreditNote(creditNote, invoice);
+    }catch(e){
+      reportError(e, 'Keluarkan nota kredit gagal');
+      showToast(en?'Could not issue the credit note. Try again.':'Gagal keluarkan nota kredit. Cuba lagi.');
+    }
+  });
+  bindAllAction('print-credit-note', el=>{
+    const cn = (db.creditNotes||[]).find(c=>c.id===el.dataset.id);
+    if(!cn) return;
+    const invoice = db.invoices.find(i=>i.id===cn.invoiceId);
+    printCreditNote(cn, invoice);
+  });
+  bindAllAction('settle-invoice-balance', el=>{
+    const invoice = db.invoices.find(i=>i.id===el.dataset.id);
+    if(invoice) setState({modal:{type:'settle-balance', invoice}});
+  });
+  bindAllAction('confirm-settle-balance', el=>{
+    const en = state.language==='en';
+    const invoice = db.invoices.find(i=>i.id===el.dataset.id);
+    if(!invoice) return;
+    const method = document.getElementById('settle-method').value;
+    const balance = invoiceBalanceDue(invoice);
+    const amount = Math.min(balance, Math.max(0, Number(document.getElementById('settle-amount').value)||0));
+    if(amount<=0){ showToast(en?'Enter an amount to record.':'Masukkan jumlah untuk direkod.'); return; }
+    if(!invoice.payments) invoice.payments = [{method: invoice.payment, amount: invoice.total-balance}];
+    invoice.payments.push({method, amount});
+    invoice.payment = invoice.payments.length>1 ? (en?'Split':'Berbilang') : invoice.payments[0].method;
+    logAudit('Rekod Bayaran Baki', invoice.invoiceNo+' — '+fmtRM(amount));
+    queueSave();
+    setState({modal:null});
+    showToast(en?'Payment recorded.':'Bayaran direkod.');
+  });
   bindAllAction('print-invoice', el=>{
     const invoice = db.invoices.find(i=>i.id===el.dataset.id);
     if(invoice) printInvoice(invoice);
@@ -1301,5 +1727,34 @@ function attachHandlers(){
     showToast(tt('Diskaun setia digunakan.'));
   });
   if(discVal) discVal.addEventListener('input', ()=>{ state.posDiscountValue = discVal.value; render(); focusEnd('pos-discount-value'); });
+
+  const splitToggle = document.getElementById('pos-split-toggle');
+  if(splitToggle) splitToggle.addEventListener('change', ()=>{
+    state.posSplitMode = splitToggle.checked;
+    if(state.posSplitMode && state.posSplitPayments.length===0) state.posSplitPayments = [{method:'Tunai', amount:0}];
+    render();
+  });
+  bindAction('add-split-row', ()=>{
+    if(!state.posSplitPayments.length) state.posSplitPayments = [{method:'Tunai', amount:0}];
+    state.posSplitPayments.push({method:'Tunai', amount:0});
+    render();
+  });
+  bindAllAction('remove-split-row', el=>{
+    state.posSplitPayments.splice(Number(el.dataset.idx),1);
+    render();
+  });
+  document.querySelectorAll('[data-split-method-idx]').forEach(el=>el.addEventListener('change', ()=>{
+    const idx = Number(el.dataset.splitMethodIdx);
+    if(!state.posSplitPayments[idx]) state.posSplitPayments[idx] = {method:'Tunai', amount:0};
+    state.posSplitPayments[idx].method = el.value;
+    render();
+  }));
+  document.querySelectorAll('[data-split-amount-idx]').forEach(el=>el.addEventListener('input', ()=>{
+    const idx = Number(el.dataset.splitAmountIdx);
+    if(!state.posSplitPayments[idx]) state.posSplitPayments[idx] = {method:'Tunai', amount:0};
+    state.posSplitPayments[idx].amount = el.value;
+    render();
+    focusEnd(`split-amount-${idx}`);
+  }));
 }
 

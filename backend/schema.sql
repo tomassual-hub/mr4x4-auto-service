@@ -29,6 +29,24 @@ create table if not exists tech_refs      (id text primary key, data jsonb not n
 -- src/views/customers.js's leadsTabHTML/LEAD_STAGES) -- same open trust
 -- tier as customers/jobs, not Admin-restricted.
 create table if not exists leads          (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- packages: bundled service/part combos sold at a package price (see
+-- src/event-handlers.js's save-package/add-package-to-cart) -- same open
+-- trust tier as inventory, not Admin-restricted.
+create table if not exists packages       (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- credit_notes: refund/adjustment documents issued against an invoice (see
+-- save-credit-note) -- same open trust tier as invoices.
+create table if not exists credit_notes   (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- attendance: clock in/out records punched via a staff member's personal
+-- QR code (see attendance_status/attendance_punch below) or edited by an
+-- Admin/Kerani in the Staff → Attendance tab. Direct table access stays
+-- "authenticated only" like everything else here -- the anonymous punch
+-- flow goes through the two security-definer RPCs below instead, never
+-- through this table directly, so anon never gets a standing grant on it.
+create table if not exists attendance     (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- quotations: pre-sale estimates that can later convert into an invoice
+-- (see save-quotation/convert-quote-to-invoice) -- same open trust tier as
+-- invoices, not Admin-restricted.
+create table if not exists quotations     (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 
 -- Staff needs a real column linking to Supabase Auth (real per-staff login),
 -- everything else about a staff member stays in data jsonb (name, role).
@@ -89,7 +107,8 @@ begin
   for t in select unnest(array[
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
-    'cash_closures','staff','shop_meta','counters','tech_refs','leads'
+    'cash_closures','staff','shop_meta','counters','tech_refs','leads',
+    'packages','credit_notes','attendance','quotations'
   ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -374,7 +393,8 @@ begin
   for t in select unnest(array[
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
-    'cash_closures','staff','shop_meta','tech_refs','leads'
+    'cash_closures','staff','shop_meta','tech_refs','leads',
+    'packages','credit_notes','attendance','quotations'
   ])
   loop
     if not exists (
@@ -391,3 +411,185 @@ begin
     execute format('alter table %I replica identity full;', t);
   end loop;
 end $$;
+
+-- attendance_status()/attendance_punch(): anonymous-safe QR clock in/out
+-- (see src/attendance.js and the "Attendance QR Code" button in
+-- src/views/staff.js). A staff member's printed QR links to
+-- ?attendance=<staffId>&token=<attendanceToken> with no login at all --
+-- these two RPCs are the only way that token can do anything, and both
+-- fail closed (return null/false) the moment the token doesn't match the
+-- current one on that staff row, so regenerating the code from the app
+-- immediately revokes any old printed copy.
+create or replace function attendance_status(p_staff_id text, p_token text)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  s record;
+  last_type text;
+begin
+  select data->>'name' as name, data->>'attendanceToken' as token
+    into s
+    from staff where id = p_staff_id;
+
+  if not found or s.token is null or s.token <> p_token then
+    return null;
+  end if;
+
+  select data->>'type' into last_type
+    from attendance
+    where data->>'staffId' = p_staff_id
+    order by (data->>'ts')::bigint desc
+    limit 1;
+
+  return jsonb_build_object(
+    'name', s.name,
+    'nextType', case when last_type = 'in' then 'out' else 'in' end
+  );
+end;
+$$;
+revoke execute on function attendance_status(text, text) from public;
+grant execute on function attendance_status(text, text) to anon;
+grant execute on function attendance_status(text, text) to authenticated;
+
+create or replace function attendance_punch(p_staff_id text, p_token text)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  s record;
+  last_type text;
+  next_type text;
+  new_id text;
+  now_ms bigint;
+begin
+  select data->>'name' as name, data->>'attendanceToken' as token
+    into s
+    from staff where id = p_staff_id;
+
+  if not found or s.token is null or s.token <> p_token then
+    return null;
+  end if;
+
+  select data->>'type' into last_type
+    from attendance
+    where data->>'staffId' = p_staff_id
+    order by (data->>'ts')::bigint desc
+    limit 1;
+
+  next_type := case when last_type = 'in' then 'out' else 'in' end;
+  new_id := md5(random()::text || clock_timestamp()::text);
+  now_ms := (extract(epoch from now()) * 1000)::bigint;
+
+  insert into attendance(id, data) values (
+    new_id,
+    jsonb_build_object('id', new_id, 'staffId', p_staff_id, 'staffName', s.name, 'type', next_type, 'ts', now_ms)
+  );
+
+  return jsonb_build_object('name', s.name, 'type', next_type, 'ts', now_ms);
+end;
+$$;
+revoke execute on function attendance_punch(text, text) from public;
+grant execute on function attendance_punch(text, text) to anon;
+grant execute on function attendance_punch(text, text) to authenticated;
+
+-- kiosk_inspection_report()/kiosk_submit_inspection_signature(): anonymous-
+-- safe "Share Report" flow for a vehicle inspection (see
+-- src/inspection-report.js and the "Share Report" button in the staff
+-- inspection modal). The link is ?inspect=<jobId>&token=<inspectionToken>
+-- -- a random token generated the first time a report is shared, distinct
+-- from the job's own id, so a stranger can't view/sign a report just by
+-- guessing or enumerating job ids. Returns only inspection-related fields
+-- (no customer name/phone, no pricing, no internal notes), same minimal-
+-- surface principle as kiosk_lookup_job below.
+create or replace function kiosk_inspection_report(p_job_id text, p_token text)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  rec record;
+begin
+  select j.data->>'jobNo' as job_no, j.data->>'status' as status,
+         j.data->>'inspectionToken' as token,
+         coalesce(j.data->'inspection', '{}'::jsonb) as inspection,
+         coalesce(j.data->'diagramMarks', '[]'::jsonb) as diagram_marks,
+         coalesce(j.data->'photos', '[]'::jsonb) as photos,
+         (j.data->>'customerInspectionSignature') is not null as signed,
+         v.data->>'plate' as plate, v.data->>'model' as model
+    into rec
+    from jobs j
+    left join vehicles v on v.id = j.data->>'vehicleId'
+    where j.id = p_job_id;
+
+  if not found or rec.token is null or rec.token <> p_token then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'jobNo', rec.job_no, 'status', rec.status, 'plate', rec.plate, 'model', rec.model,
+    'inspection', rec.inspection, 'diagramMarks', rec.diagram_marks, 'photos', rec.photos,
+    'signed', rec.signed
+  );
+end;
+$$;
+revoke execute on function kiosk_inspection_report(text, text) from public;
+grant execute on function kiosk_inspection_report(text, text) to anon;
+grant execute on function kiosk_inspection_report(text, text) to authenticated;
+
+create or replace function kiosk_submit_inspection_signature(p_job_id text, p_token text, p_signature text)
+returns boolean
+language plpgsql
+security definer
+as $$
+declare
+  cur jsonb;
+begin
+  select data into cur from jobs where id = p_job_id;
+  if not found then
+    return false;
+  end if;
+  if (cur->>'inspectionToken') is null or (cur->>'inspectionToken') <> p_token then
+    return false;
+  end if;
+  if (cur->>'customerInspectionSignature') is not null then
+    return false;
+  end if;
+
+  update jobs
+    set data = data || jsonb_build_object('customerInspectionSignature', p_signature),
+        updated_at = now()
+    where id = p_job_id;
+  return true;
+end;
+$$;
+revoke execute on function kiosk_submit_inspection_signature(text, text, text) from public;
+grant execute on function kiosk_submit_inspection_signature(text, text, text) to anon;
+grant execute on function kiosk_submit_inspection_signature(text, text, text) to authenticated;
+
+-- kiosk_list_active_jobs(): anonymous-safe feed for the waiting-area
+-- Display Board (see src/display-board.js) -- a TV/tablet at the shop
+-- polls this every ~20s. Same minimal-surface principle as
+-- kiosk_lookup_job: only job no./plate/model/status for jobs not yet
+-- delivered, never customer name/phone/pricing/mechanic.
+create or replace function kiosk_list_active_jobs()
+returns jsonb
+language sql
+security definer
+stable
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'jobNo', j.data->>'jobNo', 'status', j.data->>'status',
+    'plate', v.data->>'plate', 'model', v.data->>'model'
+  )), '[]'::jsonb)
+  from jobs j
+  left join vehicles v on v.id = j.data->>'vehicleId'
+  where j.data->>'status' in ('waiting','progress','done');
+$$;
+revoke execute on function kiosk_list_active_jobs() from public;
+grant execute on function kiosk_list_active_jobs() to anon;
+grant execute on function kiosk_list_active_jobs() to authenticated;

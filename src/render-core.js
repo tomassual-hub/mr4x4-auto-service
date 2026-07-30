@@ -3,6 +3,24 @@ function render(){
   document.documentElement.setAttribute('data-theme', state.theme);
   resetInactivityTimer();
   const root = document.getElementById('root');
+  if(state.attendanceMode){
+    root.innerHTML = renderAttendancePunch();
+    makeClickablesFocusable();
+    attachAttendancePunchHandlers();
+    return;
+  }
+  if(state.inspectMode){
+    root.innerHTML = renderInspectionReport();
+    makeClickablesFocusable();
+    attachInspectionReportHandlers();
+    return;
+  }
+  if(state.boardMode){
+    root.innerHTML = renderDisplayBoard();
+    makeClickablesFocusable();
+    attachDisplayBoardHandlers();
+    return;
+  }
   if(state.kioskMode){
     root.innerHTML = renderKioskScreen();
     makeClickablesFocusable();

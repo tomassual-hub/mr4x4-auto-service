@@ -50,6 +50,10 @@ interface Job {
   inspection?: InspectionResult;
   rating?: number;
   feedback?: string;
+  returnFromJobId?: string;
+  diagramMarks?: { x: number; y: number; severity: 'ok' | 'attention' | 'replace'; note?: string }[];
+  customerInspectionSignature?: string | null;
+  inspectionToken?: string;
 }
 
 interface InventoryItem {
@@ -69,8 +73,19 @@ interface CartLine {
   name: string;
   price: number;
   qty: number;
+  packageId?: string; // set when this line is a Package bundle -- its component items are deducted from stock at checkout, not the bundle line itself
 }
 
+interface PackageItem { refId: string; qty: number; }
+interface Package {
+  id: string;
+  name: string;
+  items: PackageItem[];
+  price: number; // the bundle's special combined price, independent of the sum of its components' individual prices
+  active: boolean;
+}
+
+interface InvoicePayment { method: string; amount: number; }
 interface Invoice {
   id: string;
   invoiceNo: string;
@@ -83,10 +98,30 @@ interface Invoice {
   taxRate: number;
   tax: number;
   total: number;
-  payment: 'Tunai' | 'Kad' | 'Online';
+  payment: string; // 'Tunai' | 'Kad' | 'Online' for a single-method sale, or a synthetic label ('Berbilang'/'Split') when payments[] has more than one line
+  payments?: InvoicePayment[]; // present only for split/partial-payment sales -- see invoiceAmountPaid/invoiceBalanceDue in utils.js
   createdAt: number;
   createdBy?: string;
   branchId?: string;
+}
+
+// A credit note reduces what a customer owes/paid on a specific invoice
+// after the fact (e.g. a part was returned, an overcharge is corrected) --
+// it's its own numbered document (CN-xxxx), not an edit to the original
+// invoice, so the original invoice stays an unaltered record.
+interface CreditNoteItem { name: string; qty: number; price: number; refId?: string; }
+interface CreditNote {
+  id: string;
+  creditNoteNo: string;
+  invoiceId: string;
+  customerId: string | null;
+  items: CreditNoteItem[];
+  reason: string;
+  subtotal: number;
+  tax: number;
+  total: number;
+  createdAt: number;
+  createdBy?: string;
 }
 
 interface Staff {
@@ -97,6 +132,45 @@ interface Staff {
   commissionPercent?: number;
   baseSalary?: number;
   userId?: string | null;
+  // A random per-staff token embedded in their personal QR attendance code
+  // (?attendance=<staffId>&token=<attendanceToken>) -- lets a punch-in/out
+  // link identify a specific staff member anonymously (no login) while
+  // still being un-guessable/un-shareable-in-a-way-that-lets-someone-else-
+  // clock-in-as-them without physically having that person's own QR code.
+  attendanceToken?: string;
+}
+
+// One clock-in or clock-out event, created via a staff member's personal
+// QR code link (src/login-kiosk.js's attendance mode) or edited by an
+// Admin/Kerani from the Kehadiran (Attendance) view.
+interface AttendanceRecord {
+  id: string;
+  staffId: string;
+  staffName: string; // snapshotted, same reasoning as PayrollRecord.staffName
+  type: 'in' | 'out';
+  ts: number;
+  editedBy?: string; // set only if an Admin/Kerani manually corrected this record
+}
+
+// A price quote a customer can accept before any job/invoice exists yet.
+// Doesn't touch inventory or the job/invoice counters until explicitly
+// converted -- a quotation on its own never deducts stock or generates
+// revenue.
+interface Quotation {
+  id: string;
+  quoteNo: string;
+  customerId: string | null;
+  vehicleId: string | null;
+  items: CartLine[];
+  subtotal: number;
+  discount: number;
+  taxRate: number;
+  tax: number;
+  total: number;
+  status: 'draft' | 'sent' | 'accepted' | 'converted' | 'expired';
+  createdAt: number;
+  createdBy?: string;
+  convertedInvoiceId?: string;
 }
 
 interface Appointment {
@@ -123,13 +197,13 @@ interface Contract {
 }
 
 interface Supplier { id: string; name: string; phone?: string; email?: string; }
-interface POItem { name: string; qty: number; cost: number; }
+interface POItem { name: string; qty: number; cost: number; receivedQty?: number; }
 interface PurchaseOrder {
   id: string;
   poNo: string;
   supplierId: string | null;
   items: POItem[];
-  status: 'pending' | 'received';
+  status: 'pending' | 'partial' | 'received';
   createdAt: number;
 }
 
@@ -179,9 +253,10 @@ interface ShopSettings {
   simpleMode: boolean;
   paymentQR: string;
   lastBackupAt: number | null;
+  servicedBrands?: string[];
 }
 
-interface Counters { job: number; invoice: number; po: number; }
+interface Counters { job: number; invoice: number; po: number; creditNote: number; quote: number; }
 
 // Structured place for the shop's OWN technical notes per vehicle
 // make/model/variant -- deliberately empty by default (see src/views/techref.js
@@ -236,6 +311,10 @@ interface DB {
   payrollRecords: PayrollRecord[];
   techRefs: TechRef[];
   leads: Lead[];
+  packages: Package[];
+  creditNotes: CreditNote[];
+  attendance: AttendanceRecord[];
+  quotations: Quotation[];
   settings: ShopSettings;
   counters: Counters;
 }
@@ -269,6 +348,9 @@ interface AppState {
   posJobId: string;
   posDiscountType?: 'flat' | 'percent';
   posDiscountValue?: number;
+  posSplitMode?: boolean;
+  posSplitPayments?: { method: string; amount: number }[];
+  posConvertingQuoteId?: string | null;
   reportRange: number;
   payrollMonth?: string | null; // "YYYY-MM"
   invTab?: string;
@@ -279,6 +361,19 @@ interface AppState {
   navOpen?: boolean;
   notifOpen?: boolean;
   kioskMode?: boolean;
+  attendanceMode?: boolean;
+  attendanceStaffId?: string | null;
+  attendanceToken?: string | null;
+  attendanceStatus?: any;
+  attendanceStatusLoading?: boolean;
+  attendanceTab?: string;
+  inspectMode?: boolean;
+  inspectJobId?: string | null;
+  inspectToken?: string | null;
+  inspectReport?: any;
+  inspectReportLoading?: boolean;
+  boardMode?: boolean;
+  boardJobs?: any[] | null;
   [key: string]: any; // state accumulates ad-hoc UI flags; keep this escape hatch rather than chasing every one
 }
 
@@ -311,6 +406,9 @@ interface Window {
 declare function uid(): string;
 declare function esc(s: any): string;
 declare function fmtRM(n: number): string;
+declare function invoiceCashAmount(inv: Invoice): number;
+declare function invoiceAmountPaid(inv: Invoice): number;
+declare function invoiceBalanceDue(inv: Invoice): number;
 declare function fmtDate(ts: number): string;
 declare function fmtDateTime(ts: number): string;
 declare function localDateStr(d?: Date): string;
@@ -348,6 +446,8 @@ declare function initApp(): Promise<void>;
 declare function viewDashboard(): string;
 declare function viewJobs(): string;
 declare function viewPOS(): string;
+declare function settleBalanceModalHTML(invoice: Invoice): string;
+declare function creditNoteModalHTML(invoice: Invoice): string;
 declare function viewInventory(): string;
 declare function viewCustomers(): string;
 declare function customersTabHTML(): string;
@@ -379,10 +479,21 @@ declare function renderConfirmModal(): string;
 declare function renderOnboarding(): string;
 declare function renderLoginScreen(): string;
 declare function renderKioskScreen(): string;
+declare function renderAttendancePunch(): string;
+declare function loadAttendanceStatus(): Promise<void>;
+declare function attachAttendancePunchHandlers(): void;
+declare function renderInspectionReport(): string;
+declare function loadInspectionReport(): Promise<void>;
+declare function attachInspectionReportHandlers(): void;
+declare function renderDisplayBoard(): string;
+declare function loadDisplayBoardJobs(): Promise<void>;
+declare function attachDisplayBoardHandlers(): void;
 declare function renderJobTicket(j: Job): string;
 declare function renderPOSItemList(filter: string): string;
 declare function emptyState(msg: string): string;
 declare function staffModalHTML(staffMember?: Staff | null): string;
+declare function attendanceQrModalHTML(staffMember: Staff): string;
+declare function editAttendanceModalHTML(record: AttendanceRecord): string;
 declare function appointmentModalHTML(presetDate?: string): string;
 declare function getCalendarGrid(monthStr: string): { dateStr: string; inMonth: boolean; day: number }[];
 declare function viewCalendarGrid(): string;
@@ -394,8 +505,10 @@ declare function vehicleEditModalHTML(v: Vehicle): string;
 declare function vehicleHistoryModalHTML(v: Vehicle): string;
 declare function vehicleModalHTML(customerId: string): string;
 declare function itemModalHTML(item?: InventoryItem | null): string;
+declare function packageModalHTML(pkg?: Package | null): string;
 declare function supplierModalHTML(supplier?: Supplier | null): string;
 declare function poModalHTML(): string;
+declare function receivePoModalHTML(po: PurchaseOrder): string;
 declare function jobDetailModalHTML(j: Job): string;
 declare function newJobModalHTML(): string;
 declare function inspectionModalHTML(job: Job): string;
@@ -432,7 +545,12 @@ declare function globalSearchResults(q: string): { typeLabel: string; label: str
 declare function nextJobNo(): Promise<string>;
 declare function nextInvNo(): Promise<string>;
 declare function nextPoNo(): Promise<string>;
+declare function nextCreditNoteNo(): Promise<string>;
+declare function nextQuoteNo(): Promise<string>;
 declare function printInvoice(inv: Invoice): void;
+declare function printCreditNote(cn: CreditNote, invoice?: Invoice): void;
+declare function printQuotation(q: Quotation): void;
 declare function printPayslip(record: PayrollRecord): void;
 declare function printJobCard(job: Job): void;
 declare function printVehicleQR(v: Vehicle): void;
+declare function printAttendanceQr(staffMember: Staff): void;

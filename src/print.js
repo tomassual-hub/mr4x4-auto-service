@@ -1,3 +1,99 @@
+/* ============================= PRINT CREDIT NOTE ============================= */
+function printCreditNote(cn, invoice){
+  const c = getCustomer(cn.customerId);
+  const s = db.settings;
+  const en = state.language==='en';
+  const area = document.getElementById('print-area');
+  area.innerHTML = `
+    <div class="print-invoice">
+      <div class="pi-letterhead">
+        <div>
+          <h2>${esc(s.shopName)}</h2>
+          ${s.shopAddress ? `<div class="pi-addr">${esc(s.shopAddress).replace(/\n/g,'<br>')}</div>` : ''}
+          <div class="pi-addr">
+            ${s.shopPhone ? esc(s.shopPhone) : ''}
+            ${s.shopRegNo ? (s.shopPhone?' &middot; ':'')+(en?'Reg. No: ':'No. Pendaftaran: ')+esc(s.shopRegNo) : ''}
+          </div>
+        </div>
+        <div class="pi-doc-meta">
+          <div class="pi-doc-title">${en?'CREDIT NOTE':'NOTA KREDIT'}</div>
+          <div class="pi-row"><span>${en?'No.':'No.'}</span><span>${esc(cn.creditNoteNo)}</span></div>
+          <div class="pi-row"><span>${en?'Date':'Tarikh'}</span><span>${fmtDateTime(cn.createdAt)}</span></div>
+          <div class="pi-row"><span>${en?'Against Invoice':'Terhadap Invois'}</span><span>${invoice?esc(invoice.invoiceNo):'-'}</span></div>
+        </div>
+      </div>
+      <div class="pi-line"></div>
+      <div class="pi-billto">
+        <div class="pi-billto-label">${en?'Issued To':'Dikeluarkan Kepada'}</div>
+        <div class="pi-billto-name">${c?esc(c.name):(en?'Walk-in Customer':'Pelanggan Walk-in')}</div>
+      </div>
+      <div class="field"><label style="text-transform:none;font-size:11px;color:#999;">${en?'Reason':'Sebab'}</label><div style="font-size:12.5px;">${esc(cn.reason)}</div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>${en?'Description':'Perkara'}</th><th style="text-align:center;">${en?'Qty':'Kuantiti'}</th><th style="text-align:right;">${en?'Unit Price':'Harga Seunit'}</th><th style="text-align:right;">${en?'Amount':'Jumlah'}</th></tr></thead>
+        <tbody>
+          ${cn.items.map(it=>`<tr><td>${esc(it.name)}</td><td style="text-align:center;">${it.qty}</td><td style="text-align:right;">${fmtRM(it.price)}</td><td style="text-align:right;">${fmtRM(it.price*it.qty)}</td></tr>`).join('')}
+        </tbody>
+      </table></div>
+      <div class="pi-totals">
+        <div class="pi-row"><span>${en?'Subtotal':'Subjumlah'}</span><span>${fmtRM(cn.subtotal)}</span></div>
+        ${cn.tax>0 ? `<div class="pi-row"><span>SST</span><span>${fmtRM(cn.tax)}</span></div>` : ''}
+        <div class="pi-row pi-total"><span>${en?'TOTAL CREDIT':'JUMLAH KREDIT'}</span><span>-${fmtRM(cn.total)}</span></div>
+      </div>
+      <div class="pi-foot">${en?'This document reduces the amount owed on the invoice referenced above.':'Dokumen ini mengurangkan jumlah yang perlu dibayar pada invois yang dirujuk di atas.'}</div>
+    </div>
+  `;
+  window.print();
+}
+
+/* ============================= PRINT QUOTATION ============================= */
+function printQuotation(q){
+  const c = getCustomer(q.customerId);
+  const v = getVehicle(q.vehicleId);
+  const s = db.settings;
+  const en = state.language==='en';
+  const area = document.getElementById('print-area');
+  area.innerHTML = `
+    <div class="print-invoice">
+      <div class="pi-letterhead">
+        <div>
+          <h2>${esc(s.shopName)}</h2>
+          ${s.shopAddress ? `<div class="pi-addr">${esc(s.shopAddress).replace(/\n/g,'<br>')}</div>` : ''}
+          <div class="pi-addr">
+            ${s.shopPhone ? esc(s.shopPhone) : ''}
+            ${s.shopRegNo ? (s.shopPhone?' &middot; ':'')+(en?'Reg. No: ':'No. Pendaftaran: ')+esc(s.shopRegNo) : ''}
+          </div>
+        </div>
+        <div class="pi-doc-meta">
+          <div class="pi-doc-title">${en?'QUOTATION':'SEBUT HARGA'}</div>
+          <div class="pi-row"><span>${en?'No.':'No.'}</span><span>${esc(q.quoteNo)}</span></div>
+          <div class="pi-row"><span>${en?'Date':'Tarikh'}</span><span>${fmtDateTime(q.createdAt)}</span></div>
+        </div>
+      </div>
+      <div class="pi-line"></div>
+      <div class="pi-billto">
+        <div class="pi-billto-label">${en?'Prepared For':'Disediakan Untuk'}</div>
+        <div class="pi-billto-name">${c?esc(c.name):(en?'Walk-in Customer':'Pelanggan Walk-in')}</div>
+        ${c && c.phone ? `<div class="pi-addr">${esc(c.phone)}</div>` : ''}
+        ${v ? `<div class="pi-addr">${esc(v.plate)} — ${esc(v.model||'')}</div>` : ''}
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>${en?'Description':'Perkara'}</th><th style="text-align:center;">${en?'Qty':'Kuantiti'}</th><th style="text-align:right;">${en?'Unit Price':'Harga Seunit'}</th><th style="text-align:right;">${en?'Amount':'Jumlah'}</th></tr></thead>
+        <tbody>
+          ${q.items.map(it=>`<tr><td>${esc(it.name)}</td><td style="text-align:center;">${it.qty}</td><td style="text-align:right;">${fmtRM(it.price)}</td><td style="text-align:right;">${fmtRM(it.price*it.qty)}</td></tr>`).join('')}
+        </tbody>
+      </table></div>
+      <div class="pi-totals">
+        <div class="pi-row"><span>${en?'Subtotal':'Subjumlah'}</span><span>${fmtRM(q.subtotal)}</span></div>
+        ${q.discount>0 ? `<div class="pi-row"><span>${en?'Discount':'Diskaun'}</span><span>-${fmtRM(q.discount)}</span></div>` : ''}
+        ${q.tax>0 ? `<div class="pi-row"><span>SST (${q.taxRate}%)</span><span>${fmtRM(q.tax)}</span></div>` : ''}
+        <div class="pi-row pi-total"><span>${en?'ESTIMATED TOTAL':'JUMLAH ANGGARAN'}</span><span>${fmtRM(q.total)}</span></div>
+      </div>
+      <div class="pi-foot">${en?'This is an estimate only, not a tax invoice. Prices may change if parts availability or job scope changes.':'Ini adalah anggaran sahaja, bukan invois cukai. Harga mungkin berubah jika ketersediaan alat ganti atau skop kerja berubah.'}</div>
+    </div>
+  `;
+  window.print();
+}
+
 /* ============================= PRINT INVOICE ============================= */
 // Standard business invoice layout: letterhead (name/address/phone/SSM &
 // SST reg. no.), a distinct invoice number + date block, a "Bill To"
@@ -55,7 +151,10 @@ function printInvoice(inv){
         <div class="pi-row pi-total"><span>${state.language==='en'?'TOTAL':'JUMLAH'}</span><span>${fmtRM(inv.total)}</span></div>
       </div>
       <div class="pi-line"></div>
-      <div class="pi-row"><span>${state.language==='en'?'Payment Method':'Kaedah Bayaran'}</span><span>${esc(inv.payment)}</span></div>
+      ${inv.payments && inv.payments.length ? `
+        ${inv.payments.map(p=>`<div class="pi-row"><span>${esc(p.method)}</span><span>${fmtRM(p.amount)}</span></div>`).join('')}
+        ${invoiceBalanceDue(inv)>0.004 ? `<div class="pi-row" style="color:#c0392b;font-weight:700;"><span>${en?'BALANCE DUE':'BAKI TERTUNGGAK'}</span><span>${fmtRM(invoiceBalanceDue(inv))}</span></div>` : ''}
+      ` : `<div class="pi-row"><span>${state.language==='en'?'Payment Method':'Kaedah Bayaran'}</span><span>${esc(inv.payment)}</span></div>`}
       ${db.settings.paymentQR ? `
       <div style="text-align:center;margin-top:10px;">
         <img src="${db.settings.paymentQR}" alt="DuitNow QR" style="width:130px;height:130px;object-fit:contain;margin:6px auto;display:block;">
@@ -174,6 +273,22 @@ function printVehicleQR(v){
       <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(v.plate)}" width="180" height="180" alt="QR ${esc(v.plate)}" style="margin:14px auto;display:block;">
       <div style="font-size:20px;font-weight:700;letter-spacing:2px;">${esc(v.plate)}</div>
       <div style="font-size:12px;color:#666;margin-top:4px;">${esc(v.model||'')}</div>
+    </div>
+  `;
+  window.print();
+}
+
+function printAttendanceQr(staffMember){
+  const en = state.language==='en';
+  const url = `${location.origin}${location.pathname}?attendance=${encodeURIComponent(staffMember.id)}&token=${encodeURIComponent(staffMember.attendanceToken||'')}`;
+  const area = document.getElementById('print-area');
+  area.innerHTML = `
+    <div class="print-invoice" style="text-align:center;">
+      <h2>${esc(db.settings.shopName)}</h2>
+      <div class="pi-sub">${en?'Attendance QR Code':'Kod QR Kehadiran'}</div>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}" width="200" height="200" alt="QR ${esc(staffMember.name)}" style="margin:14px auto;display:block;">
+      <div style="font-size:20px;font-weight:700;">${esc(staffMember.name)}</div>
+      <div style="font-size:12px;color:#666;margin-top:4px;">${en?'Scan to clock in / clock out':'Imbas untuk clock in / clock out'}</div>
     </div>
   `;
   window.print();

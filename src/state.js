@@ -53,6 +53,22 @@ let state = {
   calendarMonth: currentMonthStr(),
   customerTab: 'customers',
   leadStatusFilter: 'all',
+  posSplitMode: false,
+  posSplitPayments: /** @type {{method:string, amount:number}[]} */ ([]),
+  posConvertingQuoteId: /** @type {string|null} */ (null),
+  attendanceMode: false,
+  attendanceStaffId: /** @type {string|null} */ (null),
+  attendanceToken: /** @type {string|null} */ (null),
+  // 'loading' | 'invalid' | {name, nextType} while choosing, or {name, type, ts} once punched
+  attendanceStatus: /** @type {any} */ (null),
+  attendanceTab: 'clock',
+  inspectMode: false,
+  inspectJobId: /** @type {string|null} */ (null),
+  inspectToken: /** @type {string|null} */ (null),
+  // 'loading' | 'invalid' | the report object once loaded
+  inspectReport: /** @type {any} */ (null),
+  boardMode: false,
+  boardJobs: /** @type {any[]|null} */ (null),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

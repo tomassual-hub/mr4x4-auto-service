@@ -18,6 +18,7 @@ function viewStaff(){
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${esc(s.email||'')}${s.userId ? ` · ${state.language==='en'?'Linked':'Ditaut'}` : s.email ? ` · ${state.language==='en'?'Not linked yet':'Belum ditaut'}` : ''}</div>
         <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;">
           <button class="btn btn-outline btn-sm" data-action="edit-staff" data-id="${s.id}">${ICONS.edit} ${tt('Sunting')}</button>
+          <button class="btn btn-outline btn-sm" data-action="show-attendance-qr" data-id="${s.id}" title="${state.language==='en'?'Attendance QR Code':'Kod QR Kehadiran'}">${ICONS.barcode}</button>
           ${db.staff.length>1 && !isLastAdmin ? `<button class="btn btn-danger btn-sm" data-action="delete-staff" data-id="${s.id}">${ICONS.trash}</button>` : ''}
         </div>
       </div>`;}).join('')}
@@ -41,12 +42,79 @@ function viewStaff(){
     </table></div>`}
   </div>
   `;
+  const en = state.language==='en';
+  const attendanceTabHTML = `
+  <div class="section-head">
+    <div><div class="sub">${en?'Clock in/out records from staff QR codes. Edit any record if a staff member forgot to punch.':'Rekod clock in/out daripada kod QR staf. Sunting mana-mana rekod jika staf terlupa clock in/out.'}</div></div>
+  </div>
+  <div class="panel">
+    ${(db.attendance||[]).length===0 ? emptyState(en?'No attendance records yet.':'Belum ada rekod kehadiran.') : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>${en?'Staff':'Staf'}</th><th>${en?'Type':'Jenis'}</th><th>${en?'Time':'Masa'}</th><th></th></tr></thead>
+      <tbody>
+        ${[...db.attendance].sort((a,b)=>b.ts-a.ts).slice(0,100).map(a=>`
+          <tr>
+            <td style="font-weight:600;">${esc(a.staffName)}</td>
+            <td><span class="pill ${a.type==='in'?'pill-done':'pill-low'}">${a.type==='in'?(en?'Clock In':'Clock In'):(en?'Clock Out':'Clock Out')}</span></td>
+            <td style="font-family:'IBM Plex Mono',monospace;">${fmtDateTime(a.ts)}${a.editedBy?` <span style="color:var(--text-muted);font-size:10.5px;">(${en?'edited':'disunting'})</span>`:''}</td>
+            <td style="white-space:nowrap;">
+              <button class="btn-icon" data-action="edit-attendance" data-id="${a.id}">${ICONS.edit}</button>
+              <button class="btn-icon" data-action="delete-attendance" data-id="${a.id}">${ICONS.trash}</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`}
+  </div>
+  `;
   return `
   <div class="tabs">
     <div class="tab-btn ${tab==='staff'?'active':''}" data-stafftab="staff">${ICONS.staff} ${t('nav_staff')}</div>
+    <div class="tab-btn ${tab==='attendance'?'active':''}" data-stafftab="attendance">${ICONS.barcode} ${en?'Attendance':'Kehadiran'}</div>
     <div class="tab-btn ${tab==='audit'?'active':''}" data-stafftab="audit">${ICONS.history} ${tt('Log Aktiviti')}</div>
   </div>
-  ${tab==='staff' ? staffTabHTML : auditTabHTML}
+  ${tab==='staff' ? staffTabHTML : tab==='attendance' ? attendanceTabHTML : auditTabHTML}
+  `;
+}
+
+function editAttendanceModalHTML(record){
+  const en = state.language==='en';
+  const d = new Date(record.ts);
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return `
+    <h2>${en?'Edit Attendance Record':'Sunting Rekod Kehadiran'} — ${esc(record.staffName)}</h2>
+    <div class="field"><label>${en?'Type':'Jenis'}</label>
+      <select id="att-edit-type">
+        <option value="in" ${record.type==='in'?'selected':''}>${en?'Clock In':'Clock In'}</option>
+        <option value="out" ${record.type==='out'?'selected':''}>${en?'Clock Out':'Clock Out'}</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>${tt('Tarikh')}</label><input id="att-edit-date" type="date" value="${dateStr}"></div>
+      <div class="field"><label>${en?'Time':'Masa'}</label><input id="att-edit-time" type="time" value="${timeStr}"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="save-attendance-edit" data-id="${record.id}">${t('btn_save')}</button>
+    </div>
+  `;
+}
+
+function attendanceQrModalHTML(staffMember){
+  const en = state.language==='en';
+  const url = `${location.origin}${location.pathname}?attendance=${encodeURIComponent(staffMember.id)}&token=${encodeURIComponent(staffMember.attendanceToken||'')}`;
+  return `
+    <h2>${ICONS.barcode} ${en?'Attendance QR Code':'Kod QR Kehadiran'} — ${esc(staffMember.name)}</h2>
+    <p style="font-size:12.5px;color:var(--text-muted);margin-top:0;">${en?"Print this and let this staff member scan it with their own phone to clock in/out — no login needed. Keep it personal to them; anyone holding this exact code can punch on their behalf."
+      :'Cetak ini dan biarkan staf ini imbas dengan telefon sendiri untuk clock in/out — tiada log masuk diperlukan. Kekalkan ia peribadi kepada mereka; sesiapa yang ada kod tepat ini boleh clock in/out bagi pihak mereka.'}</p>
+    <div style="text-align:center;">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}" width="200" height="200" style="border-radius:8px;background:#fff;padding:8px;" alt="QR ${esc(staffMember.name)}">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="regenerate-attendance-token" data-id="${staffMember.id}">${en?'Regenerate (revokes old code)':'Jana Semula (batalkan kod lama)'}</button>
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_close')}</button>
+      <button class="btn btn-primary" data-action="print-attendance-qr">${ICONS.printer} ${en?'Print':'Cetak'}</button>
+    </div>
   `;
 }
 

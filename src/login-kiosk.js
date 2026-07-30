@@ -130,6 +130,7 @@ function renderLoginScreen(){
       <div style="text-align:center;margin-top:18px;display:flex;flex-direction:column;gap:8px;">
         <span class="clickable" data-action="auth-mode-signup" style="font-size:12.5px;color:var(--text-muted);text-decoration:underline;">${en?'New staff? Create an account':'Staf baharu? Daftar akaun'}</span>
         <span class="clickable" data-action="open-kiosk" style="font-size:12.5px;color:var(--text-muted);text-decoration:underline;">${ICONS.gauge} ${t('kiosk_link')}</span>
+        <span class="clickable" data-action="open-board" style="font-size:12.5px;color:var(--text-muted);text-decoration:underline;">${ICONS.gauge} ${en?'Open Waiting Area Display Board':'Buka Papan Paparan Kawasan Menunggu'}</span>
       </div>
     </div>
   </div>`;
@@ -151,6 +152,8 @@ function attachLoginHandlers(){
   const en = state.language==='en';
   const kioskLink = document.querySelector('[data-action="open-kiosk"]');
   if(kioskLink) kioskLink.addEventListener('click', ()=>{ state.kioskMode=true; state.kioskQuery=''; state.kioskResult=null; render(); });
+  const boardLink = document.querySelector('[data-action="open-board"]');
+  if(boardLink) boardLink.addEventListener('click', ()=>{ state.boardMode=true; state.boardJobs=null; render(); });
   bindAllAction('toggle-lang', ()=>{
     state.language = state.language==='ms' ? 'en' : 'ms';
     render();

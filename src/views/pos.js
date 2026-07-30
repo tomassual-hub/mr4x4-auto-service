@@ -26,10 +26,22 @@ function viewPOS(){
       </div>
       <div class="search-box">${ICONS.search}<input id="pos-search" placeholder="${tt('Cari item inventori...')}"></div>
       <div id="pos-item-list">${renderPOSItemList('')}</div>
+      ${(db.packages||[]).filter(p=>p.active).length>0 ? `
+      <div style="margin-top:14px;">
+        <label>${ICONS.wallet} ${state.language==='en'?'Packages':'Pakej'}</label>
+        ${db.packages.filter(p=>p.active).map(pkg=>`
+          <div class="pos-item" data-action="add-package-to-cart" data-id="${pkg.id}">
+            <div>
+              <div class="n">${esc(pkg.name)}</div>
+              <div class="m">${pkg.items.length} ${state.language==='en'?'items included':'item termasuk'}</div>
+            </div>
+            <div class="p">${fmtRM(pkg.price)}</div>
+          </div>`).join('')}
+      </div>` : ''}
       <div class="field" style="margin-top:14px;">
-        <label>${tt('Atau Tambah Caj Servis Custom')}</label>
+        <label>${state.language==='en'?'Or Add a Custom / Miscellaneous Item':'Atau Tambah Item Custom / Lain-lain'}</label>
         <div style="display:flex;gap:8px;">
-          <input id="pos-custom-name" placeholder="${tt('Nama servis')}" style="flex:2;">
+          <input id="pos-custom-name" placeholder="${state.language==='en'?'e.g. service charge, disposal fee':'cth: caj servis, caj pelupusan'}" style="flex:2;">
           <input id="pos-custom-price" type="number" placeholder="RM" style="flex:1;">
           <button class="btn btn-outline btn-sm" data-action="add-custom-cart">${ICONS.plus}</button>
         </div>
@@ -95,14 +107,42 @@ function viewPOS(){
         <div class="receipt-line"></div>
         <div class="receipt-row receipt-total"><span>${tt('JUMLAH')}</span><span>${fmtRM(total)}</span></div>
       </div>
-      <div class="field" style="margin-top:14px;"><label>${tt('Kaedah Bayaran')}</label>
+      <div class="field" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;">
+        <label style="margin-bottom:0;">${state.language==='en'?'Split / Partial Payment':'Pisah / Sebahagian Bayaran'}</label>
+        <input type="checkbox" id="pos-split-toggle" ${state.posSplitMode?'checked':''} style="width:18px;height:18px;">
+      </div>
+      ${!state.posSplitMode ? `
+      <div class="field"><label>${tt('Kaedah Bayaran')}</label>
         <select id="pos-payment">
           <option value="Tunai">${tt('Tunai')}</option>
           <option value="Kad">${tt('Kad Debit/Kredit')}</option>
           <option value="Online">${tt('Pemindahan Online / QR')}</option>
         </select>
-      </div>
+      </div>` : (()=>{
+        const rows = state.posSplitPayments.length ? state.posSplitPayments : [{method:'Tunai', amount:total}];
+        const paidSoFar = rows.reduce((s,r)=>s+(Number(r.amount)||0),0);
+        const balance = total - paidSoFar;
+        return `
+        <div style="margin-bottom:8px;">
+          ${rows.map((r,idx)=>`
+            <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+              <select data-split-method-idx="${idx}" style="flex:1.2;">
+                <option value="Tunai" ${r.method==='Tunai'?'selected':''}>${tt('Tunai')}</option>
+                <option value="Kad" ${r.method==='Kad'?'selected':''}>${tt('Kad Debit/Kredit')}</option>
+                <option value="Online" ${r.method==='Online'?'selected':''}>${tt('Pemindahan Online / QR')}</option>
+              </select>
+              <input type="number" step="0.01" min="0" id="split-amount-${idx}" data-split-amount-idx="${idx}" value="${r.amount}" style="flex:1;">
+              ${rows.length>1 ? `<button class="btn-icon" data-action="remove-split-row" data-idx="${idx}">${ICONS.x}</button>` : ''}
+            </div>`).join('')}
+          <button class="btn btn-outline btn-sm" data-action="add-split-row">${ICONS.plus} ${state.language==='en'?'Add Payment':'Tambah Bayaran'}</button>
+        </div>
+        <div style="font-size:12.5px;padding:8px 0;color:${balance>0.004?'var(--danger)':'var(--success)'};font-weight:600;">
+          ${balance>0.004 ? (state.language==='en'?`Balance due after checkout: ${fmtRM(balance)} (recorded as a deposit)`:`Baki tertunggak selepas checkout: ${fmtRM(balance)} (direkod sebagai deposit)`)
+            : (state.language==='en'?'Fully covered.':'Dibayar sepenuhnya.')}
+        </div>`;
+      })()}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" data-action="checkout" ${cart.length===0?'disabled':''}>${ICONS.pos} ${tt('Jana Invois & Selesai')}</button>
+      ${!state.posSplitMode ? `<button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" data-action="save-quotation" ${cart.length===0?'disabled':''}>${ICONS.printer} ${state.language==='en'?'Save as Quotation (no stock deducted)':'Simpan sebagai Sebut Harga (stok tidak ditolak)'}</button>` : ''}
       <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:6px;">${tt('Petua: Ctrl+Enter untuk checkout pantas')}</div>
     </div>
   </div>
@@ -112,19 +152,23 @@ function viewPOS(){
     <h2>${tt('Sejarah Invois')} <span class="tag">${db.invoices.length}</span></h2>
     ${db.invoices.length===0 ? emptyState(tt('Belum ada invois dikeluarkan.')) : `
     <div class="table-wrap"><table>
-      <thead><tr><th>${tt('No. Invois')}</th><th>${tt('Pelanggan')}</th><th>${tt('Tarikh')}</th><th>${tt('Bayaran')}</th><th>${tt('Jumlah')}</th><th></th></tr></thead>
+      <thead><tr><th>${tt('No. Invois')}</th><th>${tt('Pelanggan')}</th><th>${tt('Tarikh')}</th><th>${tt('Bayaran')}</th><th>${tt('Jumlah')}</th><th>${state.language==='en'?'Balance':'Baki'}</th><th></th></tr></thead>
       <tbody>
         ${[...db.invoices].sort((a,b)=>b.createdAt-a.createdAt).slice(0,10).map(inv=>{
           const c = getCustomer(inv.customerId);
           const waText = encodeURIComponent(`Salam ${c?c.name:''}, berikut invois ${inv.invoiceNo} bernilai ${fmtRM(inv.total)} daripada ${db.settings.shopName}. Terima kasih!`);
           const waHref = c && c.phone ? `https://wa.me/${normalizePhone(c.phone)}?text=${waText}` : null;
+          const balanceDue = invoiceBalanceDue(inv);
           return `<tr>
             <td style="font-family:'IBM Plex Mono',monospace;">${inv.invoiceNo}</td>
             <td>${c?esc(c.name):tt('Walk-in')}</td>
             <td>${fmtDateTime(inv.createdAt)}</td>
             <td>${inv.payment}</td>
             <td style="color:var(--accent);font-weight:600;">${fmtRM(inv.total)}</td>
+            <td>${balanceDue>0.004 ? `<span class="pill pill-low">${fmtRM(balanceDue)}</span>` : `<span class="pill pill-done">${state.language==='en'?'Paid':'Selesai'}</span>`}</td>
             <td style="white-space:nowrap;">
+              ${balanceDue>0.004 ? `<button class="btn-icon" data-action="settle-invoice-balance" data-id="${inv.id}" title="${state.language==='en'?'Record balance payment':'Rekod bayaran baki'}">${ICONS.wallet}</button>` : ''}
+              <button class="btn-icon" data-action="open-credit-note" data-id="${inv.id}" title="${state.language==='en'?'Issue Credit Note':'Keluarkan Nota Kredit'}">${ICONS.repeat}</button>
               <button class="btn-icon" data-action="print-invoice" data-id="${inv.id}" title="Cetak invois">${ICONS.printer}</button>
               ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="Hantar via WhatsApp" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}
             </td>
@@ -134,11 +178,57 @@ function viewPOS(){
     </table></div>`}
   </div>
 
+  ${(db.quotations||[]).length>0 ? `
+  <div class="panel" style="margin-top:20px;">
+    <h2>${ICONS.printer} ${state.language==='en'?'Quotations':'Sebut Harga'} <span class="tag">${db.quotations.length}</span></h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>${state.language==='en'?'No.':'No.'}</th><th>${tt('Pelanggan')}</th><th>${tt('Tarikh')}</th><th>${tt('Jumlah')}</th><th>${tt('Status')}</th><th></th></tr></thead>
+      <tbody>
+        ${[...db.quotations].sort((a,b)=>b.createdAt-a.createdAt).slice(0,10).map(q=>{
+          const cust = getCustomer(q.customerId);
+          const statusLabel = {draft:state.language==='en'?'Draft':'Draf', sent:state.language==='en'?'Sent':'Dihantar', accepted:state.language==='en'?'Accepted':'Diterima', converted:state.language==='en'?'Converted':'Ditukar', expired:state.language==='en'?'Expired':'Tamat Tempoh'}[q.status];
+          return `<tr>
+            <td style="font-family:'IBM Plex Mono',monospace;">${q.quoteNo}</td>
+            <td>${cust?esc(cust.name):tt('Walk-in')}</td>
+            <td>${fmtDateTime(q.createdAt)}</td>
+            <td style="color:var(--accent);font-weight:600;">${fmtRM(q.total)}</td>
+            <td><span class="pill ${q.status==='converted'?'pill-done':q.status==='expired'?'pill-low':'pill-wait'}">${statusLabel}</span></td>
+            <td style="white-space:nowrap;">
+              ${q.status!=='converted' ? `<button class="btn-icon" data-action="convert-quote-to-invoice" data-id="${q.id}" title="${state.language==='en'?'Convert to Invoice':'Tukar kepada Invois'}">${ICONS.pos}</button>` : ''}
+              <button class="btn-icon" data-action="print-quotation" data-id="${q.id}" title="${state.language==='en'?'Print':'Cetak'}">${ICONS.printer}</button>
+              <button class="btn-icon" data-action="delete-quotation" data-id="${q.id}">${ICONS.trash}</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  </div>` : ''}
+
+  ${(db.creditNotes||[]).length>0 ? `
+  <div class="panel" style="margin-top:20px;">
+    <h2>${ICONS.repeat} ${state.language==='en'?'Credit Notes':'Nota Kredit'} <span class="tag">${db.creditNotes.length}</span></h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>${state.language==='en'?'No.':'No.'}</th><th>${state.language==='en'?'Against Invoice':'Terhadap Invois'}</th><th>${state.language==='en'?'Reason':'Sebab'}</th><th>${tt('Jumlah')}</th><th></th></tr></thead>
+      <tbody>
+        ${[...db.creditNotes].sort((a,b)=>b.createdAt-a.createdAt).slice(0,10).map(cn=>{
+          const origInv = db.invoices.find(i=>i.id===cn.invoiceId);
+          return `<tr>
+            <td style="font-family:'IBM Plex Mono',monospace;">${cn.creditNoteNo}</td>
+            <td>${origInv?origInv.invoiceNo:'-'}</td>
+            <td style="font-size:12px;color:var(--text-muted);">${esc(cn.reason)}</td>
+            <td style="color:var(--danger);font-weight:600;">-${fmtRM(cn.total)}</td>
+            <td><button class="btn-icon" data-action="print-credit-note" data-id="${cn.id}" title="${state.language==='en'?'Print':'Cetak'}">${ICONS.printer}</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  </div>` : ''}
+
   <div class="panel" style="margin-top:20px;">
     <h2>${ICONS.gauge} ${tt('Tutup Kunci Tunai Harian')}</h2>
     ${(()=>{
       const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-      const todayCash = db.invoices.filter(inv=>inv.createdAt>=todayStart.getTime() && inv.payment==='Tunai').reduce((s,i)=>s+i.total,0);
+      const todayCash = db.invoices.filter(inv=>inv.createdAt>=todayStart.getTime()).reduce((s,i)=>s+invoiceCashAmount(i),0);
       const alreadyClosed = db.cashClosures.find(cc=>cc.date===localDateStr(todayStart));
       if(alreadyClosed){
         const variance = alreadyClosed.actual - alreadyClosed.expected;
@@ -158,6 +248,58 @@ function viewPOS(){
       `;
     })()}
   </div>` : ''}
+  `;
+}
+
+function creditNoteModalHTML(invoice){
+  const en = state.language==='en';
+  const alreadyCredited = {};
+  (db.creditNotes||[]).filter(cn=>cn.invoiceId===invoice.id).forEach(cn=>cn.items.forEach(ci=>{
+    alreadyCredited[ci.name] = (alreadyCredited[ci.name]||0)+ci.qty;
+  }));
+  return `
+    <h2>${en?'Issue Credit Note':'Keluarkan Nota Kredit'} — ${invoice.invoiceNo}</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?'Select the quantity of each item to credit back.':'Pilih kuantiti setiap item untuk dikreditkan semula.'}</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>${tt('Item')}</th><th>${en?'Invoiced Qty':'Kuantiti Diinvois'}</th><th>${en?'Credit Qty':'Kuantiti Kredit'}</th></tr></thead>
+      <tbody>
+        ${invoice.items.map((it,idx)=>{
+          const already = alreadyCredited[it.name]||0;
+          const maxCreditable = Math.max(0, it.qty-already);
+          return `<tr>
+            <td style="font-weight:600;">${esc(it.name)}${already>0?` <span style="font-size:10.5px;color:var(--text-muted);">(${en?'already credited':'sudah dikreditkan'} ${already})</span>`:''}</td>
+            <td>${it.qty}</td>
+            <td><input type="number" min="0" max="${maxCreditable}" value="0" data-cn-qty-idx="${idx}" style="max-width:80px;" ${maxCreditable<=0?'disabled':''}></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+    <div class="field" style="margin-top:12px;"><label>${en?'Reason':'Sebab'}</label><textarea id="cn-reason" rows="2" placeholder="${en?'e.g. part returned, pricing correction':'cth: item dipulangkan, pembetulan harga'}"></textarea></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="save-credit-note" data-id="${invoice.id}">${en?'Issue Credit Note':'Keluarkan Nota Kredit'}</button>
+    </div>
+  `;
+}
+
+function settleBalanceModalHTML(invoice){
+  const en = state.language==='en';
+  const balance = invoiceBalanceDue(invoice);
+  return `
+    <h2>${en?'Record Balance Payment':'Rekod Bayaran Baki'} — ${invoice.invoiceNo}</h2>
+    <p style="font-size:12.5px;color:var(--text-muted);margin-top:0;">${en?'Outstanding balance':'Baki tertunggak'}: <strong>${fmtRM(balance)}</strong></p>
+    <div class="field"><label>${tt('Kaedah Bayaran')}</label>
+      <select id="settle-method">
+        <option value="Tunai">${tt('Tunai')}</option>
+        <option value="Kad">${tt('Kad Debit/Kredit')}</option>
+        <option value="Online">${tt('Pemindahan Online / QR')}</option>
+      </select>
+    </div>
+    <div class="field"><label>${en?'Amount':'Jumlah'} (RM)</label><input id="settle-amount" type="number" step="0.01" min="0" max="${balance.toFixed(2)}" value="${balance.toFixed(2)}"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="confirm-settle-balance" data-id="${invoice.id}">${en?'Record Payment':'Rekod Bayaran'}</button>
+    </div>
   `;
 }
 

@@ -9,8 +9,17 @@ function viewInventory(){
   const itemsTabHTML = `
   <div class="section-head">
     <div><div class="sub">${tt('Urus stok alat ganti & bekalan bengkel')}</div></div>
-    <button class="btn btn-primary" data-action="new-item">${ICONS.plus} ${tt('Item Baharu')}</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <label class="btn btn-outline" style="cursor:pointer;">
+        ${ICONS.upload} ${state.language==='en'?'Import CSV':'Import CSV'}
+        <input type="file" id="inventory-csv-input" accept=".csv" style="display:none;">
+      </label>
+      <button class="btn btn-primary" data-action="new-item">${ICONS.plus} ${tt('Item Baharu')}</button>
+    </div>
   </div>
+  <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;">${state.language==='en'
+    ? 'CSV columns: name, part_number (SKU), qty, cost, price, low_stock. Existing items are matched by part number and updated; new part numbers are added.'
+    : 'Lajur CSV: name, part_number (SKU), qty, cost, price, low_stock. Item sedia ada dipadan ikut part number dan dikemaskini; part number baharu ditambah.'}</div>
   <div class="tabs">
     <div class="tab-btn ${state.invTab==='semua'?'active':''}" data-invtab="semua">${tt('Semua')} (${db.inventory.length})</div>
     <div class="tab-btn ${state.invTab==='low'?'active':''}" data-invtab="low">${tt('Stok Rendah')} (${lowCount})</div>
@@ -90,11 +99,11 @@ function viewInventory(){
             <td>${sup?sup.name:'-'}</td>
             <td style="font-size:12px;color:var(--text-muted);">${po.items.map(i=>esc(i.name)+' ×'+i.qty).join(', ')}</td>
             <td style="color:var(--accent);font-weight:600;">${fmtRM(total)}</td>
-            <td><span class="pill ${po.status==='received'?'pill-done':'pill-wait'}">${po.status==='received'?tt('Diterima'):tt('Belum Diterima')}</span></td>
+            <td><span class="pill ${po.status==='received'?'pill-done':po.status==='partial'?'pill-progress':'pill-wait'}">${po.status==='received'?tt('Diterima'):po.status==='partial'?(state.language==='en'?'Partially Received':'Diterima Sebahagian'):tt('Belum Diterima')}</span></td>
             <td style="white-space:nowrap;">
               ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="${state.language==='en'?'Send PO via WhatsApp':'Hantar PO via WhatsApp'}" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}
               ${mailHref ? `<a class="btn-icon" href="${mailHref}" title="${state.language==='en'?'Send PO via Email':'Hantar PO via E-mel'}" style="display:inline-flex;">${ICONS.mail}</a>` : ''}
-              ${po.status!=='received' ? `<button class="btn-icon" data-action="receive-po" data-id="${po.id}" title="Tandakan diterima & tambah stok">${ICONS.download}</button>` : ''}
+              ${po.status!=='received' ? `<button class="btn-icon" data-action="open-receive-po" data-id="${po.id}" title="${state.language==='en'?'Receive stock (full or partial)':'Terima stok (penuh atau sebahagian)'}">${ICONS.download}</button>` : ''}
             </td>
           </tr>`;
         }).join('')}
@@ -103,14 +112,72 @@ function viewInventory(){
   </div>`}
   `;
 
+  const requisitionTabHTML = `
+  <div class="section-head">
+    <div><div class="sub">${state.language==='en'?'All low-stock parts in one place, grouped by supplier, with a suggested reorder quantity for each.':'Semua alat ganti stok rendah di satu tempat, ikut pembekal, dengan cadangan kuantiti pesanan semula.'}</div></div>
+  </div>
+  ${(()=>{
+    const lowItems = db.inventory.filter(i=>i.qty<=i.lowStock);
+    if(lowItems.length===0) return emptyState(state.language==='en'?'Nothing needs reordering right now.':'Tiada apa perlu dipesan semula buat masa ini.');
+    const bySupplier = {};
+    lowItems.forEach(i=>{
+      const key = i.supplierId || 'none';
+      if(!bySupplier[key]) bySupplier[key] = [];
+      bySupplier[key].push(i);
+    });
+    return Object.entries(bySupplier).map(([supplierId, items])=>{
+      const sup = supplierId!=='none' ? db.suppliers.find(s=>s.id===supplierId) : null;
+      return `<div class="panel" style="margin-bottom:16px;">
+        <h2>${ICONS.staff} ${sup?esc(sup.name):(state.language==='en'?'No Supplier Set':'Tiada Pembekal')} <span class="tag">${items.length}</span></h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>${tt('Item')}</th><th>${tt('Baki')||'Baki'}</th><th>${state.language==='en'?'Suggested Qty':'Cadangan Kuantiti'}</th></tr></thead>
+          <tbody>
+            ${items.map(i=>{
+              const suggestedQty = Math.max(i.lowStock*2 - i.qty, i.lowStock);
+              return `<tr><td style="font-weight:600;">${esc(i.name)}</td><td><span class="pill pill-low">${i.qty}</span></td><td>${suggestedQty}</td></tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+        <button class="btn btn-primary btn-sm" style="margin-top:10px;" data-action="create-po-for-supplier" data-supplier="${supplierId}">${ICONS.plus} ${state.language==='en'?'Create Purchase Order':'Jana Pesanan Belian'}</button>
+      </div>`;
+    }).join('');
+  })()}
+  `;
+
+  const packagesTabHTML = `
+  <div class="section-head">
+    <div><div class="sub">${state.language==='en'?'Bundle several items/services into one special-priced package, sold as a single line in POS.':'Gabungkan beberapa item/servis menjadi satu pakej harga istimewa, dijual sebagai satu baris dalam POS.'}</div></div>
+    <button class="btn btn-primary" data-action="new-package">${ICONS.plus} ${state.language==='en'?'New Package':'Pakej Baharu'}</button>
+  </div>
+  ${(db.packages||[]).length===0 ? emptyState(state.language==='en'?'No packages yet.':'Belum ada pakej.') : `
+  <div class="grid grid-3">
+    ${db.packages.map(pkg=>{
+      const componentTotal = pkg.items.reduce((s,pi)=>{ const it=getItem(pi.refId); return s+(it?it.price*pi.qty:0); },0);
+      const savings = componentTotal - pkg.price;
+      return `<div class="panel">
+        <h2 style="flex-wrap:wrap;"><span style="flex:1;min-width:100px;">${esc(pkg.name)}</span>${!pkg.active ? `<span class="pill" style="background:var(--border);color:var(--text-muted);">${state.language==='en'?'Inactive':'Tidak Aktif'}</span>` : ''}</h2>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${pkg.items.map(pi=>{ const it=getItem(pi.refId); return it?esc(it.name)+' ×'+pi.qty:''; }).filter(Boolean).join(', ')}</div>
+        <div style="font-weight:700;color:var(--accent);font-size:18px;">${fmtRM(pkg.price)}</div>
+        ${savings>0 ? `<div style="font-size:11.5px;color:var(--success);">${state.language==='en'?'Save':'Jimat'} ${fmtRM(savings)} ${state.language==='en'?'vs individual prices':'berbanding harga berasingan'}</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-outline btn-sm" style="flex:1;" data-action="edit-package" data-id="${pkg.id}">${ICONS.edit} ${t('btn_edit')}</button>
+          <button class="btn btn-danger btn-sm" data-action="delete-package" data-id="${pkg.id}">${ICONS.trash}</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`}
+  `;
+
   return `
   ${db.settings.simpleMode ? '' : `
   <div class="tabs">
     <div class="tab-btn ${tab==='items'?'active':''}" data-invmaintab="items">${ICONS.inventory} ${tt('Item')}</div>
     <div class="tab-btn ${tab==='suppliers'?'active':''}" data-invmaintab="suppliers">${ICONS.staff} ${tt('Pembekal')}</div>
+    <div class="tab-btn ${tab==='packages'?'active':''}" data-invmaintab="packages">${ICONS.wallet} ${state.language==='en'?'Packages':'Pakej'}</div>
     <div class="tab-btn ${tab==='po'?'active':''}" data-invmaintab="po">${ICONS.repeat} ${tt('Pesanan Belian')}</div>
+    <div class="tab-btn ${tab==='requisition'?'active':''}" data-invmaintab="requisition">${ICONS.alert} ${state.language==='en'?'Reorder Suggestions':'Cadangan Pesanan Semula'}${lowCount>0?` <span class="nav-badge" style="background:var(--danger);color:#fff;">${lowCount}</span>`:''}</div>
   </div>`}
-  ${db.settings.simpleMode ? itemsTabHTML : (tab==='items' ? itemsTabHTML : tab==='suppliers' ? suppliersTabHTML : poTabHTML)}
+  ${db.settings.simpleMode ? itemsTabHTML : (tab==='items' ? itemsTabHTML : tab==='suppliers' ? suppliersTabHTML : tab==='packages' ? packagesTabHTML : tab==='requisition' ? requisitionTabHTML : poTabHTML)}
   `;
 }
 
@@ -139,6 +206,29 @@ function itemModalHTML(item){
     <div class="modal-foot">
       <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
       <button class="btn btn-primary" data-action="save-item" data-id="${item.id||''}">${t('btn_save')}</button>
+    </div>
+  `;
+}
+
+function packageModalHTML(pkg){
+  const isEdit = !!pkg;
+  const en = state.language==='en';
+  pkg = pkg || {name:'', items:[], price:0, active:true};
+  const itemsText = pkg.items.map(pi=>{ const it=getItem(pi.refId); return it ? `${it.name}:${pi.qty}` : ''; }).filter(Boolean).join('\n');
+  return `
+    <h2>${isEdit ? (en?'Edit Package':'Sunting Pakej') : (en?'New Package':'Pakej Baharu')}</h2>
+    <div class="field"><label>${en?'Package Name':'Nama Pakej'}</label><input id="pkg-name" value="${esc(pkg.name)}" placeholder="${en?'e.g. Basic Service Package':'cth: Pakej Servis Asas'}"></div>
+    <div class="field"><label>${en?'Component Items (item name:qty, one per line — must match existing inventory item names)':'Item Komponen (nama item:kuantiti, satu setiap baris — mesti sepadan nama item inventori sedia ada)'}</label>
+      <textarea id="pkg-items" rows="4" placeholder="Minyak Enjin 5W-30:1&#10;Penapis Minyak:1">${esc(itemsText)}</textarea>
+    </div>
+    <div class="field"><label>${en?'Package Price (RM)':'Harga Pakej (RM)'}</label><input id="pkg-price" type="number" step="0.01" min="0" value="${pkg.price}"></div>
+    <div class="field" style="display:flex;align-items:center;justify-content:space-between;background:var(--panel-alt);padding:12px;border-radius:8px;">
+      <label style="margin-bottom:0;">${en?'Active (visible in POS)':'Aktif (kelihatan dalam POS)'}</label>
+      <input type="checkbox" id="pkg-active" ${pkg.active!==false?'checked':''} style="width:18px;height:18px;">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="save-package" data-id="${pkg.id||''}">${t('btn_save')}</button>
     </div>
   `;
 }
@@ -174,6 +264,33 @@ function poModalHTML(){
     <div class="modal-foot">
       <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
       <button class="btn btn-primary" data-action="save-po">${state.language==='en'?'Save Order':'Simpan Pesanan'}</button>
+    </div>
+  `;
+}
+
+function receivePoModalHTML(po){
+  const en = state.language==='en';
+  return `
+    <h2>${en?'Receive Stock':'Terima Stok'} — ${po.poNo}</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?'Enter how many of each item arrived. You can receive a partial delivery now and the rest later.':'Masukkan kuantiti setiap item yang tiba. Anda boleh terima sebahagian sekarang dan baki kemudian.'}</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>${tt('Item')}</th><th>${en?'Ordered':'Ditempah'}</th><th>${en?'Received So Far':'Diterima Setakat Ini'}</th><th>${en?'Receive Now':'Terima Sekarang'}</th></tr></thead>
+      <tbody>
+        ${po.items.map((i,idx)=>{
+          const received = i.receivedQty||0;
+          const outstanding = Math.max(0, i.qty-received);
+          return `<tr>
+            <td style="font-weight:600;">${esc(i.name)}</td>
+            <td>${i.qty}</td>
+            <td>${received}</td>
+            <td><input type="number" min="0" max="${outstanding}" value="${outstanding}" data-po-receive-idx="${idx}" style="max-width:90px;"></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_cancel')}</button>
+      <button class="btn btn-primary" data-action="confirm-receive-po" data-id="${po.id}">${en?'Confirm Receipt':'Sahkan Penerimaan'}</button>
     </div>
   `;
 }

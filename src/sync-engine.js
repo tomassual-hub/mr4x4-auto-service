@@ -1,6 +1,8 @@
 /* ============================= DATA LAYER ============================= */
 let db = null;
 let saveTimer = null;
+let saveInFlight = false;
+let saveAgainNeeded = false;
 let inactivityTimer = null;
 const INACTIVITY_LOCK_MS = 5*60*1000; // auto-lock after 5 minutes of no interaction
 function resetInactivityTimer(){
@@ -38,8 +40,12 @@ function defaultDB(){
     payrollRecords: [],
     techRefs: [],
     leads: [],
-    settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null },
-    counters: { job: 1, invoice: 1, po: 1 }
+    packages: [],
+    creditNotes: [],
+    attendance: [],
+    quotations: [],
+    settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null, servicedBrands:[] },
+    counters: { job: 1, invoice: 1, po: 1, creditNote: 1, quote: 1 }
   };
 }
 
@@ -53,7 +59,8 @@ const TABLE_MAP = {
   invoices:'invoices', appointments:'appointments', contracts:'contracts',
   suppliers:'suppliers', purchaseOrders:'purchase_orders', auditLog:'audit_log',
   branches:'branches', cashClosures:'cash_closures', payrollRecords:'payroll_records',
-  techRefs:'tech_refs', leads:'leads'
+  techRefs:'tech_refs', leads:'leads', packages:'packages', creditNotes:'credit_notes',
+  attendance:'attendance', quotations:'quotations'
 };
 const REVERSE_TABLE_MAP = Object.fromEntries(Object.entries(TABLE_MAP).map(([k,v])=>[v,k]));
 let lastSynced = null; // per-table Map(id -> JSON snapshot), set once db is first loaded
@@ -298,6 +305,8 @@ async function allocateCounter(name, prefix, pad){
 async function nextJobNo(){ return allocateCounter('job','WS',4); }
 async function nextInvNo(){ return allocateCounter('invoice','INV',4); }
 async function nextPoNo(){ return allocateCounter('po','PO',4); }
+async function nextCreditNoteNo(){ return allocateCounter('creditNote','CN',4); }
+async function nextQuoteNo(){ return allocateCounter('quote','Q',4); }
 
 async function resolveStaffForUser(user){
   // claim_staff_record() runs server-side (security definer) so this one
@@ -493,6 +502,41 @@ async function resolveSessionOrChallengeMfa(session){
 async function initApp(){
   initErrorMonitoring();
   db = defaultDB();
+  // A staff member's personal QR attendance code links straight to
+  // ?attendance=<staffId>&token=<token> -- detected here, before the first
+  // render(), so scanning it opens directly to the punch screen instead of
+  // the normal login page (this staff member never needs to log in at all
+  // for this flow; see attendance_status/attendance_punch RPCs).
+  try{
+    const params = new URLSearchParams(location.search);
+    const attStaffId = params.get('attendance');
+    const attToken = params.get('token');
+    if(attStaffId && attToken){
+      state.attendanceMode = true;
+      state.attendanceStaffId = attStaffId;
+      state.attendanceToken = attToken;
+      state.attendanceStatus = 'loading';
+    }
+    // A shared "Share Report" link for a vehicle inspection works the same
+    // way: ?inspect=<jobId>&token=<token> opens straight to a read-only
+    // report screen the customer can view and sign, no login needed (see
+    // kiosk_inspection_report/kiosk_submit_inspection_signature RPCs).
+    const inspJobId = params.get('inspect');
+    const inspToken = params.get('token');
+    if(inspJobId && inspToken && !state.attendanceMode){
+      state.inspectMode = true;
+      state.inspectJobId = inspJobId;
+      state.inspectToken = inspToken;
+      state.inspectReport = 'loading';
+    }
+    // The waiting-area Display Board is meant to be bookmarked as the home
+    // page of a dedicated TV/tablet browser at the shop, so it needs to
+    // load straight into board mode from a plain URL (?board=1) too, not
+    // just via the login-screen link.
+    if(params.get('board') && !state.attendanceMode && !state.inspectMode){
+      state.boardMode = true;
+    }
+  }catch(e){ /* malformed URL -- fall through to the normal login screen */ }
   render();
   try{
     const { data:{ session } } = await supabaseClient.auth.getSession();
@@ -556,25 +600,45 @@ async function initApp(){
 
 function queueSave(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async ()=>{
-    state.syncStatus = 'syncing';
-    updateSyncIndicator();
-    try{
-      const newSnap = {};
-      for(const [key, table] of Object.entries(TABLE_MAP)){
-        newSnap[key] = await syncListTable(key, table, key==='auditLog');
-      }
-      newSnap.staff = await syncStaffTable();
-      newSnap.settings = await syncSettings();
-      lastSynced = newSnap;
-      state.syncStatus = 'idle';
-      updateSyncIndicator();
-    }catch(e){
-      reportError(e, 'Gagal simpan data');
-      state.syncStatus = 'error';
-      updateSyncIndicator();
-      showToast(state.language==='en' ? 'Sync failed — check your internet connection.' : 'Segerak gagal — semak sambungan internet anda.');
+  saveTimer = setTimeout(runSaveCycle, 300);
+}
+
+// Runs at most one sync cycle at a time. Each cycle loops over every table
+// with a real network round-trip per table, which can easily take longer
+// than the 300ms debounce above under real latency (and got a bit longer
+// still now that TABLE_MAP has grown) -- a queueSave() landing mid-cycle
+// used to start a SECOND overlapping cycle that diffed against the same
+// stale lastSynced snapshot as the first, so both cycles would try to
+// upsert the same brand-new row (e.g. an audit_log entry). Whichever
+// upsert lost the race then hit Postgres's ON CONFLICT DO UPDATE path for
+// a row that now already existed -- which audit_log's RLS policies
+// deliberately have no UPDATE rule for (append-only), so that second
+// upsert failed outright with a 42501 and a false "sync failed" toast,
+// even though the row had, in fact, already saved via the first cycle.
+// Queuing a follow-up cycle instead of running concurrently fixes that.
+async function runSaveCycle(){
+  if(saveInFlight){ saveAgainNeeded = true; return; }
+  saveInFlight = true;
+  state.syncStatus = 'syncing';
+  updateSyncIndicator();
+  try{
+    const newSnap = {};
+    for(const [key, table] of Object.entries(TABLE_MAP)){
+      newSnap[key] = await syncListTable(key, table, key==='auditLog');
     }
-  }, 300);
+    newSnap.staff = await syncStaffTable();
+    newSnap.settings = await syncSettings();
+    lastSynced = newSnap;
+    state.syncStatus = 'idle';
+    updateSyncIndicator();
+  }catch(e){
+    reportError(e, 'Gagal simpan data');
+    state.syncStatus = 'error';
+    updateSyncIndicator();
+    showToast(state.language==='en' ? 'Sync failed — check your internet connection.' : 'Segerak gagal — semak sambungan internet anda.');
+  }finally{
+    saveInFlight = false;
+    if(saveAgainNeeded){ saveAgainNeeded = false; queueSave(); }
+  }
 }
 
