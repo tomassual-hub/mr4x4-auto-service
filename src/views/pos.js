@@ -15,6 +15,9 @@ function viewPOS(){
   const taxAmt = afterDiscount * taxRate/100;
   const total = afterDiscount + taxAmt;
   const custVehicles = state.posCustomerId ? getVehiclesFor(state.posCustomerId) : [];
+  // Simple Mode always checks out as a single payment method, regardless
+  // of a stale posSplitMode left on from before the setting was turned on.
+  const showSplit = state.posSplitMode && !db.settings.simpleMode;
 
   return `
   <div class="pos-wrap">
@@ -26,7 +29,7 @@ function viewPOS(){
       </div>
       <div class="search-box">${ICONS.search}<input id="pos-search" placeholder="${tt('Cari item inventori...')}"></div>
       <div id="pos-item-list">${renderPOSItemList('')}</div>
-      ${(db.packages||[]).filter(p=>p.active).length>0 ? `
+      ${!db.settings.simpleMode && (db.packages||[]).filter(p=>p.active).length>0 ? `
       <div style="margin-top:14px;">
         <label>${ICONS.wallet} ${state.language==='en'?'Packages':'Pakej'}</label>
         ${db.packages.filter(p=>p.active).map(pkg=>`
@@ -107,11 +110,12 @@ function viewPOS(){
         <div class="receipt-line"></div>
         <div class="receipt-row receipt-total"><span>${tt('JUMLAH')}</span><span>${fmtRM(total)}</span></div>
       </div>
+      ${!db.settings.simpleMode ? `
       <div class="field" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;">
         <label style="margin-bottom:0;">${state.language==='en'?'Split / Partial Payment':'Pisah / Sebahagian Bayaran'}</label>
         <input type="checkbox" id="pos-split-toggle" ${state.posSplitMode?'checked':''} style="width:18px;height:18px;">
-      </div>
-      ${!state.posSplitMode ? `
+      </div>` : ''}
+      ${!showSplit ? `
       <div class="field"><label>${tt('Kaedah Bayaran')}</label>
         <select id="pos-payment">
           <option value="Tunai">${tt('Tunai')}</option>
@@ -142,7 +146,7 @@ function viewPOS(){
         </div>`;
       })()}
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;" data-action="checkout" ${cart.length===0?'disabled':''}>${ICONS.pos} ${tt('Jana Invois & Selesai')}</button>
-      ${!state.posSplitMode ? `<button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" data-action="save-quotation" ${cart.length===0?'disabled':''}>${ICONS.printer} ${state.language==='en'?'Save as Quotation (no stock deducted)':'Simpan sebagai Sebut Harga (stok tidak ditolak)'}</button>` : ''}
+      ${!showSplit && !db.settings.simpleMode ? `<button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px;" data-action="save-quotation" ${cart.length===0?'disabled':''}>${ICONS.printer} ${state.language==='en'?'Save as Quotation (no stock deducted)':'Simpan sebagai Sebut Harga (stok tidak ditolak)'}</button>` : ''}
       <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:6px;">${tt('Petua: Ctrl+Enter untuk checkout pantas')}</div>
     </div>
   </div>
@@ -168,7 +172,7 @@ function viewPOS(){
             <td>${balanceDue>0.004 ? `<span class="pill pill-low">${fmtRM(balanceDue)}</span>` : `<span class="pill pill-done">${state.language==='en'?'Paid':'Selesai'}</span>`}</td>
             <td style="white-space:nowrap;">
               ${balanceDue>0.004 ? `<button class="btn-icon" data-action="settle-invoice-balance" data-id="${inv.id}" title="${state.language==='en'?'Record balance payment':'Rekod bayaran baki'}">${ICONS.wallet}</button>` : ''}
-              <button class="btn-icon" data-action="open-credit-note" data-id="${inv.id}" title="${state.language==='en'?'Issue Credit Note':'Keluarkan Nota Kredit'}">${ICONS.repeat}</button>
+              ${!db.settings.simpleMode ? `<button class="btn-icon" data-action="open-credit-note" data-id="${inv.id}" title="${state.language==='en'?'Issue Credit Note':'Keluarkan Nota Kredit'}">${ICONS.repeat}</button>` : ''}
               <button class="btn-icon" data-action="print-invoice" data-id="${inv.id}" title="Cetak invois">${ICONS.printer}</button>
               ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="Hantar via WhatsApp" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}
             </td>
@@ -178,7 +182,7 @@ function viewPOS(){
     </table></div>`}
   </div>
 
-  ${(db.quotations||[]).length>0 ? `
+  ${!db.settings.simpleMode && (db.quotations||[]).length>0 ? `
   <div class="panel" style="margin-top:20px;">
     <h2>${ICONS.printer} ${state.language==='en'?'Quotations':'Sebut Harga'} <span class="tag">${db.quotations.length}</span></h2>
     <div class="table-wrap"><table>
@@ -204,7 +208,7 @@ function viewPOS(){
     </table></div>
   </div>` : ''}
 
-  ${(db.creditNotes||[]).length>0 ? `
+  ${!db.settings.simpleMode && (db.creditNotes||[]).length>0 ? `
   <div class="panel" style="margin-top:20px;">
     <h2>${ICONS.repeat} ${state.language==='en'?'Credit Notes':'Nota Kredit'} <span class="tag">${db.creditNotes.length}</span></h2>
     <div class="table-wrap"><table>

@@ -1,6 +1,7 @@
 /* ============================= STAFF VIEW ============================= */
 function viewStaff(){
-  const tab = state.staffTab || 'staff';
+  const simple = db.settings.simpleMode;
+  const tab = (simple && state.staffTab==='attendance') ? 'staff' : (state.staffTab || 'staff');
   const adminCount = db.staff.filter(s=>s.role==='Admin').length;
   const staffTabHTML = `
   <div class="section-head">
@@ -18,7 +19,7 @@ function viewStaff(){
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${esc(s.email||'')}${s.userId ? ` · ${state.language==='en'?'Linked':'Ditaut'}` : s.email ? ` · ${state.language==='en'?'Not linked yet':'Belum ditaut'}` : ''}</div>
         <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;">
           <button class="btn btn-outline btn-sm" data-action="edit-staff" data-id="${s.id}">${ICONS.edit} ${tt('Sunting')}</button>
-          <button class="btn btn-outline btn-sm" data-action="show-attendance-qr" data-id="${s.id}" title="${state.language==='en'?'Attendance QR Code':'Kod QR Kehadiran'}">${ICONS.barcode}</button>
+          ${!simple ? `<button class="btn btn-outline btn-sm" data-action="show-attendance-qr" data-id="${s.id}" title="${state.language==='en'?'Attendance QR Code':'Kod QR Kehadiran'}">${ICONS.barcode}</button>` : ''}
           ${db.staff.length>1 && !isLastAdmin ? `<button class="btn btn-danger btn-sm" data-action="delete-staff" data-id="${s.id}">${ICONS.trash}</button>` : ''}
         </div>
       </div>`;}).join('')}
@@ -69,7 +70,7 @@ function viewStaff(){
   return `
   <div class="tabs">
     <div class="tab-btn ${tab==='staff'?'active':''}" data-stafftab="staff">${ICONS.staff} ${t('nav_staff')}</div>
-    <div class="tab-btn ${tab==='attendance'?'active':''}" data-stafftab="attendance">${ICONS.barcode} ${en?'Attendance':'Kehadiran'}</div>
+    ${!simple ? `<div class="tab-btn ${tab==='attendance'?'active':''}" data-stafftab="attendance">${ICONS.barcode} ${en?'Attendance':'Kehadiran'}</div>` : ''}
     <div class="tab-btn ${tab==='audit'?'active':''}" data-stafftab="audit">${ICONS.history} ${tt('Log Aktiviti')}</div>
   </div>
   ${tab==='staff' ? staffTabHTML : tab==='attendance' ? attendanceTabHTML : auditTabHTML}

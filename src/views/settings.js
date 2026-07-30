@@ -30,7 +30,7 @@ function viewSettings(){
       <div class="field" style="display:flex;align-items:center;justify-content:space-between;background:var(--panel-alt);padding:12px;border-radius:8px;">
         <div>
           <label style="margin-bottom:2px;">${state.language==='en'?'Simple Mode':'Mod Ringkas'}</label>
-          <div style="font-size:11.5px;color:var(--text-muted);">${state.language==='en'?'Hides advanced features (appointments, suppliers, purchase orders, P&L, commission, forecasting) for a cleaner day-to-day view.':'Sorok ciri lanjutan (tempahan, pembekal, pesanan belian, P&L, komisen, ramalan) untuk paparan harian yang lebih ringkas.'}</div>
+          <div style="font-size:11.5px;color:var(--text-muted);">${state.language==='en'?'Hides advanced features (appointments, suppliers, purchase orders, P&L, commission, forecasting, packages, split payment, quotations, credit notes, bay management, QR attendance) for a cleaner day-to-day view.':'Sorok ciri lanjutan (tempahan, pembekal, pesanan belian, P&L, komisen, ramalan, pakej, bayaran berbilang, sebut harga, nota kredit, pengurusan bay, kehadiran QR) untuk paparan harian yang lebih ringkas.'}</div>
         </div>
         <input type="checkbox" id="set-simple-mode" ${s.simpleMode?'checked':''} style="width:20px;height:20px;flex-shrink:0;">
       </div>
@@ -117,7 +117,7 @@ function viewSettings(){
     </div>
   </div>
 
-  ${(()=>{
+  ${db.settings.simpleMode ? '' : (()=>{
     const en = state.language==='en';
     const bays = db.bays||[];
     return `

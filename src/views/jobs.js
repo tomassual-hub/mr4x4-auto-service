@@ -136,7 +136,7 @@ function jobDetailModalHTML(j){
     </div>
     <div class="field"><label>${en?'Job Description':'Penerangan Kerja'}</label><textarea id="job-desc-edit" rows="2">${esc(j.description||'')}</textarea></div>
     <div class="field"><label>${tt('Mekanik')}</label><input id="job-mechanic-edit" value="${esc(j.mechanic||'')}"></div>
-    ${(db.bays||[]).length>0 ? `
+    ${!db.settings.simpleMode && (db.bays||[]).length>0 ? `
     <div class="field"><label>${ICONS.bay} ${en?'Bay':'Bay'}</label>
       <select id="job-bay-edit">
         <option value="">— ${en?'Not Assigned':'Belum Ditugaskan'} —</option>
@@ -216,7 +216,7 @@ function newJobModalHTML(){
     </div>
     <div class="field"><label>${state.language==='en'?'Job Description':'Penerangan Kerja'}</label><textarea id="nj-desc" rows="3" placeholder="Cth: Servis biasa, tukar minyak enjin & penapis"></textarea></div>
     <div class="field"><label>${state.language==='en'?'Assigned Mechanic':'Mekanik Bertugas'}</label><input id="nj-mechanic" placeholder="Cth: Encik Razak"></div>
-    ${(db.bays||[]).length>0 ? `
+    ${!db.settings.simpleMode && (db.bays||[]).length>0 ? `
     <div class="field"><label>${ICONS.bay} ${state.language==='en'?'Bay (optional)':'Bay (pilihan)'}</label>
       <select id="nj-bay">
         <option value="">— ${state.language==='en'?'Not Assigned':'Belum Ditugaskan'} —</option>

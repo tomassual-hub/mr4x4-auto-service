@@ -1567,7 +1567,11 @@ function attachHandlers(){
     try{
       const en = state.language==='en';
       let payment, payments;
-      if(state.posSplitMode){
+      // Simple Mode always checks out as a single payment method, even if
+      // posSplitMode was left true from before the setting was turned on
+      // (its own toggle checkbox is hidden in Simple Mode, so there'd be no
+      // way to turn it back off otherwise).
+      if(state.posSplitMode && !db.settings.simpleMode){
         const methodEls = document.querySelectorAll('[data-split-method-idx]');
         payments = Array.from(methodEls).map(el=>{
           const idx = el.dataset.splitMethodIdx;
