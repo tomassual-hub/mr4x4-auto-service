@@ -69,6 +69,7 @@ let state = {
   inspectReport: /** @type {any} */ (null),
   boardMode: false,
   boardJobs: /** @type {any[]|null} */ (null),
+  dashTargetPeriod: /** @type {'weekly'|'monthly'} */ ('weekly'),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

@@ -10,6 +10,7 @@
 /* ============================= EVENT HANDLERS ============================= */
 function attachHandlers(){
   document.querySelectorAll('[data-nav]').forEach(el=>el.addEventListener('click', ()=>setState({view:el.dataset.nav, navOpen:false, globalSearch:''})));
+  bindAllAction('dash-target-period', el=>setState({dashTargetPeriod: el.dataset.period}));
 
   const gSearch = document.getElementById('global-search');
   if(gSearch){

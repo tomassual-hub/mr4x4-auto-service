@@ -23,33 +23,63 @@ function viewDashboard(){
   }).length;
 
   return `
-  <div class="grid ${isAdmin?'grid-4':'grid-3'}" style="margin-bottom:22px;">
-    ${isAdmin ? `
-    <div class="stat-card ok">
-      <div class="stat-icon">${ICONS.pos}</div>
-      <div class="stat-label">${t('stat_today_sales')}</div>
-      <div class="stat-value">${fmtRM(todaySales)}</div>
-      <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
-    </div>` : ''}
-    <div class="stat-card">
-      <div class="stat-icon">${ICONS.jobs}</div>
-      <div class="stat-label">${t('stat_active_jobs')}</div>
-      <div class="stat-value">${activeJobs.length}</div>
-      <div class="stat-sub">${waitingJobs.length} ${tt('menunggu tindakan')}</div>
-    </div>
-    <div class="stat-card ${lowStock.length ? 'warn' : 'ok'}">
-      <div class="stat-icon">${ICONS.inventory}</div>
-      <div class="stat-label">${t('stat_low_stock')}</div>
-      <div class="stat-value">${lowStock.length}</div>
-      <div class="stat-sub">${tt('item perlu ditambah')}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">${ICONS.customers}</div>
-      <div class="stat-label">${t('stat_total_customers')}</div>
-      <div class="stat-value">${db.customers.length}</div>
-      <div class="stat-sub">${db.vehicles.length} ${tt('kenderaan direkod')}</div>
-    </div>
-  </div>
+  ${isAdmin ? `
+  <div class="panel dash-hero" style="margin-bottom:22px;">
+    <div class="stat-label">${esc(db.settings.shopName)} · ${t('stat_today_sales')}</div>
+    <div class="dash-hero-value">${fmtRM(todaySales)}</div>
+    <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
+  </div>` : ''}
+
+  ${isAdmin && (db.settings.monthlySalesTarget>0 || db.settings.monthlyUnitTarget>0) ? (()=>{
+    const period = state.dashTargetPeriod || 'weekly';
+    const monthKey = currentMonthStr();
+    const monthInvoices = db.invoices.filter(inv=>{
+      const d = new Date(inv.createdAt);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===monthKey;
+    });
+    // Monday-start week, matching the calendar grid's own week convention
+    // (see appointments.js's startWeekday) rather than the locale default.
+    const now = new Date();
+    const weekStart = new Date(now); weekStart.setHours(0,0,0,0);
+    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay()+6)%7));
+    const weekInvoices = db.invoices.filter(inv=>inv.createdAt>=weekStart.getTime());
+    const monthSalesTarget = db.settings.monthlySalesTarget||0;
+    const monthUnitTarget = db.settings.monthlyUnitTarget||0;
+    // A calendar month averages ~4.345 weeks -- prorated, not a separately
+    // configured weekly figure, so there's only one target number to set.
+    const salesTarget = period==='weekly' ? monthSalesTarget/4.345 : monthSalesTarget;
+    const unitTarget = period==='weekly' ? monthUnitTarget/4.345 : monthUnitTarget;
+    const actualSales = period==='weekly' ? weekInvoices.reduce((s,i)=>s+i.total,0) : monthInvoices.reduce((s,i)=>s+i.total,0);
+    const actualUnits = period==='weekly' ? weekInvoices.length : monthInvoices.length;
+    const salesPct = salesTarget>0 ? Math.min(100, Math.round(actualSales/salesTarget*100)) : 0;
+    const unitPct = unitTarget>0 ? Math.min(100, Math.round(actualUnits/unitTarget*100)) : 0;
+    return `
+    <div class="panel" style="margin-bottom:22px;">
+      <div class="section-head">
+        <h2 style="margin:0;">${ICONS.reports} ${en?'Target':'Sasaran'} <span class="tag">${period==='weekly' ? (en?'This Week':'Minggu Ini') : monthLabel(monthKey)}</span></h2>
+        <div class="pill-toggle">
+          <span class="pill-toggle-opt ${period==='weekly'?'active':''}" data-action="dash-target-period" data-period="weekly">${en?'Weekly':'Mingguan'}</span>
+          <span class="pill-toggle-opt ${period==='monthly'?'active':''}" data-action="dash-target-period" data-period="monthly">${en?'Monthly':'Bulanan'}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;justify-content:center;">
+        ${monthSalesTarget>0 ? `
+        <div style="text-align:center;">
+          <div class="progress-ring" style="--pct:${salesPct};margin:0 auto 10px;">
+            <div class="progress-ring-label"><div class="progress-ring-pct">${salesPct}%</div><div class="progress-ring-sub">${en?'Sales':'Jualan'}</div></div>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;">${fmtRM(actualSales)} / ${fmtRM(salesTarget)}</div>
+        </div>` : ''}
+        ${monthUnitTarget>0 ? `
+        <div style="text-align:center;">
+          <div class="progress-ring" style="--pct:${unitPct};margin:0 auto 10px;">
+            <div class="progress-ring-label"><div class="progress-ring-pct">${unitPct}%</div><div class="progress-ring-sub">${en?'Units':'Unit'}</div></div>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;">${actualUnits} / ${unitTarget.toFixed(0)} ${en?'invoices':'invois'}</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  })() : ''}
 
   <div class="grid grid-3" style="margin-bottom:22px;">
     <div class="stat-card">
@@ -72,39 +102,26 @@ function viewDashboard(){
     </div>
   </div>
 
-  ${isAdmin && (db.settings.monthlySalesTarget>0 || db.settings.monthlyUnitTarget>0) ? (()=>{
-    const monthKey = currentMonthStr();
-    const monthInvoices = db.invoices.filter(inv=>{
-      const d = new Date(inv.createdAt);
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===monthKey;
-    });
-    const monthSales = monthInvoices.reduce((s,i)=>s+i.total,0);
-    const monthUnits = monthInvoices.length;
-    const salesTarget = db.settings.monthlySalesTarget||0;
-    const unitTarget = db.settings.monthlyUnitTarget||0;
-    const salesPct = salesTarget>0 ? Math.min(100, Math.round(monthSales/salesTarget*100)) : 0;
-    const unitPct = unitTarget>0 ? Math.min(100, Math.round(monthUnits/unitTarget*100)) : 0;
-    return `
-    <div class="panel" style="margin-bottom:22px;">
-      <h2>${ICONS.reports} ${en?'Monthly Target':'Sasaran Bulanan'} <span class="tag">${monthLabel(monthKey)}</span></h2>
-      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;justify-content:center;">
-        ${salesTarget>0 ? `
-        <div style="text-align:center;">
-          <div class="progress-ring" style="--pct:${salesPct};margin:0 auto 10px;">
-            <div class="progress-ring-label"><div class="progress-ring-pct">${salesPct}%</div><div class="progress-ring-sub">${en?'Sales':'Jualan'}</div></div>
-          </div>
-          <div style="font-size:12.5px;font-weight:600;">${fmtRM(monthSales)} / ${fmtRM(salesTarget)}</div>
-        </div>` : ''}
-        ${unitTarget>0 ? `
-        <div style="text-align:center;">
-          <div class="progress-ring" style="--pct:${unitPct};margin:0 auto 10px;">
-            <div class="progress-ring-label"><div class="progress-ring-pct">${unitPct}%</div><div class="progress-ring-sub">${en?'Units':'Unit'}</div></div>
-          </div>
-          <div style="font-size:12.5px;font-weight:600;">${monthUnits} / ${unitTarget} ${en?'invoices':'invois'}</div>
-        </div>` : ''}
-      </div>
-    </div>`;
-  })() : ''}
+  <div class="grid grid-3" style="margin-bottom:22px;">
+    <div class="stat-card">
+      <div class="stat-icon">${ICONS.jobs}</div>
+      <div class="stat-label">${t('stat_active_jobs')}</div>
+      <div class="stat-value">${activeJobs.length}</div>
+      <div class="stat-sub">${waitingJobs.length} ${tt('menunggu tindakan')}</div>
+    </div>
+    <div class="stat-card ${lowStock.length ? 'warn' : 'ok'}">
+      <div class="stat-icon">${ICONS.inventory}</div>
+      <div class="stat-label">${t('stat_low_stock')}</div>
+      <div class="stat-value">${lowStock.length}</div>
+      <div class="stat-sub">${tt('item perlu ditambah')}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">${ICONS.customers}</div>
+      <div class="stat-label">${t('stat_total_customers')}</div>
+      <div class="stat-value">${db.customers.length}</div>
+      <div class="stat-sub">${db.vehicles.length} ${tt('kenderaan direkod')}</div>
+    </div>
+  </div>
 
   <div class="grid grid-2">
     <div class="panel">

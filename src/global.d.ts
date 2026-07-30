@@ -389,6 +389,7 @@ interface AppState {
   inspectReportLoading?: boolean;
   boardMode?: boolean;
   boardJobs?: any[] | null;
+  dashTargetPeriod?: 'weekly' | 'monthly';
   [key: string]: any; // state accumulates ad-hoc UI flags; keep this escape hatch rather than chasing every one
 }
 
