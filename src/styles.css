@@ -248,13 +248,8 @@ body::before{
 }
 @media screen and (max-width:600px){
   .grid-4,.grid-3{grid-template-columns:1fr 1fr;}
-  .stat-value{font-size:24px;}
-  .section-head{flex-direction:column;align-items:flex-start;}
-  .section-head button{width:100%;justify-content:center;}
   .tickets{grid-template-columns:1fr;}
   .modal{max-width:100%;border-radius:20px 20px 0 0;position:fixed;bottom:0;left:0;margin:0;max-height:92vh;}
-  .modal-overlay{align-items:flex-end;padding:0;}
-  .field-row{grid-template-columns:1fr;}
   .table-wrap{overflow-x:auto;}
   .table-wrap::before{content:'↔ Leret jadual untuk lihat lebih';display:block;font-size:10.5px;color:var(--text-muted);text-align:center;margin-bottom:6px;}
   .staff-grid{grid-template-columns:1fr;}
@@ -266,6 +261,18 @@ body::before{
 .grid-3{grid-template-columns:repeat(3,1fr);}
 .grid-2{grid-template-columns:2fr 1fr;}
 @media screen and (max-width:1000px){.grid-4,.grid-3{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+/* .grid-3/.grid-4 stay 2-column down through the two rules above (600px,
+   1000px), which reads fine for short stat-card numbers but crushes
+   anything with real content -- customer/staff/package/bay cards were
+   wrapping mid-word at a typical ~390px phone width. Drop to a single
+   column below 480px, where a real phone in portrait actually lives;
+   stat cards stay perfectly readable stacked, they just take more
+   vertical space. Must come AFTER the 1000px/600px rules above -- same
+   specificity, so source order decides the winner at a viewport where
+   more than one of these media queries matches at once. */
+@media screen and (max-width:480px){
+  .grid-4,.grid-3{grid-template-columns:1fr;}
+}
 
 .stat-card{
   background:linear-gradient(165deg, var(--glass-2), var(--glass-1));border:1px solid var(--glass-border);border-radius:var(--r-lg);
@@ -283,6 +290,12 @@ body::before{
 .stat-label{font-size:10.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--text-muted);font-weight:700;}
 .stat-value{font-family:'Oswald',sans-serif;font-size:38px;margin-top:8px;font-weight:600;letter-spacing:-.8px;line-height:1.05;}
 .stat-sub{font-size:11.5px;color:var(--text-muted);margin-top:6px;}
+/* Same cascade-order issue as .field-row above: this used to sit inside the
+   600px media query earlier in the file, where it always lost to the base
+   font-size here. Must come after. */
+@media screen and (max-width:600px){
+  .stat-value{font-size:24px;}
+}
 
 .panel{
   background:var(--glass-1);border:1px solid var(--glass-border);border-radius:var(--r-lg);padding:24px;
@@ -312,6 +325,13 @@ body::before{
 .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
 .section-head h1{font-family:'Oswald',sans-serif;font-size:25px;margin:0;font-weight:600;letter-spacing:-.4px;}
 .section-head .sub{font-size:12.5px;color:var(--text-muted);margin-top:4px;}
+/* Same cascade-order issue as .field-row above: align-items used to sit
+   inside the 600px media query earlier in the file, where it always lost
+   to the base align-items:center here. Must come after. */
+@media screen and (max-width:600px){
+  .section-head{flex-direction:column;align-items:flex-start;}
+  .section-head button{width:100%;justify-content:center;}
+}
 
 input,select,textarea{
   background:var(--glass-2);border:1px solid var(--glass-border);color:var(--text);
@@ -333,6 +353,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 label{font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600;display:block;margin-bottom:6px;}
 .field{margin-bottom:15px;}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+/* Was previously overridden by a same-specificity rule sitting earlier in
+   the file (inside the 600px media query above) -- source order decides
+   the tie here, so that earlier 1-column override always lost to this
+   base 2-column rule and paired fields never actually collapsed on
+   mobile. Must come AFTER the base rule, same fix as input/select/textarea
+   just above and .grid-3/.grid-4 further up. */
+@media screen and (max-width:600px){
+  .field-row{grid-template-columns:1fr;}
+}
 
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th{text-align:left;padding:11px 10px;color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--glass-border);font-weight:700;}
@@ -390,6 +419,14 @@ tr:hover td{background:var(--glass-highlight);}
 .modal-overlay{
   position:fixed;inset:0;background:var(--backdrop);display:flex;align-items:center;justify-content:center;
   z-index:100;padding:20px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+/* Same cascade-order issue as .field-row above: align-items/padding used to
+   sit inside the 600px media query earlier in the file, where they always
+   lost to the base align-items:center/padding:20px here -- silently
+   breaking the intended mobile bottom-sheet modal (it fell back to a
+   centered desktop-style box). Must come after. */
+@media screen and (max-width:600px){
+  .modal-overlay{align-items:flex-end;padding:0;}
 }
 .modal{
   background:var(--glass-modal);border:1px solid var(--glass-border);border-radius:var(--r-lg);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;padding:28px;
