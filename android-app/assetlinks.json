@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "io.github.tomassual_hub.twa",
-        "sha256_cert_fingerprints": ["D1:50:85:98:E9:EF:81:11:E5:4C:DD:DB:1E:6D:24:B7:6A:1E:91:18:FF:B7:85:29:67:6C:3D:B8:94:18:38:EC"]
+        "sha256_cert_fingerprints": ["3A:3F:94:69:86:B6:0D:6E:E4:A5:06:2C:3D:A7:B5:1F:C0:EC:C0:26:29:32:D0:FE:54:FC:11:4C:5C:84:49:40"]
       }
     }]

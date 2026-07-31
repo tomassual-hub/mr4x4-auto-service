@@ -1,8 +1,16 @@
-# Mr 4x4 Auto Service — Android APK
+# ServisPro — Android APK
 
 Generated via [PWABuilder](https://www.pwabuilder.com) from the live site
 at `https://tomassual-hub.github.io/mr4x4-auto-service/`, then signed so
 it installs directly — no Play Store needed.
+
+⚠️ **Signing identity rotated 2026-07-31** — the previous keystore +
+password had been sitting in plain text in a folder that left the
+machine, so it's treated as compromised. This is a completely fresh
+keystore; it shares no identity with the old one. Staff on the old
+build must **uninstall it before installing this one** (Android refuses
+to "update" over a different signature) — see "How staff install it"
+below. The retired keystore/APK were deleted, not archived.
 
 ⚠️ **If the site's URL ever changes again** (moving hosts, custom domain,
 etc.), this APK will need rebuilding the same way — a TWA's package
@@ -14,31 +22,43 @@ one's identity doesn't carry forward across a domain change anyway.
 
 ## Files
 
-- **`Mr 4x4 Auto Service.apk`** — the file to share and install. Send this
-  one via WhatsApp/email/USB to any Android phone.
+- **`ServisPro.apk`** — the file to share and install. Send this one via
+  WhatsApp/email/USB to any Android phone.
+- **`ServisPro.aab`** — Android App Bundle, only needed if this ever gets
+  uploaded to the Google Play Store instead of sideloaded directly. Not
+  used for the WhatsApp/email install flow below.
 - **`signing.keystore`** + **`signing-key-info.txt`** — the signing
-  identity used for this APK. **Keep both somewhere safe and private** —
-  `signing-key-info.txt` contains the keystore password in plain text.
-  You only need these again if you rebuild a future version of the app
-  *at the same URL* and want Android to recognize it as an *update*
-  rather than a conflicting app (Android checks the signature, not just
-  the name). Don't commit these to a public repo or share them outside
-  the shop — already gitignored, never tracked.
+  identity used for this APK/AAB. **Keep both somewhere safe and
+  private** (a password manager, not a plain folder that might get
+  zipped/shared/backed up wholesale) — `signing-key-info.txt` contains
+  the keystore password in plain text. You only need these again if you
+  rebuild a future version of the app *at the same URL* and want Android
+  to recognize it as an *update* rather than a conflicting app (Android
+  checks the signature, not just the name). Don't commit these to a
+  public repo or share them outside the shop — already gitignored, never
+  tracked.
 - **`assetlinks.json`** — hosted at
   `https://tomassual-hub.github.io/mr4x4-auto-service/.well-known/assetlinks.json`
   so the installed app opens with zero browser UI (no address bar
   sliver at the top). Without it the app still installs and works, just
-  shows a thin URL bar like a stripped-down browser tab.
+  shows a thin URL bar like a stripped-down browser tab. **Must match
+  the `sha256_cert_fingerprints` of whichever keystore signed the APK
+  currently being distributed** — the deployed copy is updated
+  automatically as part of the site's own build, not this folder.
 
 ## How staff install it
 
 Android blocks installs from outside the Play Store by default, so:
 
-1. Send `Mr 4x4 Auto Service.apk` to their phone (WhatsApp, email, etc.)
-2. Open the file from Downloads/notifications
-3. Android will prompt **"Install unknown apps"** — allow it for that app
+1. If they have an older version installed, **uninstall it first**
+   (Settings → Apps → ServisPro / Mr 4x4 Auto Service → Uninstall) —
+   only needed when the signing identity changed (see the warning at
+   the top); a same-key rebuild would "update" over it instead.
+2. Send `ServisPro.apk` to their phone (WhatsApp, email, etc.)
+3. Open the file from Downloads/notifications
+4. Android will prompt **"Install unknown apps"** — allow it for that app
    (WhatsApp, Files, or whichever app they opened it from)
-4. Tap **Install**
+5. Tap **Install**
 
 Every time you rebuild a new version, it'll ask the same "unknown
 sources" question again on first install — that's normal.
@@ -53,7 +73,8 @@ sources" question again on first install — that's normal.
   reusing `signing.keystore`, Android will treat it as a totally different
   app and refuse to "update" over the old install — staff would need to
   uninstall the old one first. Reuse the keystore to avoid that (as long
-  as the URL hasn't changed — see the warning at the top).
+  as the URL hasn't changed — see the warning at the top) *and* as long
+  as that keystore hasn't been compromised the way the previous one was.
 
 ## iOS
 
