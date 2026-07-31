@@ -103,6 +103,21 @@ async function fetchAllRows(table, columns){
   return rows;
 }
 
+// audit_log is append-only and RLS blocks deleting old rows (see
+// schema.sql) — it's the one table that only ever grows, never trims, so
+// it's also the one most likely to eventually dwarf every other table
+// combined. logAudit() already caps the LOCAL array at 300 entries and the
+// Staff activity view only ever shows slice(0,100) of it — nothing in the
+// app reads further back than that. Pulling the full history through
+// fetchAllRows() on every single login/reload was pure waste that only got
+// slower as the shop's history grew; fetch just the most recent 300 instead.
+const AUDIT_LOG_FETCH_LIMIT = 300;
+async function fetchRecentAuditLog(){
+  const { data, error } = await supabaseClient.from('audit_log').select('id,data').order('updated_at', { ascending:false }).limit(AUDIT_LOG_FETCH_LIMIT);
+  if(error) throw error;
+  return data || [];
+}
+
 async function loadRemoteDB(){
   const d = defaultDB();
   const tableEntries = Object.entries(TABLE_MAP);
@@ -113,7 +128,7 @@ async function loadRemoteDB(){
   // large enough to need it.
   const [tableResults, staffRows, metaRes, counterRows] = await Promise.all([
     Promise.all(tableEntries.map(([key, table]) =>
-      fetchAllRows(table, 'id,data')
+      (table==='audit_log' ? fetchRecentAuditLog() : fetchAllRows(table, 'id,data'))
         .then(data => ({ key, data, error: /** @type {any} */ (null) }))
         .catch(error => ({ key, data: /** @type {any[]} */ ([]), error }))
     )),
@@ -407,7 +422,17 @@ async function unenrollMfa(factorId){
 async function handleAuthenticated(session){
   state.authBusy = true; state.loginError=''; render();
   try{
-    const staffMember = await resolveStaffForUser(session.user);
+    // resolveStaffForUser (one RPC round-trip) and loadRemoteDB (the whole
+    // shop's data, itself already parallelized internally) used to run one
+    // after the other -- but RLS grants every authenticated session read
+    // access to all shop tables regardless of staff/role (see schema.sql),
+    // so nothing here actually depends on the staff lookup finishing first.
+    // Firing both at once removes a full network round-trip from the
+    // critical path on every login and every session-restore page load. The
+    // rare case where staffMember comes back null (login gets rejected
+    // below) just means loadRemoteDB's result gets discarded unused --
+    // cheaper than the round-trip it saves on every normal login.
+    const [staffMember, remoteDB] = await Promise.all([resolveStaffForUser(session.user), loadRemoteDB()]);
     if(!staffMember){
       await supabaseClient.auth.signOut();
       state.authBusy = false;
@@ -417,7 +442,7 @@ async function handleAuthenticated(session){
       render();
       return;
     }
-    db = await loadRemoteDB();
+    db = remoteDB;
     lastSynced = snapshotDB();
     // A brand-new shop's branches table starts empty in Supabase — nothing
     // ever pushes defaultDB()'s starter branch there on its own. Several
@@ -617,6 +642,23 @@ function queueSave(){
 // upsert failed outright with a 42501 and a false "sync failed" toast,
 // even though the row had, in fact, already saved via the first cycle.
 // Queuing a follow-up cycle instead of running concurrently fixes that.
+//
+// Tried firing every table's upsert via Promise.all instead of this
+// sequential loop (no foreign keys between them -- see schema.sql, each is
+// a standalone id/data-jsonb row, so nothing DB-side requires save order).
+// Reverted it: with ~19 tables racing Postgres at once instead of one
+// having a dedicated early slot in the cycle, an inventory update's
+// realtime echo could arrive back at this same client noticeably later
+// than before -- late enough, in one reproduced case, to land AFTER a
+// subsequent local edit to the same record and silently overwrite it with
+// stale data (handleRemoteChange() has no staleness check; see
+// tests/new-features-batch2.test.js's CSV-import-after-checkout step,
+// which caught this 3/3 runs with the parallel version and 0/3 with this
+// sequential one). Fixing that properly means giving handleRemoteChange a
+// real ordering/staleness guard -- worth doing as its own change, not as a
+// side effect of a speed pass. Login is the actual complaint this round
+// (see handleAuthenticated below and loadRemoteDB's audit_log cap), and
+// neither of those touches this function.
 async function runSaveCycle(){
   if(saveInFlight){ saveAgainNeeded = true; return; }
   saveInFlight = true;
