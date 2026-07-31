@@ -18,7 +18,12 @@ const OUT_DIR = path.join(ROOT, process.env.BUILD_OUT_DIR || 'Mr 4x4 Auto Servic
 const OUT_HTML = path.join(OUT_DIR, 'Mr 4x4 Auto Service.html');
 const OUT_SW = path.join(OUT_DIR, 'service-worker.js');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://knvevgtoigcteqdinyvk.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtudmV2Z3RvaWdjdGVxZGlueXZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NDI1NzUsImV4cCI6MjEwMDQxODU3NX0.iT4voDPce2Ut3PpcOx9jz6jjCCEZ8Ozthu3vVTeykdU';
+// Switched from the legacy JWT-based `anon` key to the newer `publishable`
+// key (same safe-to-embed-client-side purpose, protected by RLS either
+// way) as part of retiring this project's legacy API key pair entirely --
+// see the "Disable JWT-based API keys" step in Supabase's dashboard, done
+// once this new key was confirmed live.
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_GjJArokMq7UFun92T3UagA_E0I7IJOr';
 
 const FILE_ORDER = [
   'error-monitoring.js', // first: sync-engine.js and others call reportError()/identifyStaffForErrorMonitoring()
