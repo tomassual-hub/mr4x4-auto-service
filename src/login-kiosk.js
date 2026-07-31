@@ -10,12 +10,13 @@ function renderLoginScreen(){
       <div class="login-box" style="text-align:center;">
         <div class="login-brand">
           <div class="mark">${logoMarkHtml(160)}</div>
+          <div class="wordmark">ServisPro<span class="wordmark-credit">by Tomas Sual</span></div>
           <div class="sub">${en?'Signing in…':'Sedang log masuk…'}</div>
         </div>
       </div>
     </div>`;
   }
-  const logoBlock = `<div class="mark">${logoMarkHtml(160)}</div>`;
+  const logoBlock = `<div class="mark">${logoMarkHtml(160)}</div><div class="wordmark">ServisPro<span class="wordmark-credit">by Tomas Sual</span></div>`;
   const errBlock = state.loginError ? `<div style="font-size:12px;color:var(--danger);margin-bottom:10px;">${state.loginError}</div>` : '';
   const noticeBlock = state.loginNotice ? `<div style="font-size:12px;color:var(--success);margin-bottom:10px;">${state.loginNotice}</div>` : '';
   const mode = state.authMode || 'login';
