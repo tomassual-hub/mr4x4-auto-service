@@ -498,6 +498,37 @@ tr:hover td{background:var(--glass-highlight);}
 
 /* ---------- LOGIN SCREEN ---------- */
 .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+/* .login-screen-auth (not bare .login-screen -- that class is shared with
+   the QR-attendance punch screen, the anonymous inspection-report/
+   signature page, and the customer self-service kiosk, none of which are
+   "the login page" and were explicitly asked to keep their existing look)
+   matches the reference logo artwork's backdrop (near-black, a soft glow
+   behind the emblem, thin diagonal gold accent lines in opposite corners)
+   instead of the app's usual colorful blob gradient (body's own
+   background, further up this file) -- that gradient exists so the glass
+   panels elsewhere have something saturated to diffuse against, which
+   isn't the mood this screen is going for. Deliberately not theme-
+   conditional: the login screen has no theme toggle of its own (it's
+   reached before a theme preference is loaded/relevant) and always renders
+   this same dark backdrop regardless of state.theme, same as before this
+   change. Opaque background here fully covers body's own gradient sitting
+   behind it -- no z-index changes needed, just normal paint order.*/
+.login-screen-auth{
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(560px 480px at 50% 32%, rgba(242,167,59,.16), transparent 68%),
+    #0b0b0d;
+}
+.login-screen-auth::before,.login-screen-auth::after{
+  content:'';position:absolute;width:2px;height:46vh;min-height:320px;
+  background:linear-gradient(180deg, transparent, var(--accent) 45%, var(--accent-2) 65%, transparent);
+  opacity:.55;pointer-events:none;
+}
+.login-screen-auth::before{top:-8%;right:12%;transform:rotate(35deg);}
+.login-screen-auth::after{bottom:-8%;left:12%;transform:rotate(35deg);}
+@media screen and (max-width:600px){
+  .login-screen-auth::before,.login-screen-auth::after{opacity:.35;}
+}
 .login-box{width:100%;max-width:420px;}
 .login-brand{text-align:center;margin-bottom:30px;}
 .login-brand .mark{font-family:'Oswald',sans-serif;font-weight:700;font-size:22px;line-height:1.3;color:var(--accent);display:flex;align-items:center;justify-content:center;gap:10px;text-align:left;}
