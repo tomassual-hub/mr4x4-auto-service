@@ -28,6 +28,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_GjJAr
 const FILE_ORDER = [
   'error-monitoring.js', // first: sync-engine.js and others call reportError()/identifyStaffForErrorMonitoring()
   'logo-data.js',
+  'servispro-logo-data.js',
   'face-id.js', // before sync-engine.js: initApp()/handleAuthenticated() call its functions
   'sync-engine.js',
   'utils.js',

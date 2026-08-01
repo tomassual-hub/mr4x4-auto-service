@@ -403,6 +403,7 @@ declare const TABLE_MAP: Record<string, string>;
 declare const REVERSE_TABLE_MAP: Record<string, string>;
 declare const ICONS: Record<string, string>;
 declare const LOGO_DATA_URI: string;
+declare const SERVISPRO_LOGO_DATA_URI: string;
 declare const supabaseClient: any;
 declare const Sentry: any; // loaded via CDN <script> in the HTML template, only if SENTRY_DSN is configured
 declare function initErrorMonitoring(): void;
