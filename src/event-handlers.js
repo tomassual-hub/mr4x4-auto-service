@@ -7,6 +7,27 @@
 // UTC date bug) all lived in sync-engine.js/state.js logic, not in this
 // kind of DOM plumbing, so the type-checking value here is low relative to
 // the noise. Fix a genuine bug if you spot one; don't chase the casts.
+let customerSearchDebounceTimer = null;
+let inventorySearchDebounceTimer = null;
+
+// Split out so the targeted-patch input handler (see #global-search below)
+// can re-bind these after replacing #global-search-results-wrap's innerHTML
+// -- that destroys whatever listeners were on the old [data-gs-idx] nodes,
+// same reasoning as pos-search's identical re-bind-after-patch pattern.
+function bindGlobalSearchResultHandlers(){
+  document.querySelectorAll('[data-gs-idx]').forEach(el=>el.addEventListener('mousedown', (e)=>{
+    e.preventDefault();
+    const results = globalSearchResults((state.globalSearch||'').trim());
+    const r = results[Number(/** @type {HTMLElement} */(el).dataset.gsIdx)];
+    if(!r) return;
+    state.globalSearch = '';
+    if(r.action.type==='customer'){ setState({view:'customers'}); }
+    else if(r.action.type==='vehicle'){ const vehicle = getVehicle(r.action.id); setState({view:'customers', modal:{type:'vehicle-history', vehicle}}); }
+    else if(r.action.type==='job'){ const job = db.jobs.find(j=>j.id===r.action.id); setState({view:'jobs', modal:{type:'job-detail', job}}); }
+    else if(r.action.type==='invoice'){ setState({view:'pos'}); }
+  }));
+}
+
 /* ============================= EVENT HANDLERS ============================= */
 function attachHandlers(){
   document.querySelectorAll('[data-nav]').forEach(el=>el.addEventListener('click', ()=>setState({view:el.dataset.nav, navOpen:false, globalSearch:''})));
@@ -15,7 +36,13 @@ function attachHandlers(){
   const gSearch = document.getElementById('global-search');
   if(gSearch){
     gSearch.addEventListener('input', ()=>{
-      state.globalSearch = gSearch.value; render(); focusEnd('global-search');
+      state.globalSearch = gSearch.value;
+      // Patch just the results dropdown instead of calling render() -- see
+      // renderGlobalSearchResultsHTML's comment. This also means the input
+      // itself is never destroyed/recreated, so focus/cursor position stays
+      // put on its own; no focusEnd() workaround needed here anymore.
+      const wrap = document.getElementById('global-search-results-wrap');
+      if(wrap){ wrap.innerHTML = renderGlobalSearchResultsHTML(); bindGlobalSearchResultHandlers(); }
     });
     gSearch.addEventListener('blur', ()=>{
       // Delayed so a click on a search result (which can open a modal before
@@ -25,20 +52,11 @@ function attachHandlers(){
       setTimeout(()=>{ state.globalSearch=''; maybeRerender(); }, 150);
     });
   }
-  document.querySelectorAll('[data-gs-idx]').forEach(el=>el.addEventListener('mousedown', (e)=>{
-    e.preventDefault();
-    const results = globalSearchResults((state.globalSearch||'').trim());
-    const r = results[Number(el.dataset.gsIdx)];
-    if(!r) return;
-    state.globalSearch = '';
-    if(r.action.type==='customer'){ setState({view:'customers'}); }
-    else if(r.action.type==='vehicle'){ const vehicle = getVehicle(r.action.id); setState({view:'customers', modal:{type:'vehicle-history', vehicle}}); }
-    else if(r.action.type==='job'){ const job = db.jobs.find(j=>j.id===r.action.id); setState({view:'jobs', modal:{type:'job-detail', job}}); }
-    else if(r.action.type==='invoice'){ setState({view:'pos'}); }
-  }));
+  bindGlobalSearchResultHandlers();
   document.querySelectorAll('[data-action="open-nav"]').forEach(el=>el.addEventListener('click', ()=>setState({navOpen:true})));
   document.querySelectorAll('[data-action="close-nav"]').forEach(el=>el.addEventListener('click', ()=>setState({navOpen:false})));
   bindAction('toggle-notif', ()=>setState({notifOpen: !state.notifOpen}));
+  bindAction('retry-sync-now', async ()=>{ await runSaveCycle(); });
   document.querySelectorAll('[data-notif-nav]').forEach(el=>el.addEventListener('click', ()=>{
     if(el.dataset.notifNav==='mfa-settings'){ setState({modal:{type:'mfa-settings'}, notifOpen:false}); return; }
     setState({view:el.dataset.notifNav, notifOpen:false});
@@ -57,8 +75,23 @@ function attachHandlers(){
   });
   document.querySelectorAll('[data-jobfilter]').forEach(el=>el.addEventListener('click', ()=>setState({jobFilter:el.dataset.jobfilter, jobsShowCount:30})));
   bindAction('load-more-jobs', ()=>setState({jobsShowCount:(state.jobsShowCount||30)+30}));
-  document.querySelectorAll('[data-invtab]').forEach(el=>el.addEventListener('click', ()=>setState({invTab:el.dataset.invtab})));
+  document.querySelectorAll('[data-invtab]').forEach(el=>el.addEventListener('click', ()=>setState({invTab:el.dataset.invtab, inventoryShowCount:30})));
   document.querySelectorAll('[data-invmaintab]').forEach(el=>el.addEventListener('click', ()=>setState({invMainTab:el.dataset.invmaintab})));
+  bindAction('load-more-inventory', ()=>setState({inventoryShowCount:(state.inventoryShowCount||30)+30}));
+  bindAction('load-more-po', ()=>setState({poShowCount:(state.poShowCount||30)+30}));
+  const invSearch = document.getElementById('inventory-search');
+  if(invSearch){
+    invSearch.addEventListener('input', ()=>{
+      // Same debounce reasoning as customer-search above — Inventory's
+      // "Semua" tab was previously fully unbounded (no cap, no search at
+      // all), so this is both the search feature and the fix for that.
+      clearTimeout(inventorySearchDebounceTimer);
+      inventorySearchDebounceTimer = setTimeout(()=>{
+        state.inventorySearch = invSearch.value; state.inventoryShowCount = 30; render();
+        focusEnd('inventory-search');
+      }, 180);
+    });
+  }
   bindAction('new-supplier', ()=>setState({modal:{type:'new-supplier'}}));
   bindAllAction('edit-supplier', el=>{
     const supplier = db.suppliers.find(s=>s.id===el.dataset.id);
@@ -481,7 +514,8 @@ function attachHandlers(){
 
   // Workshop CRM: leads / pipeline
   document.querySelectorAll('[data-customertab]').forEach(el=>el.addEventListener('click', ()=>setState({customerTab:el.dataset.customertab})));
-  document.querySelectorAll('[data-leadfilter]').forEach(el=>el.addEventListener('click', ()=>setState({leadStatusFilter:el.dataset.leadfilter})));
+  document.querySelectorAll('[data-leadfilter]').forEach(el=>el.addEventListener('click', ()=>setState({leadStatusFilter:el.dataset.leadfilter, leadsShowCount:30})));
+  bindAction('load-more-leads', ()=>setState({leadsShowCount:(state.leadsShowCount||30)+30}));
   bindAction('new-lead', ()=>setState({modal:{type:'new-lead'}}));
   bindAction('save-lead', ()=>{
     const en = state.language==='en';
@@ -597,9 +631,20 @@ function attachHandlers(){
   const custSearch = document.getElementById('customer-search');
   if(custSearch){
     custSearch.addEventListener('input', ()=>{
-      state.customerSearch = custSearch.value; state.customersShowCount = 30; render();
-      const el2 = document.getElementById('customer-search');
-      if(el2){ el2.focus(); try{ el2.setSelectionRange(el2.value.length, el2.value.length); }catch(e){} }
+      // Debounced rather than a render() per keystroke -- this view's own
+      // grid is already capped to 30 (state.customersShowCount), but every
+      // keystroke was still rebuilding the entire app shell (sidebar/
+      // topbar) around it for no reason. customerSearchDebounceTimer is
+      // module-level (not local to this closure) so a later attachHandlers()
+      // call -- which reruns after every render(), including ones unrelated
+      // to this input -- can still find and clear a timer set up by an
+      // earlier one, rather than letting it fire against a since-detached
+      // DOM node.
+      clearTimeout(customerSearchDebounceTimer);
+      customerSearchDebounceTimer = setTimeout(()=>{
+        state.customerSearch = custSearch.value; state.customersShowCount = 30; render();
+        focusEnd('customer-search');
+      }, 180);
     });
   }
   bindAction('load-more-customers', ()=>setState({customersShowCount:(state.customersShowCount||30)+30}));
@@ -640,6 +685,9 @@ function attachHandlers(){
   });
   bindAction('print-attendance-qr', ()=>{
     if(state.modal && state.modal.staffMember) printAttendanceQr(state.modal.staffMember);
+  });
+  bindAllAction('print-attendance-summary', el=>{
+    printAttendanceSummary(el.dataset.staffid, el.dataset.month);
   });
   bindAllAction('edit-attendance', el=>{
     const record = (db.attendance||[]).find(a=>a.id===el.dataset.id);
@@ -902,8 +950,9 @@ function attachHandlers(){
 
   // Settings
   bindAction('save-settings', ()=>{
-    db.settings.shopName = document.getElementById('set-shopname').value.trim() || 'Mr 4x4 Auto Service';
+    db.settings.shopName = document.getElementById('set-shopname').value.trim();
     db.settings.shopPhone = document.getElementById('set-shopphone').value.trim();
+    db.settings.countryCode = document.getElementById('set-countrycode').value.replace(/[^0-9]/g,'').trim() || '60';
     db.settings.shopAddress = document.getElementById('set-shopaddress').value.trim();
     db.settings.servicedBrands = document.getElementById('set-brands').value.split(',').map(x=>x.trim()).filter(Boolean);
     db.settings.shopRegNo = document.getElementById('set-shopregno').value.trim();

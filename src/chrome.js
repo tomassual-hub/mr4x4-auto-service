@@ -151,19 +151,60 @@ function syncIndicatorLabel(){
   if(state.syncStatus==='error') return en?'Sync failed — check your connection':'Segerak gagal — semak sambungan';
   return en?'Synced':'Disegerak';
 }
+// A save failure used to only ever surface as a 2.2s toast (see showToast's
+// duration logic) plus this small header dot -- easy to miss entirely in a
+// busy POS/job-card workflow, and by the time anyone noticed, the record
+// that failed to save had no other trace. Keep a persistent, undismissable-
+// until-resolved banner up for as long as syncStatus stays 'error', updated
+// via direct DOM patch (like the toast) rather than a full render() so it
+// doesn't interrupt whatever the user's mid-typing elsewhere.
+function renderSyncErrorBanner(){
+  const en = state.language==='en';
+  return `<div id="sync-error-banner" class="sync-error-banner" style="display:${state.syncStatus==='error'?'flex':'none'};">
+    ${ICONS.alert}
+    <span>${en?"Some changes haven't reached the server yet — retrying automatically.":'Sebahagian perubahan belum sampai ke pelayan — cuba semula automatik.'}</span>
+    <button class="btn btn-sm btn-outline" data-action="retry-sync-now">${en?'Retry now':'Cuba sekarang'}</button>
+  </div>`;
+}
 function updateSyncIndicator(){
   const el = document.getElementById('sync-indicator');
-  if(!el) return;
-  el.className = 'sync-indicator ' + syncIndicatorClass();
-  el.title = syncIndicatorLabel();
+  if(el){
+    el.className = 'sync-indicator ' + syncIndicatorClass();
+    el.title = syncIndicatorLabel();
+  }
+  const banner = document.getElementById('sync-error-banner');
+  if(banner) banner.style.display = state.syncStatus==='error' ? 'flex' : 'none';
 }
 
+// Split out from renderTopbar so the input's own 'input' handler can patch
+// just this dropdown (see attachHandlers' #global-search listener) instead
+// of calling the full render() -- that used to rebuild the ENTIRE app
+// (sidebar/topbar/whatever page you're on) on every keystroke, which gets
+// expensive fast on a page with a large unbounded list (Inventory, POS's
+// customer dropdown) even though none of that content has anything to do
+// with this search box.
+function renderGlobalSearchResultsHTML(){
+  const en = state.language==='en';
+  const q = state.globalSearch||'';
+  if(!q.trim()) return '';
+  const results = globalSearchResults(q.trim());
+  return `
+  <div class="global-search-results">
+    ${results.length===0 ? `<div class="gs-empty">${en?`No matches for "${esc(q)}".`:`Tiada padanan untuk "${esc(q)}".`}</div>` : results.map((r,idx)=>`
+      <div class="gs-item" data-gs-idx="${idx}">
+        <div class="gs-type">${esc(r.typeLabel)}</div>
+        <div>
+          <div class="gs-label">${esc(r.label)}</div>
+          <div class="gs-sub">${esc(r.sub)}</div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
 function renderTopbar(){
   const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll'), techref: state.language==='en'?'Technical Reference':'Rujukan Teknikal'};
   const en = state.language==='en';
   const s = state.currentStaff;
   const q = state.globalSearch||'';
-  const results = q.trim() ? globalSearchResults(q.trim()) : [];
   return `
   <div class="topbar">
     <div class="topbar-left">
@@ -175,17 +216,7 @@ function renderTopbar(){
     </div>
     <div class="global-search-wrap">
       <div class="search-box" style="margin-bottom:0;">${ICONS.search}<input id="global-search" placeholder="${t('search_placeholder')}" value="${esc(q)}"></div>
-      ${q.trim() ? `
-      <div class="global-search-results">
-        ${results.length===0 ? `<div class="gs-empty">${en?`No matches for "${esc(q)}".`:`Tiada padanan untuk "${esc(q)}".`}</div>` : results.map((r,idx)=>`
-          <div class="gs-item" data-gs-idx="${idx}">
-            <div class="gs-type">${esc(r.typeLabel)}</div>
-            <div>
-              <div class="gs-label">${esc(r.label)}</div>
-              <div class="gs-sub">${esc(r.sub)}</div>
-            </div>
-          </div>`).join('')}
-      </div>` : ''}
+      <div id="global-search-results-wrap">${renderGlobalSearchResultsHTML()}</div>
     </div>
     <div class="user-badge">
       <div id="sync-indicator" class="sync-indicator ${syncIndicatorClass()}" title="${syncIndicatorLabel()}"><span class="sync-dot"></span></div>

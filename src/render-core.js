@@ -122,6 +122,7 @@ function render(){
       <div class="sidebar-backdrop ${state.navOpen?'show':''}" data-action="close-nav"></div>
       <div class="main">
         ${renderTopbar()}
+        ${renderSyncErrorBanner()}
         <div class="content">${renderView()}</div>
       </div>
       ${renderMobileTabBar()}

@@ -436,6 +436,9 @@ tr:hover td{background:var(--glass-highlight);}
 @keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
 .modal h2{font-family:'Oswald',sans-serif;margin:0 0 19px;font-size:18px;letter-spacing:-.2px;}
 .conflict-warning{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent-shadow);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;margin-bottom:16px;}
+.sync-error-banner{align-items:center;gap:10px;background:rgba(225,75,75,.14);color:var(--danger);border-bottom:1px solid rgba(225,75,75,.35);padding:9px 20px;font-size:12.5px;font-weight:600;}
+.sync-error-banner svg{flex-shrink:0;}
+.sync-error-banner span{flex:1;}
 .modal-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:22px;padding-top:19px;border-top:1px solid var(--glass-border);}
 
 .empty{text-align:center;padding:56px 20px;color:var(--text-muted);}

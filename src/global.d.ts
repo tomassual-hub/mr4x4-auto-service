@@ -268,6 +268,7 @@ interface ShopSettings {
   servicedBrands?: string[];
   monthlySalesTarget?: number;
   monthlyUnitTarget?: number;
+  countryCode?: string;
 }
 
 interface Counters { job: number; invoice: number; po: number; creditNote: number; quote: number; }
@@ -499,6 +500,7 @@ declare function renderView(): string;
 declare function renderSidebar(): string;
 declare function renderMobileTabBar(): string;
 declare function renderTopbar(): string;
+declare function renderSyncErrorBanner(): string;
 declare function renderModal(): string;
 declare function renderConfirmModal(): string;
 declare function renderOnboarding(): string;
@@ -546,6 +548,7 @@ declare function faceIdSettingsModalHTML(): string;
 
 // ---- Setup / lifecycle ----
 declare function attachHandlers(): void;
+declare function bindGlobalSearchResultHandlers(): void;
 declare function attachLoginHandlers(): void;
 declare function attachKioskHandlers(): void;
 declare function resetInactivityTimer(): void;
@@ -568,6 +571,7 @@ declare function initials(name: string): string;
 declare function focusEnd(id: string): void;
 declare function downloadCSV(filename: string, headers: string[], rows: any[][]): void;
 declare function globalSearchResults(q: string): { typeLabel: string; label: string; sub: string; action: { type: string; id: string } }[];
+declare function renderGlobalSearchResultsHTML(): string;
 
 // ---- Counters / printing ----
 declare function nextJobNo(): Promise<string>;
@@ -582,3 +586,4 @@ declare function printPayslip(record: PayrollRecord): void;
 declare function printJobCard(job: Job): void;
 declare function printVehicleQR(v: Vehicle): void;
 declare function printAttendanceQr(staffMember: Staff): void;
+declare function printAttendanceSummary(staffId: string, month: string): void;

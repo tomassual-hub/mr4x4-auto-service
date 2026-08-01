@@ -3,6 +3,8 @@ let db = null;
 let saveTimer = null;
 let saveInFlight = false;
 let saveAgainNeeded = false;
+let saveRetryTimer = null;
+const SAVE_RETRY_MS = 8000;
 let inactivityTimer = null;
 const INACTIVITY_LOCK_MS = 5*60*1000; // auto-lock after 5 minutes of no interaction
 function resetInactivityTimer(){
@@ -45,7 +47,7 @@ function defaultDB(){
     attendance: [],
     quotations: [],
     bays: [],
-    settings: { shopName:'Mr 4x4 Auto Service', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null, servicedBrands:[], monthlySalesTarget:0, monthlyUnitTarget:0 },
+    settings: { shopName:'', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', lastBackupAt:null, servicedBrands:[], monthlySalesTarget:0, monthlyUnitTarget:0, countryCode:'60' },
     counters: { job: 1, invoice: 1, po: 1, creditNote: 1, quote: 1 }
   };
 }
@@ -296,6 +298,28 @@ function handleRemoteChange(table, payload){
     // with no error. This is a real race even on a single device — e.g.
     // creating a job and immediately reopening it before that job's own
     // realtime echo comes back.
+    // Tried adding a staleness guard here: skip applying an incoming echo
+    // when this record has a pending local edit AND the echo's data
+    // (whole-record) differs from current local state, on the theory that
+    // it's more likely a delayed echo of an older write than something
+    // worth applying (see runSaveCycle's reverted parallelization comment
+    // for the original race this was meant to close). Reverted it after
+    // tests/new-features-batch2.test.js caught a worse regression it
+    // introduced: a job record touched by TWO unrelated actors close
+    // together (staff editing the inspection checklist locally, not yet
+    // synced, while a customer's kiosk-submitted signature arrives as a
+    // genuinely new echo for a DIFFERENT field on the same job) got the
+    // signature echo silently dropped, because the guard's whole-record
+    // diff can't tell "stale echo of our own old write" apart from
+    // "legitimate concurrent edit to an unrelated field" -- both look like
+    // "record has a pending local edit AND the echo differs from current
+    // state." A correct fix needs per-field comparison (or real
+    // version/timestamps), not a bigger lift to get right and test than
+    // belongs in this pass. The narrow race this was chasing is also
+    // already less likely now that runSaveCycle stays sequential rather
+    // than parallel (see that comment) -- reverting to plain apply-on-
+    // arrival here rather than trade a common multi-actor case for a rarer
+    // single-actor one.
     if(idx>-1) Object.assign(arr[idx], rec); else arr.push(rec);
     if(lastSynced && lastSynced[key]) lastSynced[key].set(id, key==='staff' ? staffDiffKey(rec) : JSON.stringify(rec));
     // Someone else just changed a record while this staff member has it open
@@ -606,6 +630,12 @@ async function initApp(){
         if(session) await handleAuthenticated(session);
       }catch(e){ /* still offline or another issue — will retry on the next online event */ }
     }
+    // A mid-session save failure (network blip while already logged in)
+    // never sets offlineMode -- only syncStatus='error' -- so it fell
+    // through the branch above entirely and had to wait for the fixed
+    // SAVE_RETRY_MS timer instead of reconnecting immediately. Retry right
+    // away here too.
+    if(state.syncStatus==='error' && state.currentStaff && !state.offlineMode) queueSave();
   });
   // Mobile browsers can fully suspend a backgrounded tab's timers/sockets
   // (screen lock, switching to another app for a while) — the realtime
@@ -620,6 +650,17 @@ async function initApp(){
     if(document.visibilityState==='visible' && state.currentStaff && !state.offlineMode){
       unsubscribeRealtime();
       subscribeRealtime();
+    }
+  });
+  // Without this, closing the tab/reloading while a save is still failing
+  // (or simply mid-flight) silently drops whatever hasn't reached Supabase
+  // yet -- there's no offline write queue, db only lives in memory until a
+  // save actually lands. The browser's own confirm dialog is the one
+  // reliable way to make that moment NOT silent.
+  window.addEventListener('beforeunload', (e)=>{
+    if(state.syncStatus==='syncing' || state.syncStatus==='error'){
+      e.preventDefault();
+      e.returnValue = '';
     }
   });
 }
@@ -674,11 +715,21 @@ async function runSaveCycle(){
     lastSynced = newSnap;
     state.syncStatus = 'idle';
     updateSyncIndicator();
+    clearTimeout(saveRetryTimer);
+    saveRetryTimer = null;
   }catch(e){
     reportError(e, 'Gagal simpan data');
     state.syncStatus = 'error';
     updateSyncIndicator();
     showToast(state.language==='en' ? 'Sync failed — check your internet connection.' : 'Segerak gagal — semak sambungan internet anda.');
+    // Previously a failed cycle only ever retried if some OTHER local edit
+    // happened to call queueSave() again -- a save could fail once and then
+    // sit silently unsynced indefinitely if the user didn't touch anything
+    // else before closing the tab (see the beforeunload guard in initApp
+    // for the other half of this fix). Keep retrying on a fixed interval
+    // regardless of further user activity.
+    clearTimeout(saveRetryTimer);
+    saveRetryTimer = setTimeout(queueSave, SAVE_RETRY_MS);
   }finally{
     saveInFlight = false;
     if(saveAgainNeeded){ saveAgainNeeded = false; queueSave(); }
