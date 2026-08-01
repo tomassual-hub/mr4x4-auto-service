@@ -4,29 +4,15 @@
 // without a discriminant. Low type-checking value relative to the noise.
 function renderLoginScreen(){
   const en = state.language==='en';
-  // Real ServisPro features, not the generic placeholder set from the
-  // reference mockup the user shared (that one showed a different app's
-  // screenshots entirely) -- shown on the wide desktop split-screen
-  // layout only (login-screen-auth's own CSS hides it below the
-  // breakpoint, where there's no room for it next to the login form).
+  // Workshop illustration from the reference "ServisPro Management" slide
+  // the user shared, cropped to just its left panel -- shown on the wide
+  // desktop split-screen layout only (login-screen-auth's own CSS hides it
+  // below the breakpoint, where there's no room for it next to the login
+  // form).
   const featuresPanel = `
     <div class="login-features">
-      <div class="login-features-heading">${en?'Key Features':'Ciri Utama'}</div>
-      <div class="login-feature-item">
-        <div class="login-feature-icon">${ICONS.jobs}</div>
-        <div><div class="login-feature-title">${en?'Digital Job Cards':'Kad Kerja Digital'}</div><div class="login-feature-desc">${en?'Real workshop-style job tickets with digital signatures and before/after photos.':'Tiket kerja gaya bengkel sebenar dengan tandatangan digital dan gambar sebelum/selepas.'}</div></div>
-      </div>
-      <div class="login-feature-item">
-        <div class="login-feature-icon">${ICONS.inventory}</div>
-        <div><div class="login-feature-title">${en?'Inventory & Suppliers':'Inventori & Pembekal'}</div><div class="login-feature-desc">${en?'Track stock levels and generate purchase orders automatically.':'Jejak tahap stok dan jana pesanan belian secara automatik.'}</div></div>
-      </div>
-      <div class="login-feature-item">
-        <div class="login-feature-icon">${ICONS.pos}</div>
-        <div><div class="login-feature-title">${en?'POS & Invoicing':'POS & Invois'}</div><div class="login-feature-desc">${en?'Fast checkout, SST-ready invoices, and split payments.':'Checkout pantas, invois sedia SST, dan bayaran berbilang.'}</div></div>
-      </div>
-      <div class="login-feature-item">
-        <div class="login-feature-icon">${ICONS.customers}</div>
-        <div><div class="login-feature-title">${en?'Customers & Vehicles':'Pelanggan & Kenderaan'}</div><div class="login-feature-desc">${en?'Full service history with automatic reminders for the next visit.':'Sejarah servis penuh dengan peringatan automatik untuk lawatan seterusnya.'}</div></div>
+      <div class="login-illustration">
+        <img src="${WORKSHOP_ILLUSTRATION_DATA_URI}" alt="ServisPro workshop" width="760" height="865">
       </div>
     </div>`;
   if(state.authBusy){

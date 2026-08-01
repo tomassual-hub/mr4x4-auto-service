@@ -526,22 +526,23 @@ tr:hover td{background:var(--glass-highlight);}
 }
 .login-screen-auth::before{top:-8%;right:12%;transform:rotate(35deg);}
 .login-screen-auth::after{bottom:-8%;left:12%;transform:rotate(35deg);}
-/* Feature highlights shown beside the login form on wide screens (real
-   ServisPro features, not decorative filler). Hidden by default -- markup
-   order is features-then-login-box, so once the breakpoint below turns it
-   back into a flex item, .login-screen-auth's inherited row-flex places it
-   to the LEFT of .login-box with no extra markup needed. Below the
-   breakpoint there's no room for a second column, so it stays hidden and
-   the login form alone remains centered exactly as before this change. */
+/* Workshop illustration shown beside the login form on wide screens.
+   Hidden by default -- markup order is features-then-login-box, so once
+   the breakpoint below turns it back into a flex item, .login-screen-auth's
+   inherited row-flex places it to the LEFT of .login-box with no extra
+   markup needed. Below the breakpoint there's no room for a second column,
+   so it stays hidden and the login form alone remains centered exactly as
+   before this change. */
 .login-features{display:none;}
-.login-features-heading{font-family:'Oswald',sans-serif;font-weight:700;font-size:12.5px;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
-.login-feature-item{display:flex;gap:15px;align-items:flex-start;}
-.login-feature-icon{width:42px;height:42px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);}
-.login-feature-title{font-family:'Inter',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);margin-bottom:3px;}
-.login-feature-desc{font-size:12.5px;line-height:1.55;color:var(--text-muted);}
+.login-illustration{
+  border-radius:20px;overflow:hidden;line-height:0;
+  border:1px solid rgba(242,167,59,.25);
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.6), 0 0 0 1px rgba(242,167,59,.08);
+}
+.login-illustration img{display:block;width:100%;height:auto;}
 @media screen and (min-width:960px){
   .login-screen-auth{gap:64px;}
-  .login-features{display:flex;flex-direction:column;gap:26px;max-width:380px;text-align:left;}
+  .login-features{display:flex;max-width:400px;}
 }
 @media screen and (max-width:600px){
   .login-screen-auth::before,.login-screen-auth::after{opacity:.35;}

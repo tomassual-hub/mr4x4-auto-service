@@ -29,6 +29,7 @@ const FILE_ORDER = [
   'error-monitoring.js', // first: sync-engine.js and others call reportError()/identifyStaffForErrorMonitoring()
   'logo-data.js',
   'servispro-logo-data.js',
+  'workshop-illustration-data.js',
   'face-id.js', // before sync-engine.js: initApp()/handleAuthenticated() call its functions
   'sync-engine.js',
   'utils.js',
