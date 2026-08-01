@@ -535,35 +535,38 @@ tr:hover td{background:var(--glass-highlight);}
    before this change. */
 .login-features{display:none;}
 .login-illustration{
-  position:relative;width:100%;
-  border-radius:20px;overflow:hidden;line-height:0;
-  border:1px solid rgba(242,167,59,.25);
-  box-shadow:0 24px 60px -20px rgba(0,0,0,.6), 0 0 0 1px rgba(242,167,59,.08);
+  position:relative;width:100%;height:100%;
+  overflow:hidden;line-height:0;
 }
-.login-illustration img{display:block;width:100%;height:auto;}
+.login-illustration img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;}
 /* Feature strip overlaid on the image itself (scrimmed for legibility)
    instead of stacked below it -- there's no spare vertical room for a
-   full description list once the image is sized up close to its native
-   760px resolution. */
+   full description list once the image fills the whole panel height. */
 .login-illustration-strip{
   position:absolute;left:0;right:0;bottom:0;
   display:flex;justify-content:space-around;align-items:center;
-  padding:16px 8px 14px;
+  padding:18px 8px 16px;
   background:linear-gradient(180deg, transparent, rgba(6,6,7,.85) 55%, rgba(6,6,7,.94));
 }
 .lif-item{display:flex;flex-direction:column;align-items:center;gap:6px;color:#F3F0E8;font-size:10.5px;font-weight:600;letter-spacing:.15px;text-align:center;}
 .lif-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(242,167,59,.24);color:var(--accent);}
 @media screen and (min-width:960px){
-  .login-screen-auth{gap:72px;}
-  /* flex:1 (not a fixed width) so this grows with the viewport instead of
-     capping out at a small fixed card -- max-width matches the source
-     illustration's native 760px so it never upscales past its own
-     resolution and blurs. The login box's own fixed 420px max-width means
-     none of this growth can overflow: it only ever eats into the empty
-     space the centered flex row would otherwise leave blank, which is
-     also what visibly pushes the login form further right as this column
-     widens on bigger screens. */
-  .login-features{display:flex;flex:1 1 380px;max-width:680px;min-width:0;}
+  /* True edge-to-edge full-bleed panel now (was a padded, rounded-corner
+     card) -- .login-screen's own 20px padding and this row's old gap only
+     applied to the mobile/tablet centered-card layout below the
+     breakpoint; both are zeroed here so the illustration can reach the
+     screen's actual top/left/bottom edges. align-items:stretch (was
+     center) is what lets a flex child fill the full row height without
+     an explicit height number tied to a specific viewport. The login side
+     gets its lost edge padding back directly on .login-box instead, plus
+     its own vertical centering since the row no longer provides any. */
+  .login-screen-auth{padding:0;gap:0;align-items:stretch;}
+  .login-features{display:flex;flex:0 0 45%;min-width:0;}
+  .login-illustration{box-shadow:10px 0 44px -14px rgba(0,0,0,.7);}
+  .login-box{
+    flex:1;max-width:520px;margin:0 auto;box-sizing:border-box;
+    padding:40px 56px;display:flex;flex-direction:column;justify-content:center;
+  }
 }
 @media screen and (max-width:600px){
   .login-screen-auth::before,.login-screen-auth::after{opacity:.35;}

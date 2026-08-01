@@ -17,7 +17,7 @@ function renderLoginScreen(){
   const featuresPanel = `
     <div class="login-features">
       <div class="login-illustration">
-        <img src="${WORKSHOP_ILLUSTRATION_DATA_URI}" alt="ServisPro workshop" width="760" height="865">
+        <img src="${WORKSHOP_ILLUSTRATION_DATA_URI}" alt="ServisPro workshop" width="805" height="916">
         <div class="login-illustration-strip">
           <div class="lif-item"><span class="lif-icon">${ICONS.jobs}</span>${en?'Job Cards':'Kad Kerja'}</div>
           <div class="lif-item"><span class="lif-icon">${ICONS.inventory}</span>${en?'Inventory':'Inventori'}</div>
