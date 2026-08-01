@@ -45,6 +45,14 @@ function viewDashboard(){
   ];
 
   return `
+  <div class="panel" style="margin-bottom:22px;text-align:center;padding:26px 20px;">
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;">
+      <div style="height:44px;">${logoMarkHtml(44)}</div>
+      <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.5px;color:var(--accent);">ServisPro</div>
+    </div>
+    <div style="font-size:12.5px;color:var(--text-muted);margin-top:8px;">${en?'Workspace':'Ruang Kerja'}: <strong style="color:var(--text);">${esc(db.settings.shopName)}</strong></div>
+  </div>
+
   <div class="panel" style="margin-bottom:22px;">
     <h2>${ICONS.repeat} ${en?'Workshop Workflow':'Aliran Kerja Bengkel'}</h2>
     <div class="grid grid-4" style="gap:12px;">
