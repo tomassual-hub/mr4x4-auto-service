@@ -132,7 +132,11 @@ async function run(){
   await page.fill('[data-cn-qty-idx="0"]', '1');
   await page.fill('#cn-reason', 'RCI credit note test');
   await page.click('[data-action="save-credit-note"]');
-  await page.waitForTimeout(600);
+  // Same reasoning as the checkout/invoice-number wait above: creditNoteNo
+  // comes from nextCreditNoteNo(), a real network round-trip, so a fixed
+  // sleep here is exactly the flake class already fixed for invoices --
+  // poll instead of guessing a duration that covers CI's Supabase latency.
+  await page.waitForFunction(() => (db.creditNotes||[]).some(cn=>cn.reason==='RCI credit note test'), { timeout: 10000 }).catch(()=>{});
   const creditNote = await page.evaluate(() => (db.creditNotes||[]).find(cn=>cn.reason==='RCI credit note test'));
   r.checkTrue('credit note created', !!creditNote);
   r.check('credit note subtotal RM30 (1x RM30)', creditNote?.subtotal, 30);
