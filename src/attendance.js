@@ -65,16 +65,32 @@ function computeAttendanceSummary(staffId, monthStr){
   for(let day=1; day<=daysInMonth; day++){
     const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     if(dateStr>todayStr) break; // don't show/count days that haven't happened yet
-    const dayRecords = records.filter(a=>localDateStr(new Date(a.ts))===dateStr);
-    const ins = dayRecords.filter(a=>a.type==='in').map(a=>a.ts);
-    const outs = dayRecords.filter(a=>a.type==='out').map(a=>a.ts);
-    const inTs = ins.length ? Math.min(...ins) : null;
-    const outTs = outs.length ? Math.max(...outs) : null;
-    const hours = (inTs && outTs && outTs>inTs) ? (outTs-inTs)/3600000 : 0;
-    const present = !!inTs;
+    const dayRecords = records.filter(a=>localDateStr(new Date(a.ts))===dateStr).sort((a,b)=>a.ts-b.ts);
+    // Pair each 'in' with the next 'out' that follows it and sum each
+    // session separately, instead of spanning earliest-in to latest-out --
+    // the latter used to silently count a lunch break (or any gap between
+    // two clock-in sessions in the same day) as worked time.
+    let hours = 0, firstInTs = null, lastOutTs = null, openInTs = null;
+    dayRecords.forEach(r=>{
+      if(r.type==='in'){
+        if(firstInTs===null) firstInTs = r.ts;
+        if(openInTs===null) openInTs = r.ts; // a second 'in' before any 'out' -- ignore the duplicate
+      } else if(openInTs!==null && r.ts>openInTs){
+        hours += (r.ts-openInTs)/3600000;
+        lastOutTs = r.ts;
+        openInTs = null;
+      } else if(firstInTs===null){
+        // an 'out' with no preceding 'in' that day -- an anomaly (forgot to
+        // punch in, or a stray record), not a real session. Don't treat the
+        // day as present off the back of it alone.
+        lastOutTs = r.ts;
+      }
+    });
+    const present = firstInTs!==null;
+    const incomplete = present && openInTs!==null; // clocked in, never clocked out (still working, or forgot)
     if(present) presentDays++; else absentDays++;
     totalHours += hours;
-    days.push({ dateStr, inTs, outTs, hours, present });
+    days.push({ dateStr, inTs: present?firstInTs:null, outTs: present?lastOutTs:null, hours, present, incomplete });
   }
   return { presentDays, absentDays, totalHours, days: days.reverse() }; // most recent first
 }
@@ -122,8 +138,8 @@ function attendanceSummaryModalHTML(staffId){
             </td>
             <td style="white-space:nowrap;font-weight:600;">${dayName(d.dateStr)} ${d.dateStr.slice(8,10)}/${d.dateStr.slice(5,7)}</td>
             <td>${timeOnly(d.inTs)}</td>
-            <td>${timeOnly(d.outTs)}</td>
-            <td>${d.present ? `${d.hours.toFixed(1)}h` : `<span class="pill pill-low">${en?'Absent':'Tidak Hadir'}</span>`}</td>
+            <td>${d.incomplete ? `<span class="pill pill-wait">${en?'Not out yet':'Belum Keluar'}</span>` : timeOnly(d.outTs)}</td>
+            <td>${!d.present ? `<span class="pill pill-low">${en?'Absent':'Tidak Hadir'}</span>` : d.incomplete ? '—' : `${d.hours.toFixed(1)}h`}</td>
           </tr>`).join('')}
       </tbody>
     </table>
