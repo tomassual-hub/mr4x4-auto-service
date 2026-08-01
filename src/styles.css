@@ -561,7 +561,7 @@ tr:hover td{background:var(--glass-highlight);}
      gets its lost edge padding back directly on .login-box instead, plus
      its own vertical centering since the row no longer provides any. */
   .login-screen-auth{padding:0;gap:0;align-items:stretch;}
-  .login-features{display:flex;flex:0 0 45%;min-width:0;}
+  .login-features{display:flex;flex:0 0 50%;min-width:0;}
   .login-illustration{box-shadow:10px 0 44px -14px rgba(0,0,0,.7);}
   .login-box{
     flex:1;max-width:520px;margin:0 auto;box-sizing:border-box;
