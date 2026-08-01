@@ -502,8 +502,16 @@ tr:hover td{background:var(--glass-highlight);}
 .login-brand{text-align:center;margin-bottom:30px;}
 .login-brand .mark{font-family:'Oswald',sans-serif;font-weight:700;font-size:22px;line-height:1.3;color:var(--accent);display:flex;align-items:center;justify-content:center;gap:10px;text-align:left;}
 .login-brand .mark img,.login-brand .mark [role="img"]{filter:drop-shadow(0 10px 22px var(--accent-shadow));}
-.login-brand .wordmark{font-family:'Oswald',sans-serif;font-weight:600;font-size:21px;letter-spacing:-.3px;color:var(--text);margin-top:14px;display:flex;flex-direction:column;align-items:center;gap:3px;}
-.login-brand .wordmark-credit{font-family:'Inter',sans-serif;font-weight:500;font-size:10.5px;letter-spacing:.3px;color:var(--text-muted);}
+/* Matches the reference logo artwork's title treatment (rounded gradient
+   wordmark + a dash-flanked tagline underneath) using this app's own type
+   system rather than pulling in a new webfont just for this: Inter is
+   already loaded and reads far closer to the source image's rounded
+   letterforms than Oswald's condensed display style, which is what this
+   used before. */
+.login-brand .wordmark{font-family:'Inter',sans-serif;font-weight:800;font-size:34px;letter-spacing:-.5px;margin-top:16px;background:linear-gradient(135deg, var(--accent), var(--accent-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.login-brand .wordmark-tagline{font-family:'Inter',sans-serif;font-weight:500;font-size:12px;letter-spacing:.3px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;}
+.login-brand .wordmark-tagline::before,.login-brand .wordmark-tagline::after{content:'';width:18px;height:1px;background:var(--border);flex-shrink:0;}
+.login-brand .wordmark-credit{font-family:'Inter',sans-serif;font-weight:500;font-size:10.5px;letter-spacing:.3px;color:var(--text-muted);opacity:.7;margin-top:5px;}
 .login-brand .sub{font-size:12px;color:var(--text-muted);letter-spacing:2.5px;text-transform:uppercase;margin-top:7px;font-weight:600;}
 .staff-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:8px;}
 .staff-card{

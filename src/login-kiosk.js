@@ -10,13 +10,15 @@ function renderLoginScreen(){
       <div class="login-box" style="text-align:center;">
         <div class="login-brand">
           <div class="mark"><img src="${SERVISPRO_LOGO_DATA_URI}" alt="ServisPro" width="120" height="120" style="border-radius:16px;"></div>
-          <div class="wordmark">ServisPro<span class="wordmark-credit">by Tomas Sual</span></div>
+          <div class="wordmark">ServisPro</div>
+          <div class="wordmark-tagline">${en?'Vehicle Workshop Management Software':'Perisian Pengurusan Bengkel Kenderaan'}</div>
+          <div class="wordmark-credit">by Tomas Sual</div>
           <div class="sub">${en?'Signing in…':'Sedang log masuk…'}</div>
         </div>
       </div>
     </div>`;
   }
-  const logoBlock = `<div class="mark"><img src="${SERVISPRO_LOGO_DATA_URI}" alt="ServisPro" width="120" height="120" style="border-radius:16px;"></div><div class="wordmark">ServisPro<span class="wordmark-credit">by Tomas Sual</span></div>`;
+  const logoBlock = `<div class="mark"><img src="${SERVISPRO_LOGO_DATA_URI}" alt="ServisPro" width="120" height="120" style="border-radius:16px;"></div><div class="wordmark">ServisPro</div><div class="wordmark-tagline">${en?'Vehicle Workshop Management Software':'Perisian Pengurusan Bengkel Kenderaan'}</div><div class="wordmark-credit">by Tomas Sual</div>`;
   const errBlock = state.loginError ? `<div style="font-size:12px;color:var(--danger);margin-bottom:10px;">${state.loginError}</div>` : '';
   const noticeBlock = state.loginNotice ? `<div style="font-size:12px;color:var(--success);margin-bottom:10px;">${state.loginNotice}</div>` : '';
   const mode = state.authMode || 'login';
