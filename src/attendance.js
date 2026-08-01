@@ -95,26 +95,32 @@ function attendanceSummaryModalHTML(staffId){
       <button class="btn-icon" data-action="attendance-summary-next-month" title="${en?'Next month':'Bulan seterusnya'}" style="font-size:18px;" ${isCurrentMonth?'disabled':''}>›</button>
     </div>
     <div class="grid grid-3" style="gap:10px;margin-bottom:16px;">
-      <div class="stat-card" style="padding:12px;text-align:center;">
-        <div class="stat-value" style="font-size:22px;color:var(--success);">${summary.presentDays}</div>
+      <div class="stat-card ok" style="padding:14px;">
+        <div class="stat-icon">${ICONS.done}</div>
         <div class="stat-label">${en?'Present':'Hadir'}</div>
+        <div class="stat-value" style="font-size:26px;">${summary.presentDays}</div>
       </div>
-      <div class="stat-card" style="padding:12px;text-align:center;">
-        <div class="stat-value" style="font-size:22px;color:var(--danger);">${summary.absentDays}</div>
+      <div class="stat-card warn" style="padding:14px;">
+        <div class="stat-icon">${ICONS.x}</div>
         <div class="stat-label">${en?'Absent':'Tidak Hadir'}</div>
+        <div class="stat-value" style="font-size:26px;">${summary.absentDays}</div>
       </div>
-      <div class="stat-card" style="padding:12px;text-align:center;">
-        <div class="stat-value" style="font-size:22px;">${summary.totalHours.toFixed(1)}h</div>
+      <div class="stat-card" style="padding:14px;">
+        <div class="stat-icon">${ICONS.history}</div>
         <div class="stat-label">${en?'Hours Worked':'Jam Bekerja'}</div>
+        <div class="stat-value" style="font-size:26px;">${summary.totalHours.toFixed(1)}h</div>
       </div>
     </div>
     <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
     <table>
-      <thead><tr><th>${en?'Date':'Tarikh'}</th><th>${en?'In':'Masuk'}</th><th>${en?'Out':'Keluar'}</th><th>${en?'Hours':'Jam'}</th></tr></thead>
+      <thead><tr><th></th><th>${en?'Date':'Tarikh'}</th><th>${en?'In':'Masuk'}</th><th>${en?'Out':'Keluar'}</th><th>${en?'Hours':'Jam'}</th></tr></thead>
       <tbody>
-        ${summary.days.length===0 ? `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">${en?'No days yet.':'Belum ada hari.'}</td></tr>` : summary.days.map(d=>`
-          <tr>
-            <td style="white-space:nowrap;">${dayName(d.dateStr)} ${d.dateStr.slice(8,10)}/${d.dateStr.slice(5,7)}</td>
+        ${summary.days.length===0 ? `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">${en?'No days yet.':'Belum ada hari.'}</td></tr>` : summary.days.map((d,i)=>`
+          <tr style="background:${i%2? 'var(--glass-highlight)':'transparent'};">
+            <td style="width:26px;padding-right:0;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${d.present?'rgba(79,165,121,.16)':'rgba(225,75,75,.16)'};color:${d.present?'var(--success)':'var(--danger)'};">${d.present?ICONS.done:ICONS.x}</span>
+            </td>
+            <td style="white-space:nowrap;font-weight:600;">${dayName(d.dateStr)} ${d.dateStr.slice(8,10)}/${d.dateStr.slice(5,7)}</td>
             <td>${timeOnly(d.inTs)}</td>
             <td>${timeOnly(d.outTs)}</td>
             <td>${d.present ? `${d.hours.toFixed(1)}h` : `<span class="pill pill-low">${en?'Absent':'Tidak Hadir'}</span>`}</td>
