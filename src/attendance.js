@@ -47,6 +47,87 @@ function renderAttendancePunch(){
   </div>`;
 }
 
+/* ============================= ATTENDANCE SUMMARY (per-staff, view-only) ============================= */
+// Deliberately display-only, same reasoning as computeMonthlyPay()'s own
+// comment: this app avoids calculating pay from hours/attendance at all
+// (base salary + commission stays the only pay model). Present/Absent here
+// just reflects whether a staff member has any 'in' punch that day -- there's
+// no shift-schedule or leave-type data anywhere in the app to compute a real
+// "late" or "on leave" distinction without inventing fields nobody asked
+// for, so this only shows what the existing punch records actually support.
+function computeAttendanceSummary(staffId, monthStr){
+  const [y,m] = monthStr.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const todayStr = localDateStr();
+  const records = (db.attendance||[]).filter(a=>a.staffId===staffId);
+  const days = [];
+  let presentDays=0, absentDays=0, totalHours=0;
+  for(let day=1; day<=daysInMonth; day++){
+    const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    if(dateStr>todayStr) break; // don't show/count days that haven't happened yet
+    const dayRecords = records.filter(a=>localDateStr(new Date(a.ts))===dateStr);
+    const ins = dayRecords.filter(a=>a.type==='in').map(a=>a.ts);
+    const outs = dayRecords.filter(a=>a.type==='out').map(a=>a.ts);
+    const inTs = ins.length ? Math.min(...ins) : null;
+    const outTs = outs.length ? Math.max(...outs) : null;
+    const hours = (inTs && outTs && outTs>inTs) ? (outTs-inTs)/3600000 : 0;
+    const present = !!inTs;
+    if(present) presentDays++; else absentDays++;
+    totalHours += hours;
+    days.push({ dateStr, inTs, outTs, hours, present });
+  }
+  return { presentDays, absentDays, totalHours, days: days.reverse() }; // most recent first
+}
+
+function attendanceSummaryModalHTML(staffId){
+  const en = state.language==='en';
+  const staffMember = db.staff.find(s=>s.id===staffId);
+  const month = state.attendanceSummaryMonth || currentMonthStr();
+  const isCurrentMonth = month === currentMonthStr();
+  const summary = staffMember ? computeAttendanceSummary(staffId, month) : { presentDays:0, absentDays:0, totalHours:0, days:[] };
+  const dayName = (dateStr)=> new Date(dateStr+'T00:00:00').toLocaleDateString(en?'en-US':'ms-MY', {weekday:'short'});
+  const timeOnly = (ts)=> ts ? new Date(ts).toLocaleTimeString(en?'en-US':'ms-MY',{hour:'2-digit',minute:'2-digit'}) : '—';
+  return `
+    <h2>${ICONS.calendar} ${en?'Attendance Summary':'Ringkasan Kehadiran'} — ${esc(staffMember?staffMember.name:'')}</h2>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;">
+      <button class="btn-icon" data-action="attendance-summary-prev-month" title="${en?'Previous month':'Bulan sebelum'}" style="font-size:18px;">‹</button>
+      <div style="font-weight:700;font-size:14.5px;min-width:150px;text-align:center;">${monthLabel(month)}</div>
+      <button class="btn-icon" data-action="attendance-summary-next-month" title="${en?'Next month':'Bulan seterusnya'}" style="font-size:18px;" ${isCurrentMonth?'disabled':''}>›</button>
+    </div>
+    <div class="grid grid-3" style="gap:10px;margin-bottom:16px;">
+      <div class="stat-card" style="padding:12px;text-align:center;">
+        <div class="stat-value" style="font-size:22px;color:var(--success);">${summary.presentDays}</div>
+        <div class="stat-label">${en?'Present':'Hadir'}</div>
+      </div>
+      <div class="stat-card" style="padding:12px;text-align:center;">
+        <div class="stat-value" style="font-size:22px;color:var(--danger);">${summary.absentDays}</div>
+        <div class="stat-label">${en?'Absent':'Tidak Hadir'}</div>
+      </div>
+      <div class="stat-card" style="padding:12px;text-align:center;">
+        <div class="stat-value" style="font-size:22px;">${summary.totalHours.toFixed(1)}h</div>
+        <div class="stat-label">${en?'Hours Worked':'Jam Bekerja'}</div>
+      </div>
+    </div>
+    <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
+    <table>
+      <thead><tr><th>${en?'Date':'Tarikh'}</th><th>${en?'In':'Masuk'}</th><th>${en?'Out':'Keluar'}</th><th>${en?'Hours':'Jam'}</th></tr></thead>
+      <tbody>
+        ${summary.days.length===0 ? `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">${en?'No days yet.':'Belum ada hari.'}</td></tr>` : summary.days.map(d=>`
+          <tr>
+            <td style="white-space:nowrap;">${dayName(d.dateStr)} ${d.dateStr.slice(8,10)}/${d.dateStr.slice(5,7)}</td>
+            <td>${timeOnly(d.inTs)}</td>
+            <td>${timeOnly(d.outTs)}</td>
+            <td>${d.present ? `${d.hours.toFixed(1)}h` : `<span class="pill pill-low">${en?'Absent':'Tidak Hadir'}</span>`}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-action="close-modal">${t('btn_close')}</button>
+    </div>
+  `;
+}
+
 async function loadAttendanceStatus(){
   try{
     const { data, error } = await supabaseClient.rpc('attendance_status', { p_staff_id: state.attendanceStaffId, p_token: state.attendanceToken });

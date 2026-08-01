@@ -20,6 +20,7 @@ function viewStaff(){
         <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;">
           <button class="btn btn-outline btn-sm" data-action="edit-staff" data-id="${s.id}">${ICONS.edit} ${tt('Sunting')}</button>
           ${!simple ? `<button class="btn btn-outline btn-sm" data-action="show-attendance-qr" data-id="${s.id}" title="${state.language==='en'?'Attendance QR Code':'Kod QR Kehadiran'}">${ICONS.barcode}</button>` : ''}
+          ${!simple ? `<button class="btn btn-outline btn-sm" data-action="show-attendance-summary" data-id="${s.id}" title="${state.language==='en'?'Attendance Summary':'Ringkasan Kehadiran'}">${ICONS.calendar}</button>` : ''}
           ${db.staff.length>1 && !isLastAdmin ? `<button class="btn btn-danger btn-sm" data-action="delete-staff" data-id="${s.id}">${ICONS.trash}</button>` : ''}
         </div>
       </div>`;}).join('')}

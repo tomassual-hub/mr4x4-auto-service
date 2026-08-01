@@ -368,6 +368,7 @@ interface AppState {
   posConvertingQuoteId?: string | null;
   reportRange: number;
   payrollMonth?: string | null; // "YYYY-MM"
+  attendanceSummaryMonth?: string | null; // "YYYY-MM"
   invTab?: string;
   invMainTab?: string;
   jobFilter?: string;
@@ -511,6 +512,8 @@ declare function renderPOSItemList(filter: string): string;
 declare function emptyState(msg: string): string;
 declare function staffModalHTML(staffMember?: Staff | null): string;
 declare function attendanceQrModalHTML(staffMember: Staff): string;
+declare function computeAttendanceSummary(staffId: string, monthStr: string): { presentDays: number; absentDays: number; totalHours: number; days: { dateStr: string; inTs: number | null; outTs: number | null; hours: number; present: boolean }[] };
+declare function attendanceSummaryModalHTML(staffId: string): string;
 declare function editAttendanceModalHTML(record: AttendanceRecord): string;
 declare function appointmentModalHTML(presetDate?: string): string;
 declare function getCalendarGrid(monthStr: string): { dateStr: string; inMonth: boolean; day: number }[];

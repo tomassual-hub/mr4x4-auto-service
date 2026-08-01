@@ -615,6 +615,17 @@ function attachHandlers(){
     }
     setState({modal:{type:'attendance-qr', staffMember}});
   });
+  bindAllAction('show-attendance-summary', el=>{
+    setState({ modal:{type:'attendance-summary', staffId:el.dataset.id}, attendanceSummaryMonth: currentMonthStr() });
+  });
+  bindAction('attendance-summary-prev-month', ()=>{
+    setState({ attendanceSummaryMonth: shiftMonth(state.attendanceSummaryMonth || currentMonthStr(), -1) });
+  });
+  bindAction('attendance-summary-next-month', ()=>{
+    const cur = state.attendanceSummaryMonth || currentMonthStr();
+    if(cur===currentMonthStr()) return;
+    setState({ attendanceSummaryMonth: shiftMonth(cur, 1) });
+  });
   bindAllAction('regenerate-attendance-token', el=>{
     const en = state.language==='en';
     askConfirm(en?"Regenerate this staff member's QR code? Their old printed code will stop working immediately.":'Jana semula kod QR staf ini? Kod lama yang telah dicetak akan berhenti berfungsi serta-merta.', ()=>{

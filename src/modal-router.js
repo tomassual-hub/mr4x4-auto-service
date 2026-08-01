@@ -15,6 +15,7 @@ function renderModal(){
   else if(m.type==='new-vehicle') inner = vehicleModalHTML(m.customerId);
   else if(m.type==='new-staff') inner = staffModalHTML(null);
   else if(m.type==='attendance-qr') inner = attendanceQrModalHTML(m.staffMember);
+  else if(m.type==='attendance-summary') inner = attendanceSummaryModalHTML(m.staffId);
   else if(m.type==='edit-attendance') inner = editAttendanceModalHTML(m.record);
   else if(m.type==='edit-staff') inner = staffModalHTML(m.staffMember);
   else if(m.type==='edit-customer') inner = customerEditModalHTML(m.customer);
