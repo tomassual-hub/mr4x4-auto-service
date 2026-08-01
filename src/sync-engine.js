@@ -298,28 +298,45 @@ function handleRemoteChange(table, payload){
     // with no error. This is a real race even on a single device — e.g.
     // creating a job and immediately reopening it before that job's own
     // realtime echo comes back.
-    // Tried adding a staleness guard here: skip applying an incoming echo
-    // when this record has a pending local edit AND the echo's data
-    // (whole-record) differs from current local state, on the theory that
-    // it's more likely a delayed echo of an older write than something
-    // worth applying (see runSaveCycle's reverted parallelization comment
-    // for the original race this was meant to close). Reverted it after
-    // tests/new-features-batch2.test.js caught a worse regression it
-    // introduced: a job record touched by TWO unrelated actors close
-    // together (staff editing the inspection checklist locally, not yet
-    // synced, while a customer's kiosk-submitted signature arrives as a
-    // genuinely new echo for a DIFFERENT field on the same job) got the
-    // signature echo silently dropped, because the guard's whole-record
-    // diff can't tell "stale echo of our own old write" apart from
-    // "legitimate concurrent edit to an unrelated field" -- both look like
-    // "record has a pending local edit AND the echo differs from current
-    // state." A correct fix needs per-field comparison (or real
-    // version/timestamps), not a bigger lift to get right and test than
-    // belongs in this pass. The narrow race this was chasing is also
-    // already less likely now that runSaveCycle stays sequential rather
-    // than parallel (see that comment) -- reverting to plain apply-on-
-    // arrival here rather than trade a common multi-actor case for a rarer
-    // single-actor one.
+    // First attempt at closing this race used a WHOLE-RECORD staleness
+    // check (skip the entire echo if the record has any pending local edit
+    // and the echo differs from current state at all) -- reverted after
+    // tests/new-features-batch2.test.js caught it silently dropping a
+    // customer's kiosk-submitted signature echo whenever staff ALSO had an
+    // unrelated unsynced edit to the same job's inspection checklist. A
+    // whole-record diff can't tell "stale echo of our own old write" apart
+    // from "legitimate concurrent edit to a different field on the same
+    // record" -- both look identical at that granularity. This version
+    // instead merges FIELD BY FIELD: only hold back the specific fields we
+    // have a pending local edit on (compared against lastSynced, our own
+    // last confirmed-synced snapshot); every other field always accepts
+    // the incoming value, so an unrelated field's genuinely new echo (the
+    // signature) can't be blocked by an edit to a different field (the
+    // checklist) on the same record. Held-back fields are deliberately
+    // NOT written into lastSynced either, so syncListTable()'s own diff
+    // still sees them as unsynced and pushes them on the next save cycle.
+    if(wasExisting && key!=='staff'){
+      const syncedJson = lastSynced && lastSynced[key] && lastSynced[key].get(id);
+      const synced = syncedJson!==undefined ? JSON.parse(syncedJson) : null;
+      const local = arr[idx];
+      const acceptedFromEcho = {};
+      let heldBackAnyField = false;
+      Object.keys(rec).forEach(k=>{
+        const hasPendingFieldEdit = synced!==null && JSON.stringify(synced[k])!==JSON.stringify(local[k]);
+        if(hasPendingFieldEdit){ heldBackAnyField = true; return; }
+        acceptedFromEcho[k] = rec[k];
+      });
+      Object.assign(arr[idx], acceptedFromEcho);
+      if(lastSynced && lastSynced[key]) lastSynced[key].set(id, JSON.stringify({...(synced||{}), ...acceptedFromEcho}));
+      // Someone else just changed this record while it's open in a modal —
+      // warn without a full re-render, which would wipe whatever the user
+      // is mid-typing (same reasoning as maybeRerender() below). Only for
+      // an actual conflict (a field really did get held back), not every
+      // touch of an open record.
+      if(heldBackAnyField && state.modal && isRecordOpenInModal(id)) showModalConflictWarning();
+      maybeRerender();
+      return;
+    }
     if(idx>-1) Object.assign(arr[idx], rec); else arr.push(rec);
     if(lastSynced && lastSynced[key]) lastSynced[key].set(id, key==='staff' ? staffDiffKey(rec) : JSON.stringify(rec));
     // Someone else just changed a record while this staff member has it open
