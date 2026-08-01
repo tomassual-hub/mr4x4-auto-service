@@ -24,7 +24,7 @@ function renderSidebar(){
     <div class="brand" style="position:relative;text-align:center;">
       <div class="brand-mark" style="justify-content:center;">${logoMarkHtml(58)}</div>
       <div class="brand-sub">${tt('Pakar Servis 4x4')}</div>
-      <button class="btn-icon hamburger-btn" data-action="close-nav" style="position:absolute;top:0;right:0;">${ICONS.x}</button>
+      <button class="btn-icon hamburger-btn" data-action="close-nav" style="position:absolute;top:0;right:0;" title="${state.language==='en'?'Close menu':'Tutup menu'}">${ICONS.x}</button>
     </div>
     <div class="nav">
       ${items.map(it=>`
@@ -167,7 +167,7 @@ function renderTopbar(){
   return `
   <div class="topbar">
     <div class="topbar-left">
-      <button class="btn-icon hamburger-btn" data-action="open-nav">${ICONS.menu}</button>
+      <button class="btn-icon hamburger-btn" data-action="open-nav" title="${state.language==='en'?'Open menu':'Buka menu'}">${ICONS.menu}</button>
       <div style="min-width:0;">
         <h1>${titles[state.view]}</h1>
         <div class="date" style="margin-top:2px;">${new Date().toLocaleDateString('ms-MY',{weekday:'long', day:'2-digit', month:'long', year:'numeric'})}</div>

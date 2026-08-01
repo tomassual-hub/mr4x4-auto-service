@@ -36,8 +36,8 @@ function customersTabHTML(){
       <div class="panel">
         <h2 style="flex-wrap:wrap;">
           <span style="flex:1;min-width:120px;">${esc(c.name)}</span>
-          <button class="btn-icon" data-action="edit-customer" data-id="${c.id}">${ICONS.edit}</button>
-          <button class="btn-icon" data-action="delete-customer" data-id="${c.id}">${ICONS.trash}</button>
+          <button class="btn-icon" data-action="edit-customer" data-id="${c.id}" title="${state.language==='en'?'Edit customer':'Sunting pelanggan'}">${ICONS.edit}</button>
+          <button class="btn-icon" data-action="delete-customer" data-id="${c.id}" title="${state.language==='en'?'Delete customer':'Padam pelanggan'}">${ICONS.trash}</button>
         </h2>
         <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">📞 ${esc(c.phone||'-')}  ·  ${jobCount} ${tt('rekod kerja')}</div>
         ${vs.map(v=>`
@@ -107,7 +107,7 @@ function leadsTabHTML(){
           ${l.status!=='won' && l.status!=='lost' ? `<button class="btn btn-primary btn-sm" data-action="convert-lead" data-id="${l.id}">${en?'Convert to Customer':'Tukar kepada Pelanggan'}</button>` : ''}
           ${l.status!=='lost' && l.status!=='won' ? `<button class="btn-icon" data-action="advance-lead" data-id="${l.id}" data-stage="lost" title="${en?'Mark lost':'Tanda hilang'}">${ICONS.x}</button>` : ''}
           ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="WhatsApp">${ICONS.whatsapp}</a>` : ''}
-          <button class="btn-icon" data-action="delete-lead" data-id="${l.id}">${ICONS.trash}</button>
+          <button class="btn-icon" data-action="delete-lead" data-id="${l.id}" title="${state.language==='en'?'Delete lead':'Padam bakal pelanggan'}">${ICONS.trash}</button>
         </div>
       </div>`;
     }).join('')}

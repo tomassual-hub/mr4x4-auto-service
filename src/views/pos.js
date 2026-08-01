@@ -89,7 +89,7 @@ function viewPOS(){
             <button class="qty-btn" data-action="cart-dec" data-idx="${idx}">−</button>
             <span style="width:20px;text-align:center;font-family:'IBM Plex Mono',monospace;">${c.qty}</span>
             <button class="qty-btn" data-action="cart-inc" data-idx="${idx}">+</button>
-            <button class="btn-icon" data-action="cart-remove" data-idx="${idx}">${ICONS.x}</button>
+            <button class="btn-icon" data-action="cart-remove" data-idx="${idx}" title="${state.language==='en'?'Remove from cart':'Buang dari troli'}">${ICONS.x}</button>
           </div>`).join('')}
       </div>
 
@@ -136,7 +136,7 @@ function viewPOS(){
                 <option value="Online" ${r.method==='Online'?'selected':''}>${tt('Pemindahan Online / QR')}</option>
               </select>
               <input type="number" step="0.01" min="0" id="split-amount-${idx}" data-split-amount-idx="${idx}" value="${r.amount}" style="flex:1;">
-              ${rows.length>1 ? `<button class="btn-icon" data-action="remove-split-row" data-idx="${idx}">${ICONS.x}</button>` : ''}
+              ${rows.length>1 ? `<button class="btn-icon" data-action="remove-split-row" data-idx="${idx}" title="${state.language==='en'?'Remove payment row':'Buang baris bayaran'}">${ICONS.x}</button>` : ''}
             </div>`).join('')}
           <button class="btn btn-outline btn-sm" data-action="add-split-row">${ICONS.plus} ${state.language==='en'?'Add Payment':'Tambah Bayaran'}</button>
         </div>
@@ -200,7 +200,7 @@ function viewPOS(){
             <td style="white-space:nowrap;">
               ${q.status!=='converted' ? `<button class="btn-icon" data-action="convert-quote-to-invoice" data-id="${q.id}" title="${state.language==='en'?'Convert to Invoice':'Tukar kepada Invois'}">${ICONS.pos}</button>` : ''}
               <button class="btn-icon" data-action="print-quotation" data-id="${q.id}" title="${state.language==='en'?'Print':'Cetak'}">${ICONS.printer}</button>
-              <button class="btn-icon" data-action="delete-quotation" data-id="${q.id}">${ICONS.trash}</button>
+              <button class="btn-icon" data-action="delete-quotation" data-id="${q.id}" title="${state.language==='en'?'Delete quotation':'Padam sebut harga'}">${ICONS.trash}</button>
             </td>
           </tr>`;
         }).join('')}

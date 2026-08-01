@@ -39,8 +39,8 @@ function viewInventory(){
             <td style="color:var(--text-muted);font-size:12px;">${sup?sup.name:'-'}</td>
             <td>${i.qty<=i.lowStock ? `<span class="pill pill-low">${tt('Rendah')}</span>` : `<span class="pill pill-done">${tt('OK')}</span>`}</td>
             <td>
-              <button class="btn-icon" data-action="edit-item" data-id="${i.id}">${ICONS.edit}</button>
-              <button class="btn-icon" data-action="delete-item" data-id="${i.id}">${ICONS.trash}</button>
+              <button class="btn-icon" data-action="edit-item" data-id="${i.id}" title="${state.language==='en'?'Edit item':'Sunting item'}">${ICONS.edit}</button>
+              <button class="btn-icon" data-action="delete-item" data-id="${i.id}" title="${state.language==='en'?'Delete item':'Padam item'}">${ICONS.trash}</button>
             </td>
           </tr>`;
         }).join('')}

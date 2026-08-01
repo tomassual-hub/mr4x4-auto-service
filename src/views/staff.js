@@ -60,8 +60,8 @@ function viewStaff(){
             <td><span class="pill ${a.type==='in'?'pill-done':'pill-low'}">${a.type==='in'?(en?'Clock In':'Clock In'):(en?'Clock Out':'Clock Out')}</span></td>
             <td style="font-family:'IBM Plex Mono',monospace;">${fmtDateTime(a.ts)}${a.editedBy?` <span style="color:var(--text-muted);font-size:10.5px;">(${en?'edited':'disunting'})</span>`:''}</td>
             <td style="white-space:nowrap;">
-              <button class="btn-icon" data-action="edit-attendance" data-id="${a.id}">${ICONS.edit}</button>
-              <button class="btn-icon" data-action="delete-attendance" data-id="${a.id}">${ICONS.trash}</button>
+              <button class="btn-icon" data-action="edit-attendance" data-id="${a.id}" title="${en?'Edit attendance record':'Sunting rekod kehadiran'}">${ICONS.edit}</button>
+              <button class="btn-icon" data-action="delete-attendance" data-id="${a.id}" title="${en?'Delete attendance record':'Padam rekod kehadiran'}">${ICONS.trash}</button>
             </td>
           </tr>`).join('')}
       </tbody>

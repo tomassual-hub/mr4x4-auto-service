@@ -62,7 +62,17 @@ function bindAllAction(name, fn){
 // data-* action attributes as focusable/keyboard-activatable in one place,
 // called after every render() (see render-core.js) — covers current AND
 // future call sites automatically instead of needing to stay in sync.
-const INTERACTIVE_DATA_ATTRS = ['data-action','data-nav','data-gs-idx','data-notif-nav','data-kiosk-star'];
+// Every tab-strip and card-style click target in the app needs its own
+// data-* attr listed here -- new ones don't auto-inherit from data-action
+// (that name is reserved for actual mutations, not "which tab is active").
+// Missed several of these when this list was first written: whole tab
+// strips (Appointments/Customers/Inventory x2/Jobs filter/Leads filter/
+// Reports range/Staff) and a few "click the whole card" targets (job
+// ticket -> detail modal, vehicle -> history modal, inspection checklist
+// item, diagram pin) were keyboard-unreachable as a result.
+const INTERACTIVE_DATA_ATTRS = ['data-action','data-nav','data-gs-idx','data-notif-nav','data-kiosk-star',
+  'data-appttab','data-customertab','data-invmaintab','data-invtab','data-jobfilter','data-leadfilter',
+  'data-range','data-stafftab','data-job-detail','data-vehicle-history','data-inspect-item','data-diagram-mark-idx'];
 function isCustomInteractiveElement(el){
   if(!el || !el.tagName) return false;
   if(['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(el.tagName)) return false; // already natively focusable/activatable
@@ -85,6 +95,20 @@ document.addEventListener('keydown', (e)=>{
   if(state.currentStaff && !state.kioskMode && state.view==='pos' && (e.ctrlKey||e.metaKey) && e.key==='Enter'){
     const btn = /** @type {HTMLButtonElement} */ (document.querySelector('[data-action="checkout"]'));
     if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
+  }
+  if(isModalBlocking()){
+    if(e.key==='Escape'){ e.preventDefault(); closeActiveModalViaEscape(); return; }
+    // Trap Tab inside the open modal -- otherwise it cycles through the
+    // sidebar/page content sitting behind it (see render-core.js's comment
+    // on manageModalFocus for the full rationale).
+    if(e.key==='Tab'){
+      const focusable = getFocusableInModal();
+      if(focusable.length>0){
+        const first = focusable[0], last = focusable[focusable.length-1];
+        if(e.shiftKey && document.activeElement===first){ e.preventDefault(); /** @type {HTMLElement} */(last).focus(); }
+        else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); /** @type {HTMLElement} */(first).focus(); }
+      }
+    }
   }
   // Enter/Space activation for the div/span-based controls made focusable
   // above — matches native <button> semantics: Enter activates on keydown,

@@ -107,8 +107,8 @@ function techRefDetailModalHTML(entry){
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px;">
           <span class="pill pill-wait">${esc(techRefCategoryLabel(s.category))}</span>
           <div style="display:flex;gap:4px;flex-shrink:0;">
-            <button class="btn-icon" data-action="edit-techref-section" data-id="${s.id}" style="padding:5px;">${ICONS.edit}</button>
-            <button class="btn-icon" data-action="delete-techref-section" data-id="${s.id}" style="padding:5px;">${ICONS.trash}</button>
+            <button class="btn-icon" data-action="edit-techref-section" data-id="${s.id}" style="padding:5px;" title="${state.language==='en'?'Edit section':'Sunting seksyen'}">${ICONS.edit}</button>
+            <button class="btn-icon" data-action="delete-techref-section" data-id="${s.id}" style="padding:5px;" title="${state.language==='en'?'Delete section':'Padam seksyen'}">${ICONS.trash}</button>
           </div>
         </div>
         <div style="font-size:12.5px;white-space:pre-wrap;">${esc(s.content||'')}</div>
@@ -116,7 +116,7 @@ function techRefDetailModalHTML(entry){
           ${(s.photos||[]).map((p,idx)=>`
             <div style="position:relative;">
               <img src="${p}" alt="${en?'Diagram':'Gambar rajah'}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
-              <button class="btn-icon" data-action="remove-techref-photo" data-section-id="${s.id}" data-idx="${idx}" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;padding:0;background:var(--danger);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">${ICONS.x}</button>
+              <button class="btn-icon" data-action="remove-techref-photo" data-section-id="${s.id}" data-idx="${idx}" title="${state.language==='en'?'Remove photo':'Buang gambar'}" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;padding:0;background:var(--danger);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">${ICONS.x}</button>
             </div>`).join('')}
           ${(s.photos||[]).length<4 ? `
             <label class="btn-icon" style="cursor:pointer;width:64px;height:64px;display:flex;align-items:center;justify-content:center;" title="${en?'Add photo/diagram':'Tambah gambar/gambar rajah'}">

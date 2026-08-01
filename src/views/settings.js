@@ -42,7 +42,7 @@ function viewSettings(){
           ${db.branches.map(b=>`
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--panel-alt);border-radius:6px;">
               <span style="font-size:13px;">${esc(b.name)}</span>
-              ${db.branches.length>1 ? `<button class="btn-icon" data-action="delete-branch" data-id="${b.id}">${ICONS.trash}</button>` : ''}
+              ${db.branches.length>1 ? `<button class="btn-icon" data-action="delete-branch" data-id="${b.id}" title="${state.language==='en'?'Delete branch':'Padam cawangan'}">${ICONS.trash}</button>` : ''}
             </div>`).join('')}
         </div>
         <div style="display:flex;gap:8px;">
@@ -138,8 +138,8 @@ function viewSettings(){
             ${occupied ? `<div class="pill pill-wait" style="margin-bottom:8px;">${esc(occupied.jobNo)}</div>` : `<div class="pill ${b.active?'pill-done':''}" style="background:${b.active?'':'var(--border)'};color:${b.active?'':'var(--text-muted)'};margin-bottom:8px;">${b.active?(en?'Active':'Aktif'):(en?'Inactive':'Tidak Aktif')}</div>`}
             <div style="display:flex;gap:6px;justify-content:center;">
               <button class="btn-icon" data-action="toggle-bay-active" data-id="${b.id}" title="${b.active?(en?'Deactivate':'Nyahaktifkan'):(en?'Activate':'Aktifkan')}">${ICONS.done}</button>
-              <button class="btn-icon" data-action="edit-bay" data-id="${b.id}">${ICONS.edit}</button>
-              <button class="btn-icon" data-action="delete-bay" data-id="${b.id}">${ICONS.trash}</button>
+              <button class="btn-icon" data-action="edit-bay" data-id="${b.id}" title="${state.language==='en'?'Edit bay':'Sunting bay'}">${ICONS.edit}</button>
+              <button class="btn-icon" data-action="delete-bay" data-id="${b.id}" title="${state.language==='en'?'Delete bay':'Padam bay'}">${ICONS.trash}</button>
             </div>
           </div>`;
         }).join('')}

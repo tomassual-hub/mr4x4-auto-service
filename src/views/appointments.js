@@ -31,7 +31,7 @@ function viewAppointments(){
                 ${a.status==='scheduled' ? `<button class="btn-icon" data-action="appt-done" data-id="${a.id}" title="${tt('Tandakan selesai')}">${ICONS.done||'✓'}</button>
                 <button class="btn-icon" data-action="appt-cancel" data-id="${a.id}" title="${tt('Batal')}">${ICONS.x}</button>
                 ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="${tt('Hantar peringatan WhatsApp')}" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}` : ''}
-                <button class="btn-icon" data-action="delete-appointment" data-id="${a.id}">${ICONS.trash}</button>
+                <button class="btn-icon" data-action="delete-appointment" data-id="${a.id}" title="${state.language==='en'?'Delete appointment':'Padam tempahan'}">${ICONS.trash}</button>
               </td>
             </tr>`;
           }).join('')}
@@ -170,7 +170,7 @@ function dayAppointmentsModalHTML(dateStr){
           ${a.status==='scheduled' ? `<button class="btn-icon" data-action="appt-done" data-id="${a.id}" title="${tt('Tandakan selesai')}">${ICONS.done||'✓'}</button>
           <button class="btn-icon" data-action="appt-cancel" data-id="${a.id}" title="${tt('Batal')}">${ICONS.x}</button>
           ${waHref ? `<a class="btn-icon" href="${waHref}" target="_blank" rel="noopener" title="${tt('Hantar peringatan WhatsApp')}" style="display:inline-flex;">${ICONS.whatsapp}</a>` : ''}` : ''}
-          <button class="btn-icon" data-action="delete-appointment" data-id="${a.id}">${ICONS.trash}</button>
+          <button class="btn-icon" data-action="delete-appointment" data-id="${a.id}" title="${state.language==='en'?'Delete appointment':'Padam tempahan'}">${ICONS.trash}</button>
         </div>
       </div>`;
     }).join('')}

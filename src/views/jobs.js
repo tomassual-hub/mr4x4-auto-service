@@ -107,7 +107,7 @@ function inspectionModalHTML(job){
           <div style="display:flex;gap:6px;align-items:center;">
             <span class="pill" style="background:${markColor[m.severity]};color:#fff;min-width:20px;text-align:center;padding:2px 6px;">${idx+1}</span>
             <input data-diagram-note-idx="${idx}" value="${esc(m.note||'')}" placeholder="${en?'e.g. Scratch on door':'cth: Calar pada pintu'}" style="flex:1;">
-            <button class="btn-icon" data-action="remove-diagram-mark" data-idx="${idx}">${ICONS.x}</button>
+            <button class="btn-icon" data-action="remove-diagram-mark" data-idx="${idx}" title="${state.language==='en'?'Remove mark':'Buang tanda'}">${ICONS.x}</button>
           </div>`).join('')}
       </div>` : ''}
     </div>
@@ -157,7 +157,7 @@ function jobDetailModalHTML(j){
         ${(j.photos||[]).map((p,idx)=>`
           <div style="position:relative;">
             <img src="${p}" alt="${en?'Job photo':'Gambar kerja'} ${idx+1}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
-            <button class="btn-icon" data-action="remove-photo" data-idx="${idx}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;padding:0;background:var(--danger);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">${ICONS.x}</button>
+            <button class="btn-icon" data-action="remove-photo" data-idx="${idx}" title="${state.language==='en'?'Remove photo':'Buang gambar'}" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;padding:0;background:var(--danger);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">${ICONS.x}</button>
           </div>`).join('')}
       </div>
       ${(j.photos||[]).length<4 ? `<input type="file" id="job-photo-input" accept="image/*" style="font-size:12px;">` : `<div style="font-size:11.5px;color:var(--text-muted);">${en?'Limit of 4 photos reached.':'Had 4 gambar dicapai.'}</div>`}
