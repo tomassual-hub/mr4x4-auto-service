@@ -480,6 +480,7 @@ declare function viewTechRef(): string;
 declare function techRefModalHTML(entry?: TechRef | null): string;
 declare function techRefDetailModalHTML(entry: TechRef): string;
 declare function viewReports(): string;
+declare function renderSalesChart(invoices: Invoice[], rangeDays: number): string;
 declare function viewPayroll(): string;
 declare function computeMonthlyPay(staffMember: Staff, month: string): { baseSalary: number; commissionRevenue: number; commissionPct: number; commission: number; total: number };
 declare function currentMonthStr(): string;

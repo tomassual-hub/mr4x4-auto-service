@@ -22,12 +22,52 @@ function viewDashboard(){
     return todaysPunches[0] && todaysPunches[0].type==='in';
   }).length;
 
+  // Workshop's own step-by-step process (customer -> vehicle -> job sheet ->
+  // parts/labour -> invoice/payment -> history/follow-up), grouped into the
+  // 4 pages that actually exist rather than 6 separate destinations -- "Add
+  // Vehicle Profile" lives inside Customers and "Add Parts/Labour/Expenses"
+  // lives inside a job's own detail modal, neither has its own page, so
+  // pretending otherwise would just be a dead link. Visible to every role
+  // (not gated by isAdmin) since none of this is revenue data.
+  const workflowSteps = [
+    { nav:'customers', icon:ICONS.customers,
+      title: en?'1. Register Customer & Vehicle':'1. Daftar Pelanggan & Kenderaan',
+      desc: en?'Create a customer record and log their vehicle details':'Cipta rekod pelanggan dan catat butiran kenderaan' },
+    { nav:'jobs', icon:ICONS.jobs,
+      title: en?'2. Open Job Sheet & Add Parts':'2. Buka Kad Kerja & Tambah Alat Ganti',
+      desc: en?'Start a job card, then log parts, labour and expenses as work happens':'Mulakan kad kerja, catat alat ganti, kerja dan perbelanjaan' },
+    { nav:'pos', icon:ICONS.pos,
+      title: en?'3. Quote, Invoice & Payment':'3. Sebut Harga, Invois & Bayaran',
+      desc: en?'Turn the job into an invoice and record how the customer paid':'Tukar kerja kepada invois dan rekod cara pelanggan bayar' },
+    { nav:'customers', icon:ICONS.history,
+      title: en?'4. Service History & Follow-Up':'4. Sejarah Servis & Susulan',
+      desc: en?"Every job saves to the vehicle's history — remind customers when due":'Setiap kerja disimpan dalam sejarah kenderaan — ingatkan pelanggan bila perlu' },
+  ];
+
   return `
+  <div class="panel" style="margin-bottom:22px;">
+    <h2>${ICONS.repeat} ${en?'Workshop Workflow':'Aliran Kerja Bengkel'}</h2>
+    <div class="grid grid-4" style="gap:12px;">
+      ${workflowSteps.map(s=>`
+        <div class="stat-card" style="cursor:pointer;" data-nav="${s.nav}">
+          <div class="stat-icon">${s.icon}</div>
+          <div class="stat-label" style="text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:700;color:var(--text);">${s.title}</div>
+          <div class="stat-sub">${s.desc}</div>
+        </div>`).join('')}
+    </div>
+  </div>
+
   ${isAdmin ? `
   <div class="panel dash-hero" style="margin-bottom:22px;">
     <div class="stat-label">${esc(db.settings.shopName)} · ${t('stat_today_sales')}</div>
     <div class="dash-hero-value">${fmtRM(todaySales)}</div>
     <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
+  </div>` : ''}
+
+  ${isAdmin ? `
+  <div class="panel" style="margin-bottom:22px;">
+    <h2>${ICONS.reports} ${en?'Sales Trend (Last 30 Days)':'Trend Jualan (30 Hari Lepas)'}</h2>
+    ${renderSalesChart(db.invoices.filter(branchFilter), 30)}
   </div>` : ''}
 
   ${isAdmin && (db.settings.monthlySalesTarget>0 || db.settings.monthlyUnitTarget>0) ? (()=>{
