@@ -5,14 +5,25 @@
 function renderLoginScreen(){
   const en = state.language==='en';
   // Workshop illustration from the reference "ServisPro Management" slide
-  // the user shared, cropped to just its left panel -- shown on the wide
+  // the user shared, cropped to just its left panel -- shown large (fluid
+  // up to its native 760px resolution, no upscale blur) on the wide
   // desktop split-screen layout only (login-screen-auth's own CSS hides it
   // below the breakpoint, where there's no room for it next to the login
-  // form).
+  // form). The 4 feature items removed when the illustration first
+  // replaced them are back as a compact icon strip overlaid on the image
+  // itself (scrimmed for legibility) rather than stacked below it -- with
+  // the image this much bigger there's no spare vertical room for a full
+  // description list without pushing the screen into scroll territory.
   const featuresPanel = `
     <div class="login-features">
       <div class="login-illustration">
         <img src="${WORKSHOP_ILLUSTRATION_DATA_URI}" alt="ServisPro workshop" width="760" height="865">
+        <div class="login-illustration-strip">
+          <div class="lif-item"><span class="lif-icon">${ICONS.jobs}</span>${en?'Job Cards':'Kad Kerja'}</div>
+          <div class="lif-item"><span class="lif-icon">${ICONS.inventory}</span>${en?'Inventory':'Inventori'}</div>
+          <div class="lif-item"><span class="lif-icon">${ICONS.pos}</span>${en?'POS':'POS'}</div>
+          <div class="lif-item"><span class="lif-icon">${ICONS.customers}</span>${en?'Customers':'Pelanggan'}</div>
+        </div>
       </div>
     </div>`;
   if(state.authBusy){

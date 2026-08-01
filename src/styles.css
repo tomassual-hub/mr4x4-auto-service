@@ -535,14 +535,35 @@ tr:hover td{background:var(--glass-highlight);}
    before this change. */
 .login-features{display:none;}
 .login-illustration{
+  position:relative;width:100%;
   border-radius:20px;overflow:hidden;line-height:0;
   border:1px solid rgba(242,167,59,.25);
   box-shadow:0 24px 60px -20px rgba(0,0,0,.6), 0 0 0 1px rgba(242,167,59,.08);
 }
 .login-illustration img{display:block;width:100%;height:auto;}
+/* Feature strip overlaid on the image itself (scrimmed for legibility)
+   instead of stacked below it -- there's no spare vertical room for a
+   full description list once the image is sized up close to its native
+   760px resolution. */
+.login-illustration-strip{
+  position:absolute;left:0;right:0;bottom:0;
+  display:flex;justify-content:space-around;align-items:center;
+  padding:16px 8px 14px;
+  background:linear-gradient(180deg, transparent, rgba(6,6,7,.85) 55%, rgba(6,6,7,.94));
+}
+.lif-item{display:flex;flex-direction:column;align-items:center;gap:6px;color:#F3F0E8;font-size:10.5px;font-weight:600;letter-spacing:.15px;text-align:center;}
+.lif-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(242,167,59,.24);color:var(--accent);}
 @media screen and (min-width:960px){
-  .login-screen-auth{gap:64px;}
-  .login-features{display:flex;max-width:400px;}
+  .login-screen-auth{gap:72px;}
+  /* flex:1 (not a fixed width) so this grows with the viewport instead of
+     capping out at a small fixed card -- max-width matches the source
+     illustration's native 760px so it never upscales past its own
+     resolution and blurs. The login box's own fixed 420px max-width means
+     none of this growth can overflow: it only ever eats into the empty
+     space the centered flex row would otherwise leave blank, which is
+     also what visibly pushes the login form further right as this column
+     widens on bigger screens. */
+  .login-features{display:flex;flex:1 1 380px;max-width:680px;min-width:0;}
 }
 @media screen and (max-width:600px){
   .login-screen-auth::before,.login-screen-auth::after{opacity:.35;}
