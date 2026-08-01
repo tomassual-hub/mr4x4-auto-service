@@ -146,6 +146,7 @@ function attendanceSummaryModalHTML(staffId){
     </div>
     <div class="modal-foot">
       <button class="btn btn-outline" data-action="close-modal">${t('btn_close')}</button>
+      <button class="btn btn-primary" data-action="print-attendance-summary" data-staffid="${staffId}" data-month="${month}">${ICONS.printer} ${en?'Print':'Cetak'}</button>
     </div>
   `;
 }

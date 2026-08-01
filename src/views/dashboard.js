@@ -50,7 +50,11 @@ function viewDashboard(){
       <div style="height:44px;">${logoMarkHtml(44)}</div>
       <div style="font-family:'Oswald',sans-serif;font-weight:700;font-size:34px;letter-spacing:-.5px;color:var(--accent);">ServisPro</div>
     </div>
-    <div style="font-size:12.5px;color:var(--text-muted);margin-top:8px;">${en?'Workspace':'Ruang Kerja'}: <strong style="color:var(--text);">${esc(db.settings.shopName)}</strong></div>
+    <div style="font-size:12.5px;color:var(--text-muted);margin-top:8px;">${db.settings.shopName
+      ? `${en?'Workspace':'Ruang Kerja'}: <strong style="color:var(--text);">${esc(db.settings.shopName)}</strong>`
+      : canManage()
+        ? `<span style="color:var(--accent);cursor:pointer;" data-nav="settings">${en?'Set your workshop name in Settings →':'Tetapkan nama bengkel anda di Tetapan →'}</span>`
+        : (en?'Workshop name not set yet':'Nama bengkel belum ditetapkan')}</div>
   </div>
 
   <div class="panel" style="margin-bottom:22px;">

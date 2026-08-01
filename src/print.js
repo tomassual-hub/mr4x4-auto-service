@@ -294,3 +294,55 @@ function printAttendanceQr(staffMember){
   window.print();
 }
 
+/* ============================= PRINT ATTENDANCE SUMMARY ============================= */
+function printAttendanceSummary(staffId, month){
+  const en = state.language==='en';
+  const s = db.settings;
+  const staffMember = db.staff.find(st=>st.id===staffId);
+  const summary = computeAttendanceSummary(staffId, month);
+  const dayName = (dateStr)=> new Date(dateStr+'T00:00:00').toLocaleDateString(en?'en-US':'ms-MY', {weekday:'short'});
+  const timeOnly = (ts)=> ts ? new Date(ts).toLocaleTimeString(en?'en-US':'ms-MY',{hour:'2-digit',minute:'2-digit'}) : '—';
+  const area = document.getElementById('print-area');
+  area.innerHTML = `
+    <div class="print-invoice">
+      <div class="pi-letterhead">
+        <div>
+          <h2>${esc(s.shopName)}</h2>
+          ${s.shopAddress ? `<div class="pi-addr">${esc(s.shopAddress).replace(/\n/g,'<br>')}</div>` : ''}
+        </div>
+        <div class="pi-doc-meta">
+          <div class="pi-doc-title">${en?'ATTENDANCE SUMMARY':'RINGKASAN KEHADIRAN'}</div>
+          <div class="pi-row"><span>${en?'Period':'Tempoh'}</span><span>${monthLabel(month)}</span></div>
+          <div class="pi-row"><span>${en?'Printed':'Dicetak'}</span><span>${fmtDateTime(Date.now())}</span></div>
+        </div>
+      </div>
+      <div class="pi-line"></div>
+      <div class="pi-billto">
+        <div class="pi-billto-label">${en?'Staff':'Staf'}</div>
+        <div class="pi-billto-name">${esc(staffMember?staffMember.name:'')}</div>
+      </div>
+      <div class="pi-totals" style="max-width:none;margin-left:0;">
+        <div class="pi-row"><span>${en?'Present':'Hadir'}</span><span>${summary.presentDays} ${en?'days':'hari'}</span></div>
+        <div class="pi-row"><span>${en?'Absent':'Tidak Hadir'}</span><span>${summary.absentDays} ${en?'days':'hari'}</span></div>
+        <div class="pi-row pi-total"><span>${en?'Hours Worked':'Jam Bekerja'}</span><span>${summary.totalHours.toFixed(1)}h</span></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>${en?'Date':'Tarikh'}</th><th>${en?'In':'Masuk'}</th><th>${en?'Out':'Keluar'}</th><th>${en?'Hours':'Jam'}</th></tr></thead>
+        <tbody>
+          ${summary.days.length===0 ? `<tr><td colspan="4">${en?'No days yet.':'Belum ada hari.'}</td></tr>` : summary.days.map(d=>`
+            <tr>
+              <td>${dayName(d.dateStr)} ${d.dateStr.slice(8,10)}/${d.dateStr.slice(5,7)}</td>
+              <td>${timeOnly(d.inTs)}</td>
+              <td>${d.incomplete ? (en?'Not out yet':'Belum Keluar') : timeOnly(d.outTs)}</td>
+              <td>${!d.present ? (en?'Absent':'Tidak Hadir') : d.incomplete ? '—' : `${d.hours.toFixed(1)}h`}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table></div>
+      <div class="pi-foot">${en
+        ? 'Present/Absent reflects clock-in/out records only — not a substitute for a formal leave or shift-schedule system.'
+        : 'Hadir/Tidak Hadir hanya mencerminkan rekod clock in/out — bukan pengganti sistem cuti atau jadual syif formal.'}</div>
+    </div>
+  `;
+  window.print();
+}
+

@@ -5,8 +5,14 @@ function viewSettings(){
   <div class="grid grid-2" id="settings-view">
     <div class="panel">
       <h2>${ICONS.settings} ${tt('Maklumat Kedai')}</h2>
-      <div class="field"><label>${tt('Nama Bengkel')}</label><input id="set-shopname" value="${esc(s.shopName)}"></div>
+      <div class="field"><label>${tt('Nama Bengkel')}</label><input id="set-shopname" value="${esc(s.shopName)}" placeholder="${state.language==='en'?'e.g. Ali Motors Workshop':'cth: Bengkel Ali Motors'}"></div>
       <div class="field"><label>${tt('No. Telefon Bengkel')}</label><input id="set-shopphone" value="${esc(s.shopPhone||'')}" placeholder="012-3456789"></div>
+      <div class="field"><label>${state.language==='en'?'Country Code (for WhatsApp links)':'Kod Negara (untuk pautan WhatsApp)'}</label>
+        <input id="set-countrycode" value="${esc(s.countryCode||'60')}" placeholder="60" maxlength="4">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${state.language==='en'
+          ? 'Used when turning a customer/supplier phone number into a WhatsApp link (e.g. 60 for Malaysia). Wrong code = wrong/broken link, with no error shown.'
+          : 'Digunakan bila tukar nombor telefon pelanggan/pembekal kepada pautan WhatsApp (cth: 60 untuk Malaysia). Kod salah = pautan salah/rosak, tanpa sebarang ralat dipaparkan.'}</div>
+      </div>
       <div class="field"><label>${state.language==='en'?'Business Address':'Alamat Perniagaan'}</label><textarea id="set-shopaddress" rows="2" placeholder="${state.language==='en'?'For printed invoices':'Untuk invois cetak'}">${esc(s.shopAddress||'')}</textarea></div>
       <div class="field"><label>${state.language==='en'?'Vehicle Brands Serviced':'Jenama Kenderaan Diservis'}</label>
         <input id="set-brands" value="${esc((s.servicedBrands||[]).join(', '))}" placeholder="${state.language==='en'?'e.g. Toyota, Honda, Perodua (comma-separated)':'cth: Toyota, Honda, Perodua (pisah dengan koma)'}">

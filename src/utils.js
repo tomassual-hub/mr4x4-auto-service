@@ -63,7 +63,14 @@ function vehicleServiceStatus(v){
 }
 function normalizePhone(phone){
   let p = (phone||'').replace(/[^0-9]/g,'');
-  if(p.startsWith('0')) p = '6'+p; // Malaysia country code
+  // Country code now reads from settings (default '60' for Malaysia,
+  // matching what this always hardcoded before) rather than baking in '6'
+  // unconditionally -- a reseller shop outside Malaysia entering an equally
+  // normal-looking local number starting with 0 used to silently get
+  // Malaysia's country code glued onto it, producing a wrong wa.me link
+  // with no error shown anywhere.
+  const cc = (db.settings && db.settings.countryCode) || '60';
+  if(p.startsWith('0')) p = cc + p.slice(1);
   return p;
 }
 
@@ -91,6 +98,6 @@ function canSeeRevenue(){
 // than reusing --accent in light mode too: gold-on-light read as a washed
 // out dark orange, so light mode maps it to --text (near-black) instead.
 function logoMarkHtml(px){
-  return `<div role="img" aria-label="Mr 4x4 Auto Service" style="display:inline-block;height:${px}px;aspect-ratio:200/211;background-color:var(--logo-tint);-webkit-mask:url(${LOGO_DATA_URI}) center / contain no-repeat;mask:url(${LOGO_DATA_URI}) center / contain no-repeat;"></div>`;
+  return `<div role="img" aria-label="ServisPro" style="display:inline-block;height:${px}px;aspect-ratio:200/211;background-color:var(--logo-tint);-webkit-mask:url(${LOGO_DATA_URI}) center / contain no-repeat;mask:url(${LOGO_DATA_URI}) center / contain no-repeat;"></div>`;
 }
 
