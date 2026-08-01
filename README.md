@@ -20,11 +20,15 @@ Mr 4x4 Auto Service/
 ├── backend/
 │   ├── schema.sql               ← skema pangkalan data Supabase (jalankan di SQL Editor)
 │   ├── SETUP.md                 ← panduan setup backend (sekali sahaja)
-│   └── SENTRY_SETUP.md          ← panduan hidupkan pengesanan ralat (pilihan)
+│   ├── SENTRY_SETUP.md          ← panduan hidupkan pengesanan ralat (pilihan)
+│   └── MFA_RECOVERY.md          ← panduan pulihkan akaun staf yang terkunci 2FA
 ├── tests/                      ← suite ujian automatik (lihat tests/README.md)
-├── .github/workflows/ci.yml    ← GitHub Actions — semak typecheck+build+ujian setiap push
+├── android-app/                ← APK Android sedia-tanda-tangan (sideload, bukan Play Store) — lihat android-app/README.md
+├── .github/workflows/           ← GitHub Actions: ci.yml (typecheck+build+ujian setiap push),
+│                                   uptime-check.yml (jaga laman live), test-project-keepalive.yml
 ├── tsconfig.json                ← `npm run typecheck` — semakan jenis (TypeScript/JSDoc)
 ├── package.json                  ← `npm install` dahulu, kemudian npm run build / test / check / deploy
+├── LICENSE                       ← lesen kod sumber
 └── Mr 4x4 Auto Service-pwa/         ← OUTPUT — fail yang sebenarnya di-deploy (jangan edit terus)
     ├── Mr 4x4 Auto Service.html ← DIHASILKAN oleh `npm run build`, bukan fail sumber
     ├── manifest.json      ← Metadata PWA (nama, ikon, warna tema)
@@ -96,9 +100,16 @@ Laman GitHub Pages di atas ialah yang sebenarnya live.
   komponen, gambar rajah/kod kerosakan, dll.) dengan lampiran gambar —
   diisi oleh staf sendiri, bukan data pra-dimuat
 - **Kehadiran QR & Layan Diri Pelanggan** — kod QR peribadi staf untuk
-  clock in/out tanpa log masuk; pautan laporan pemeriksaan kenderaan yang
-  boleh dikongsi & ditandatangan pelanggan dari telefon sendiri; Papan
-  Paparan kawasan menunggu (status kerja masa nyata, tanpa log masuk)
+  clock in/out tanpa log masuk; ringkasan kehadiran bulanan per-staf
+  (hadir/tidak hadir/jam bekerja + senarai harian, di Staf); pautan laporan
+  pemeriksaan kenderaan yang boleh dikongsi & ditandatangan pelanggan dari
+  telefon sendiri; Papan Paparan kawasan menunggu (status kerja masa nyata,
+  tanpa log masuk)
+- **Papan Pemuka** — masthead ServisPro (ruang kerja = nama kedai anda),
+  panel Aliran Kerja Bengkel (pautan pantas ikut aliran kerja sebenar:
+  pelanggan → kad kerja → invois → sejarah), carta trend jualan 30 hari,
+  amaran servis ikut kilometer dengan butang peringatan WhatsApp sekali
+  klik
 - **Laporan & Sasaran** — untung/rugi (P&L), pecahan untung alat ganti vs
   servis, prestasi & komisen mekanik, ramalan stok, analitik pusing ganti
   inventori, analitik pelanggan senyap, carta jualan, sasaran jualan/unit

@@ -1,8 +1,8 @@
 {
-  "name": "mr4x4-auto-service",
+  "name": "servispro",
   "version": "1.0.0",
   "private": true,
-  "description": "Mr 4x4 Auto Service — workshop management PWA",
+  "description": "ServisPro — workshop management PWA (this workspace: Mr 4x4 Auto Service)",
   "scripts": {
     "build": "node build/build.js",
     "build:test": "node build/build-test.js",
