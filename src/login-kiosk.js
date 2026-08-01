@@ -4,9 +4,35 @@
 // without a discriminant. Low type-checking value relative to the noise.
 function renderLoginScreen(){
   const en = state.language==='en';
+  // Real ServisPro features, not the generic placeholder set from the
+  // reference mockup the user shared (that one showed a different app's
+  // screenshots entirely) -- shown on the wide desktop split-screen
+  // layout only (login-screen-auth's own CSS hides it below the
+  // breakpoint, where there's no room for it next to the login form).
+  const featuresPanel = `
+    <div class="login-features">
+      <div class="login-features-heading">${en?'Key Features':'Ciri Utama'}</div>
+      <div class="login-feature-item">
+        <div class="login-feature-icon">${ICONS.jobs}</div>
+        <div><div class="login-feature-title">${en?'Digital Job Cards':'Kad Kerja Digital'}</div><div class="login-feature-desc">${en?'Real workshop-style job tickets with digital signatures and before/after photos.':'Tiket kerja gaya bengkel sebenar dengan tandatangan digital dan gambar sebelum/selepas.'}</div></div>
+      </div>
+      <div class="login-feature-item">
+        <div class="login-feature-icon">${ICONS.inventory}</div>
+        <div><div class="login-feature-title">${en?'Inventory & Suppliers':'Inventori & Pembekal'}</div><div class="login-feature-desc">${en?'Track stock levels and generate purchase orders automatically.':'Jejak tahap stok dan jana pesanan belian secara automatik.'}</div></div>
+      </div>
+      <div class="login-feature-item">
+        <div class="login-feature-icon">${ICONS.pos}</div>
+        <div><div class="login-feature-title">${en?'POS & Invoicing':'POS & Invois'}</div><div class="login-feature-desc">${en?'Fast checkout, SST-ready invoices, and split payments.':'Checkout pantas, invois sedia SST, dan bayaran berbilang.'}</div></div>
+      </div>
+      <div class="login-feature-item">
+        <div class="login-feature-icon">${ICONS.customers}</div>
+        <div><div class="login-feature-title">${en?'Customers & Vehicles':'Pelanggan & Kenderaan'}</div><div class="login-feature-desc">${en?'Full service history with automatic reminders for the next visit.':'Sejarah servis penuh dengan peringatan automatik untuk lawatan seterusnya.'}</div></div>
+      </div>
+    </div>`;
   if(state.authBusy){
     return `
     <div class="login-screen login-screen-auth">
+      ${featuresPanel}
       <div class="login-box" style="text-align:center;">
         <div class="login-brand">
           <div class="mark"><img src="${SERVISPRO_LOGO_DATA_URI}" alt="ServisPro" width="120" height="120" style="border-radius:16px;"></div>
@@ -26,6 +52,7 @@ function renderLoginScreen(){
   if(mode==='faceid-lock'){
     return `
     <div class="login-screen login-screen-auth">
+      ${featuresPanel}
       <div class="login-box">
         <div class="login-brand">${logoBlock}<div class="sub">${en?'Welcome back':'Selamat kembali'}</div></div>
         <div class="panel" style="text-align:center;">
@@ -43,6 +70,7 @@ function renderLoginScreen(){
   if(mode==='mfa-challenge'){
     return `
     <div class="login-screen login-screen-auth">
+      ${featuresPanel}
       <div class="login-box">
         <div class="login-brand">${logoBlock}<div class="sub">${en?'Two-Factor Verification':'Pengesahan Dua Faktor'}</div></div>
         <div class="panel">
@@ -61,6 +89,7 @@ function renderLoginScreen(){
   if(mode==='reset'){
     return `
     <div class="login-screen login-screen-auth">
+      ${featuresPanel}
       <div class="login-box">
         <div class="login-brand">${logoBlock}<div class="sub">${en?'Set a New Password':'Tetapkan Kata Laluan Baharu'}</div></div>
         <div class="panel">
@@ -75,6 +104,7 @@ function renderLoginScreen(){
   if(mode==='forgot'){
     return `
     <div class="login-screen login-screen-auth">
+      ${featuresPanel}
       <div class="login-box">
         <div class="login-brand">${logoBlock}<div class="sub">${en?'Reset Password':'Reset Kata Laluan'}</div></div>
         <div class="panel">
@@ -92,6 +122,7 @@ function renderLoginScreen(){
   if(mode==='signup'){
     return `
     <div class="login-screen login-screen-auth">
+      ${featuresPanel}
       <div class="login-box">
         <div class="login-brand">${logoBlock}<div class="sub">${en?'Create Account':'Daftar Akaun'}</div></div>
         <div class="panel">
@@ -110,6 +141,7 @@ function renderLoginScreen(){
 
   return `
   <div class="login-screen login-screen-auth">
+    ${featuresPanel}
     <div class="login-box">
       <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
         <div class="theme-toggle" data-action="toggle-lang" title="Switch language">
