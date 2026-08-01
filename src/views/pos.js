@@ -15,6 +15,21 @@ function viewPOS(){
   const taxAmt = afterDiscount * taxRate/100;
   const total = afterDiscount + taxAmt;
   const custVehicles = state.posCustomerId ? getVehiclesFor(state.posCustomerId) : [];
+  // viewPOS() re-renders (fully, string-and-innerHTML) on every state change
+  // while this page is open -- adding a cart line, toggling split payment,
+  // even an unrelated realtime update -- not just when the customer picker
+  // itself is touched. An unbounded <option> per customer made every one of
+  // those rebuild however many hundreds/thousands of options a shop has
+  // accumulated. Cap it; always keep whichever customer is actually
+  // selected in the list even if they'd otherwise fall outside the cap, so
+  // an existing selection never silently disappears from the dropdown.
+  const POS_CUSTOMER_OPTIONS_CAP = 300;
+  let posCustomerOptions = [...db.customers].sort((a,b)=>a.name.localeCompare(b.name));
+  if(posCustomerOptions.length>POS_CUSTOMER_OPTIONS_CAP){
+    const selected = posCustomerOptions.find(c=>c.id===state.posCustomerId);
+    posCustomerOptions = posCustomerOptions.slice(0, POS_CUSTOMER_OPTIONS_CAP);
+    if(selected && !posCustomerOptions.includes(selected)) posCustomerOptions.push(selected);
+  }
   // Simple Mode always checks out as a single payment method, regardless
   // of a stale posSplitMode left on from before the setting was turned on.
   const showSplit = state.posSplitMode && !db.settings.simpleMode;
@@ -56,7 +71,7 @@ function viewPOS(){
       <div class="field"><label>${tt('Pelanggan (pilihan)')}</label>
         <select id="pos-customer">
           <option value="">${tt('Tunai / Walk-in')}</option>
-          ${db.customers.map(c=>`<option value="${c.id}" ${state.posCustomerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+          ${posCustomerOptions.map(c=>`<option value="${c.id}" ${state.posCustomerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
         </select>
       </div>
       ${state.posCustomerId ? `

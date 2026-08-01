@@ -81,6 +81,8 @@ function leadsTabHTML(){
   const filter = state.leadStatusFilter || 'all';
   let leads = [...(db.leads||[])].sort((a,b)=>b.createdAt-a.createdAt);
   if(filter!=='all') leads = leads.filter(l=>l.status===filter);
+  const totalLeads = leads.length;
+  const shownLeads = leads.slice(0, state.leadsShowCount||30);
   const counts = {all:(db.leads||[]).length};
   LEAD_STAGES.forEach(s=>counts[s] = (db.leads||[]).filter(l=>l.status===s).length);
   return `
@@ -92,9 +94,9 @@ function leadsTabHTML(){
     <div class="tab-btn ${filter==='all'?'active':''}" data-leadfilter="all">${en?'All':'Semua'} (${counts.all})</div>
     ${LEAD_STAGES.map(s=>`<div class="tab-btn ${filter===s?'active':''}" data-leadfilter="${s}">${leadStageLabel(s)} (${counts[s]})</div>`).join('')}
   </div>
-  ${leads.length===0 ? emptyState(en?'No leads in this stage.':'Tiada prospek pada peringkat ini.') : `
+  ${shownLeads.length===0 ? emptyState(en?'No leads in this stage.':'Tiada prospek pada peringkat ini.') : `
   <div class="grid grid-3">
-    ${leads.map(l=>{
+    ${shownLeads.map(l=>{
       const waHref = l.phone ? `https://wa.me/${normalizePhone(l.phone)}` : null;
       const nextStage = l.status==='new' ? 'contacted' : l.status==='contacted' ? 'quoted' : null;
       return `<div class="panel">
@@ -111,7 +113,10 @@ function leadsTabHTML(){
         </div>
       </div>`;
     }).join('')}
-  </div>`}
+  </div>
+  ${totalLeads > shownLeads.length ? `<div style="text-align:center;margin-top:18px;">
+    <button class="btn btn-outline" data-action="load-more-leads">${en?'Load More':'Muat Lagi'} (${shownLeads.length}/${totalLeads})</button>
+  </div>` : ''}`}
   `;
 }
 function leadModalHTML(){

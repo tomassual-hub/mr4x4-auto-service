@@ -3,8 +3,12 @@ function viewInventory(){
   const tab = state.invMainTab || 'items';
   let items = [...db.inventory];
   if(state.invTab==='low') items = items.filter(i=>i.qty<=i.lowStock);
+  const q = (state.inventorySearch||'').toLowerCase();
+  if(q) items = items.filter(i=>i.name.toLowerCase().includes(q) || (i.sku||'').toLowerCase().includes(q));
   items.sort((a,b)=>a.name.localeCompare(b.name));
   const lowCount = db.inventory.filter(i=>i.qty<=i.lowStock).length;
+  const totalItems = items.length;
+  const shownItems = items.slice(0, state.inventoryShowCount||30);
 
   const itemsTabHTML = `
   <div class="section-head">
@@ -24,11 +28,12 @@ function viewInventory(){
     <div class="tab-btn ${state.invTab==='semua'?'active':''}" data-invtab="semua">${tt('Semua')} (${db.inventory.length})</div>
     <div class="tab-btn ${state.invTab==='low'?'active':''}" data-invtab="low">${tt('Stok Rendah')} (${lowCount})</div>
   </div>
+  <div class="search-box" style="max-width:340px;">${ICONS.search}<input id="inventory-search" placeholder="${state.language==='en'?'Search name or SKU...':'Cari nama atau SKU...'}" value="${esc(state.inventorySearch||'')}"></div>
   <div class="panel">
     <div class="table-wrap"><table>
       <thead><tr><th>${tt('Nama Item')}</th><th>${tt('SKU')}</th><th>${tt('Kuantiti')}</th><th>${tt('Kos')}</th><th>${tt('Harga Jual')}</th><th>${tt('Pembekal')}</th><th>${tt('Status')}</th><th></th></tr></thead>
       <tbody>
-        ${items.length===0 ? `<tr><td colspan="8">${emptyState(tt('Tiada item.'))}</td></tr>` : items.map(i=>{
+        ${shownItems.length===0 ? `<tr><td colspan="8">${emptyState(tt('Tiada item.'))}</td></tr>` : shownItems.map(i=>{
           const sup = db.suppliers.find(s=>s.id===i.supplierId);
           return `<tr>
             <td style="font-weight:600;">${esc(i.name)}</td>
@@ -46,6 +51,9 @@ function viewInventory(){
         }).join('')}
       </tbody>
     </table></div>
+    ${totalItems > shownItems.length ? `<div style="text-align:center;margin-top:18px;">
+      <button class="btn btn-outline" data-action="load-more-inventory">${state.language==='en'?'Load More':'Muat Lagi'} (${shownItems.length}/${totalItems})</button>
+    </div>` : ''}
   </div>`;
 
   const suppliersTabHTML = `
@@ -82,12 +90,15 @@ function viewInventory(){
       <button class="btn btn-outline btn-sm" data-action="auto-po">${tt('Jana Pesanan Auto')}</button>
     </div>
   </div>` : ''}
-  ${db.purchaseOrders.length===0 ? emptyState(tt('Tiada pesanan belian.')) : `
+  ${db.purchaseOrders.length===0 ? emptyState(tt('Tiada pesanan belian.')) : (()=>{
+    const sortedPOs = [...db.purchaseOrders].sort((a,b)=>b.createdAt-a.createdAt);
+    const shownPOs = sortedPOs.slice(0, state.poShowCount||30);
+    return `
   <div class="panel">
     <div class="table-wrap"><table>
       <thead><tr><th>${tt('No. PO')}</th><th>${tt('Pembekal')}</th><th>${tt('Item')}</th><th>${tt('Jumlah')}</th><th>${tt('Status')}</th><th></th></tr></thead>
       <tbody>
-        ${[...db.purchaseOrders].sort((a,b)=>b.createdAt-a.createdAt).map(po=>{
+        ${shownPOs.map(po=>{
           const sup = db.suppliers.find(s=>s.id===po.supplierId);
           const total = po.items.reduce((s,i)=>s+i.cost*i.qty,0);
           const poLines = po.items.map(i=>`- ${i.name} x${i.qty} (${fmtRM(i.cost)}/unit)`).join('\n');
@@ -109,7 +120,11 @@ function viewInventory(){
         }).join('')}
       </tbody>
     </table></div>
-  </div>`}
+    ${sortedPOs.length > shownPOs.length ? `<div style="text-align:center;margin-top:18px;">
+      <button class="btn btn-outline" data-action="load-more-po">${state.language==='en'?'Load More':'Muat Lagi'} (${shownPOs.length}/${sortedPOs.length})</button>
+    </div>` : ''}
+  </div>`;
+  })()}
   `;
 
   const requisitionTabHTML = `
