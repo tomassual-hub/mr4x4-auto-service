@@ -45,6 +45,7 @@ function viewDashboard(){
   ];
 
   return `
+  <div class="dashboard-view">
   <div class="panel" style="margin-bottom:22px;">
     <h2>${ICONS.repeat} ${en?'Workshop Workflow':'Aliran Kerja Bengkel'}</h2>
     <div class="grid grid-4" style="gap:12px;">
@@ -59,6 +60,7 @@ function viewDashboard(){
 
   ${isAdmin ? `
   <div class="panel dash-hero" style="margin-bottom:22px;">
+    <div class="dash-hero-brand">ServisPro</div>
     <div class="stat-label">${esc(db.settings.shopName)} · ${t('stat_today_sales')}</div>
     <div class="dash-hero-value">${fmtRM(todaySales)}</div>
     <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
@@ -251,6 +253,7 @@ function viewDashboard(){
       }).join('')}
     </div>`;
   })()}
+  </div>
   `;
 }
 

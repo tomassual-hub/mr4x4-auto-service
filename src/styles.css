@@ -200,6 +200,15 @@ body::before{
    a top-corner icon. Desktop is untouched -- the sidebar remains the
    primary nav there, this bar simply never renders. */
 .mobile-tabbar{display:none;}
+/* Desktop already carries the ServisPro brand in the sidebar (see
+   .brand-title in chrome.js/renderSidebar) -- this wordmark is mobile-only,
+   where there's no persistent sidebar to show it. Hidden by default,
+   switched on inside the 880px mobile media query directly below. Must sit
+   BEFORE that media query in source order: an unconditional rule declared
+   AFTER a media-query rule of equal specificity wins regardless of which
+   viewport is active, since @media doesn't add specificity on its own --
+   the exact bug class already hit once earlier this session. */
+.dash-hero-brand{display:none;}
 
 @media screen and (max-width:880px){
   .sidebar{position:fixed;left:0;top:0;height:100vh;transform:translateX(-100%);transition:transform .28s ease;z-index:50;box-shadow:12px 0 32px var(--shadow);}
@@ -210,6 +219,23 @@ body::before{
   .topbar h1{font-size:17px;}
   .topbar .date{display:none;}
   .content{padding:16px 16px 86px;}
+  /* .dash-hero moves to the very top of the dashboard on mobile (order:-1
+     inside this flex wrapper), styled as a dark branded banner -- mirrors a
+     reference mobile layout the user shared where the product's own brand
+     sits in a colored header above the day's stats. Not theme-conditional,
+     same reasoning as the login screen: this banner has its own fixed dark
+     backdrop regardless of state.theme, so its text colors are hardcoded
+     to match rather than pulling from the (possibly light-mode) --text
+     tokens .stat-label/.stat-sub normally resolve to. */
+  .dashboard-view{display:flex;flex-direction:column;}
+  .dash-hero{
+    order:-1;text-align:left;
+    background:linear-gradient(135deg, #1c130a, #0d0906 65%, #030201);
+    border-color:rgba(242,167,59,.28);
+  }
+  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
+  .dash-hero .stat-label{color:rgba(243,240,232,.72);}
+  .dash-hero .stat-sub{color:rgba(243,240,232,.55);}
   .mobile-tabbar{
     display:flex;gap:7px;position:fixed;left:0;right:0;bottom:0;z-index:45;
     background:linear-gradient(180deg, var(--glass-highlight), transparent 30%), var(--glass-sidebar);
