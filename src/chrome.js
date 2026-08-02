@@ -24,7 +24,7 @@ function renderSidebar(){
   <div class="sidebar ${state.navOpen?'nav-open':''}">
     <div class="brand" style="position:relative;">
       <div class="brand-title">ServisPro</div>
-      <div class="brand-tagline">${en?'by Tomas Sual':'oleh Tomas Sual'}</div>
+      <div class="brand-tagline">by Tomas Sual</div>
       <button class="btn-icon hamburger-btn" data-action="close-nav" style="position:absolute;top:0;right:0;" title="${en?'Close menu':'Tutup menu'}">${ICONS.x}</button>
     </div>
     <div class="workspace-card">
