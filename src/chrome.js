@@ -1,4 +1,5 @@
 function renderSidebar(){
+  const en = state.language==='en';
   const lowStockCount = db.inventory.filter(i=>i.qty<=i.lowStock).length;
   const activeJobs = db.jobs.filter(j=>j.status!=='delivered').length;
   let items = [
@@ -21,10 +22,14 @@ function renderSidebar(){
   if(db.settings.simpleMode) items = items.filter(it=>!it.advancedOnly);
   return `
   <div class="sidebar ${state.navOpen?'nav-open':''}">
-    <div class="brand" style="position:relative;text-align:center;">
-      <div class="brand-mark" style="justify-content:center;">${logoMarkHtml(58)}</div>
-      <div class="brand-sub">${tt('Pakar Servis 4x4')}</div>
-      <button class="btn-icon hamburger-btn" data-action="close-nav" style="position:absolute;top:0;right:0;" title="${state.language==='en'?'Close menu':'Tutup menu'}">${ICONS.x}</button>
+    <div class="brand" style="position:relative;">
+      <div class="brand-title">ServisPro</div>
+      <div class="brand-tagline">${en?'by Tomas Sual':'oleh Tomas Sual'}</div>
+      <button class="btn-icon hamburger-btn" data-action="close-nav" style="position:absolute;top:0;right:0;" title="${en?'Close menu':'Tutup menu'}">${ICONS.x}</button>
+    </div>
+    <div class="workspace-card">
+      <div class="workspace-logo">${logoMarkHtml(34)}</div>
+      <div class="workspace-name">${esc(db.settings.shopName || (en?'Mr4x4 Auto Service':'Mr4x4 Auto Servis'))}</div>
     </div>
     <div class="nav">
       ${items.map(it=>`
@@ -59,7 +64,6 @@ function renderSidebar(){
         </div>
       </div>
     </div>
-    <div class="sidebar-foot">${t('sidebar_foot')}</div>
   </div>`;
 }
 

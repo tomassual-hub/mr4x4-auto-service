@@ -10,7 +10,6 @@ const I18N = {
   ms: {
     nav_dashboard:'Papan Pemuka', nav_jobs:'Kad Kerja', nav_pos:'POS / Invois', nav_inventory:'Inventori',
     nav_customers:'Pelanggan', nav_reports:'Laporan', nav_staff:'Staf', nav_appointments:'Tempahan', nav_settings:'Tetapan',
-    sidebar_foot:'ServisPro — by Tomas Sual',
     title_dashboard:'Papan Pemuka', title_jobs:'Kad Kerja', title_pos:'Tempat Jualan (POS)', title_inventory:'Inventori Alat Ganti',
     title_customers:'Pelanggan & Kenderaan', title_reports:'Laporan', title_staffpage:'Pengurusan Staf',
     title_appointments:'Tempahan & Kontrak Servis', title_settings:'Tetapan', title_payroll:'Gaji',
@@ -22,7 +21,6 @@ const I18N = {
   en: {
     nav_dashboard:'Dashboard', nav_jobs:'Job Cards', nav_pos:'POS / Invoices', nav_inventory:'Inventory',
     nav_customers:'Customers', nav_reports:'Reports', nav_staff:'Staff', nav_appointments:'Appointments', nav_settings:'Settings',
-    sidebar_foot:'ServisPro — by Tomas Sual',
     title_dashboard:'Dashboard', title_jobs:'Job Cards', title_pos:'Point of Sale (POS)', title_inventory:'Parts Inventory',
     title_customers:'Customers & Vehicles', title_reports:'Reports', title_staffpage:'Staff Management',
     title_appointments:'Appointments & Service Contracts', title_settings:'Settings', title_payroll:'Payroll',
