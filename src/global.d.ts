@@ -264,6 +264,7 @@ interface ShopSettings {
   churnDays: number;
   simpleMode: boolean;
   paymentQR: string;
+  shopLogo?: string;
   lastBackupAt: number | null;
   servicedBrands?: string[];
   monthlySalesTarget?: number;

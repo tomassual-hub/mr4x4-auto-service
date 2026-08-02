@@ -1086,6 +1086,37 @@ function attachHandlers(){
       showToast(tt('Kod QR bayaran dibuang.'));
     });
   });
+  const shopLogoInput = document.getElementById('shop-logo-input');
+  if(shopLogoInput) shopLogoInput.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      img.onload = ()=>{
+        const maxW = 400;
+        const scale = Math.min(1, maxW/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        db.settings.shopLogo = canvas.toDataURL('image/png');
+        queueSave();
+        render();
+        showToast(state.language==='en'?'Workshop logo saved.':'Logo bengkel disimpan.');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  bindAction('remove-shop-logo', ()=>{
+    askConfirm(state.language==='en'?'Remove this workshop logo?':'Buang logo bengkel ini?', ()=>{
+      db.settings.shopLogo = '';
+      queueSave();
+      render();
+      showToast(state.language==='en'?'Workshop logo removed.':'Logo bengkel dibuang.');
+    });
+  });
   const restoreFile = document.getElementById('restore-file');
   if(restoreFile) restoreFile.addEventListener('change', (e)=>{
     const file = e.target.files[0];

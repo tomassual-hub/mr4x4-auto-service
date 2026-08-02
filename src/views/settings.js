@@ -58,6 +58,17 @@ function viewSettings(){
       </div>
 
       <div style="margin-top:22px;padding-top:18px;border-top:1px dashed var(--border);">
+        <h2 style="font-size:14px;">${ICONS.upload} ${state.language==='en'?'Workshop Logo':'Logo Bengkel'}</h2>
+        <p style="font-size:11.5px;color:var(--text-muted);margin-top:0;">${state.language==='en'?"Shown next to your workshop's name in the sidebar, in place of the default mr4x4 mark.":'Dipaparkan di sebelah nama bengkel anda pada bar sisi, menggantikan tanda mr4x4 lalai.'}</p>
+        ${s.shopLogo ? `
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+          <img src="${s.shopLogo}" alt="${state.language==='en'?'Workshop logo':'Logo bengkel'}" style="width:56px;height:56px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;border:1px solid var(--border);">
+          <button class="btn btn-outline btn-sm" data-action="remove-shop-logo">${ICONS.trash} ${state.language==='en'?'Remove Logo':'Buang Logo'}</button>
+        </div>` : ''}
+        <input type="file" id="shop-logo-input" accept="image/*" style="padding:8px;">
+      </div>
+
+      <div style="margin-top:22px;padding-top:18px;border-top:1px dashed var(--border);">
         <h2 style="font-size:14px;">${ICONS.barcode} ${tt('Kod QR Bayaran (DuitNow)')}</h2>
         <p style="font-size:11.5px;color:var(--text-muted);margin-top:0;">${tt('Muat naik kod QR DuitNow bengkel anda untuk dipaparkan pada invois cetak, supaya pelanggan boleh imbas terus untuk bayar.')}</p>
         ${s.paymentQR ? `
