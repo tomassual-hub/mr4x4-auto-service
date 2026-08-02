@@ -98,6 +98,6 @@ function canSeeRevenue(){
 // than reusing --accent in light mode too: gold-on-light read as a washed
 // out dark orange, so light mode maps it to --text (near-black) instead.
 function logoMarkHtml(px){
-  return `<div role="img" aria-label="ServisPro" style="display:inline-block;height:${px}px;aspect-ratio:200/211;background-color:var(--logo-tint);-webkit-mask:url(${LOGO_DATA_URI}) center / contain no-repeat;mask:url(${LOGO_DATA_URI}) center / contain no-repeat;"></div>`;
+  return `<div role="img" aria-label="ServisPro" style="display:inline-block;height:${px}px;aspect-ratio:480/535;background-color:var(--logo-tint);-webkit-mask:url(${LOGO_DATA_URI}) center / contain no-repeat;mask:url(${LOGO_DATA_URI}) center / contain no-repeat;"></div>`;
 }
 
