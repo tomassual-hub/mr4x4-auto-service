@@ -75,7 +75,7 @@ jobs:
       # (also skips any accidental _-prefixed file being treated specially).
       - run: touch "servispro-pwa/.nojekyll"
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v3
         with:
