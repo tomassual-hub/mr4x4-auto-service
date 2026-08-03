@@ -139,7 +139,7 @@ body::before{
 /* Brand (ServisPro, the product) is text-only here on purpose -- no logo
    mark -- so it reads as the software's own identity, distinct from
    .workspace-card just below it, which is THIS shop's identity (their own
-   mr4x4 logo + name) inside that product. Two different brands sharing one
+   logo + name) inside that product. Two different brands sharing one
    sidebar, kept visually separate rather than merged into one lockup. */
 .brand{padding:24px 22px 4px;}
 .brand-title{font-family:'Oswald',sans-serif;font-weight:700;font-size:27px;letter-spacing:.2px;color:var(--accent);}

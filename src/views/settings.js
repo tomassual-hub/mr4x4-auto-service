@@ -59,7 +59,7 @@ function viewSettings(){
 
       <div style="margin-top:22px;padding-top:18px;border-top:1px dashed var(--border);">
         <h2 style="font-size:14px;">${ICONS.upload} ${state.language==='en'?'Workshop Logo':'Logo Bengkel'}</h2>
-        <p style="font-size:11.5px;color:var(--text-muted);margin-top:0;">${state.language==='en'?"Shown next to your workshop's name in the sidebar, in place of the default mr4x4 mark.":'Dipaparkan di sebelah nama bengkel anda pada bar sisi, menggantikan tanda mr4x4 lalai.'}</p>
+        <p style="font-size:11.5px;color:var(--text-muted);margin-top:0;">${state.language==='en'?"Shown next to your workshop's name in the sidebar, in place of the default ServisPro mark.":'Dipaparkan di sebelah nama bengkel anda pada bar sisi, menggantikan tanda ServisPro lalai.'}</p>
         ${s.shopLogo ? `
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
           <img src="${s.shopLogo}" alt="${state.language==='en'?'Workshop logo':'Logo bengkel'}" style="width:56px;height:56px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;border:1px solid var(--border);">

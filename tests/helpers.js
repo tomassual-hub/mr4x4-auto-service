@@ -11,8 +11,8 @@ const path = require('path');
 // email validator on this project (confirmed via direct signup attempts) —
 // mailinator.com is a real, deliverable domain so it passes validation; no
 // mail ever actually needs to be read there since email confirmation is off.
-const TEST_EMAIL = process.env.MR4X4_TEST_EMAIL || 'sync-test-mr4x4@mailinator.com';
-const TEST_PASSWORD = process.env.MR4X4_TEST_PASSWORD || 'SyncTest123!';
+const TEST_EMAIL = process.env.SERVISPRO_TEST_EMAIL || 'sync-test-mr4x4@mailinator.com';
+const TEST_PASSWORD = process.env.SERVISPRO_TEST_PASSWORD || 'SyncTest123!';
 
 function appUrl(){
   const filePath = path.join(__dirname, '.test-build', 'ServisPro.html');

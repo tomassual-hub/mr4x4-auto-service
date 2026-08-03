@@ -1029,7 +1029,7 @@ function attachHandlers(){
     const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'mr4x4-sandaran-'+new Date().toISOString().slice(0,10)+'.json';
+    a.href = url; a.download = 'servispro-sandaran-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
     db.settings.lastBackupAt = Date.now();
@@ -1050,7 +1050,7 @@ function attachHandlers(){
       const blob = new Blob([JSON.stringify(backupData, null, 2)], {type:'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'mr4x4-sandaran-auto-'+id+'.json';
+      a.href = url; a.download = 'servispro-sandaran-auto-'+id+'.json';
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     }catch(e){ reportError(e, 'Gagal muat turun sandaran automatik'); showToast(tt('Gagal muat turun sandaran.')); }

@@ -65,16 +65,16 @@ ada dua pilihan:
    `ServisPro.html` — beritahu saya jika anda mahu saya sediakan
    fail redirect ini
 
-### Pilihan 1: Netlify Drop (Paling Mudah, Percuma)
-1. Pergi ke [app.netlify.com/drop](https://app.netlify.com/drop)
-2. Seret keseluruhan folder `servispro-pwa` ke laman tersebut
-3. Netlify akan beri anda URL (contoh: `https://mr4x4-auto.netlify.app`)
-4. Buka URL itu di telefon → nampak opsyen "Add to Home Screen" / "Install App"
-
-### Pilihan 2: GitHub Pages (Percuma, perlukan akaun GitHub)
+### Pilihan 1: GitHub Pages (Disyorkan, Percuma)
 1. Cipta repositori baharu di GitHub, muat naik semua fail dalam folder ini
 2. Pergi ke **Settings → Pages**, pilih branch `main`, folder `/ (root)`
 3. GitHub akan beri URL (contoh: `https://namaanda.github.io/servispro`)
+
+### Pilihan 2: Netlify Drop (Paling Pantas untuk Uji, Percuma)
+1. Pergi ke [app.netlify.com/drop](https://app.netlify.com/drop)
+2. Seret keseluruhan folder `servispro-pwa` ke laman tersebut
+3. Netlify akan beri anda URL (contoh: `https://servispro-auto.netlify.app`)
+4. Buka URL itu di telefon → nampak opsyen "Add to Home Screen" / "Install App"
 
 ### Pilihan 3: Vercel
 1. Pergi ke [vercel.com](https://vercel.com), daftar percuma

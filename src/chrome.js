@@ -29,7 +29,7 @@ function renderSidebar(){
     </div>
     <div class="workspace-card">
       <div class="workspace-logo">${db.settings.shopLogo ? `<img src="${db.settings.shopLogo}" alt="" width="34" height="34" style="object-fit:contain;">` : logoMarkHtml(34)}</div>
-      <div class="workspace-name">${esc(db.settings.shopName || (en?'Mr4x4 Auto Service':'Mr4x4 Auto Servis'))}</div>
+      <div class="workspace-name">${esc(db.settings.shopName || (en?'ServisPro Auto Service':'ServisPro Auto Servis'))}</div>
     </div>
     <div class="nav">
       ${items.map(it=>`

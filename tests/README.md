@@ -43,7 +43,7 @@ that's exactly the kind of thing this isolation protects against.
 
 Override the account via env vars if you set up your own:
 ```
-MR4X4_TEST_EMAIL=you@example.com MR4X4_TEST_PASSWORD=... npm test
+SERVISPRO_TEST_EMAIL=you@example.com SERVISPRO_TEST_PASSWORD=... npm test
 ```
 
 To point at yet another Supabase project (e.g. everyone runs their own),

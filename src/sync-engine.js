@@ -376,7 +376,7 @@ async function resolveStaffForUser(user){
   return {...data.data, id:data.id, userId:data.user_id};
 }
 
-const OFFLINE_CACHE_KEY = 'mr4x4-offline-cache';
+const OFFLINE_CACHE_KEY = 'servispro-offline-cache';
 function cacheOfflineSnapshot(userId, staffMember, dbSnapshot){
   try{
     localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify({ userId, staffMember, db: dbSnapshot, savedAt: Date.now() }));
