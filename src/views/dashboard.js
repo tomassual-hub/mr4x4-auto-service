@@ -7,7 +7,6 @@ function viewDashboard(){
   const todaysInvoices = db.invoices.filter(inv=>inv.createdAt>=todayStart.getTime() && branchFilter(inv));
   const todaySales = todaysInvoices.reduce((s,i)=>s+i.total,0);
   const activeJobs = db.jobs.filter(j=>j.status!=='delivered' && branchFilter(j));
-  const waitingJobs = db.jobs.filter(j=>j.status==='waiting');
   const lowStock = db.inventory.filter(i=>i.qty<=i.lowStock);
   const recentInvoices = [...db.invoices].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
   // Sales figures (today's total, recent invoice amounts) are Admin-only —
@@ -48,7 +47,7 @@ function viewDashboard(){
   <div class="dashboard-view">
   <div class="panel" style="margin-bottom:22px;">
     <h2>${ICONS.repeat} ${en?'Workshop Workflow':'Aliran Kerja Bengkel'}</h2>
-    <div class="grid grid-4" style="gap:12px;">
+    <div class="grid dash-workflow" style="gap:12px;">
       ${workflowSteps.map(s=>`
         <div class="stat-card" style="cursor:pointer;" data-nav="${s.nav}">
           <div class="stat-icon">${s.icon}</div>
@@ -96,7 +95,7 @@ function viewDashboard(){
     const salesPct = salesTarget>0 ? Math.min(100, Math.round(actualSales/salesTarget*100)) : 0;
     const unitPct = unitTarget>0 ? Math.min(100, Math.round(actualUnits/unitTarget*100)) : 0;
     return `
-    <div class="panel" style="margin-bottom:22px;">
+    <div class="panel dash-target-panel" style="margin-bottom:22px;">
       <div class="section-head">
         <h2 style="margin:0;">${ICONS.reports} ${en?'Target':'Sasaran'} <span class="tag">${period==='weekly' ? (en?'This Week':'Minggu Ini') : monthLabel(monthKey)}</span></h2>
         <div class="pill-toggle">
@@ -123,34 +122,14 @@ function viewDashboard(){
     </div>`;
   })() : ''}
 
-  <div class="grid grid-3" style="margin-bottom:22px;">
-    <div class="stat-card">
-      <div class="stat-icon">${ICONS.calendar}</div>
-      <div class="stat-label">${en?'Bookings Today':'Tempahan Hari Ini'}</div>
-      <div class="stat-value">${bookingsToday}</div>
-      <div class="stat-sub">${en?'appointments scheduled':'tempahan dijadualkan'}</div>
-    </div>
-    <div class="stat-card ok">
-      <div class="stat-icon">${ICONS.done}</div>
-      <div class="stat-label">${en?'Completed Today':'Selesai Hari Ini'}</div>
-      <div class="stat-value">${completedToday}</div>
-      <div class="stat-sub">${en?'job cards marked ready/delivered':'kad kerja siap/dihantar'}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">${ICONS.staff}</div>
-      <div class="stat-label">${en?'Attendance Today':'Kehadiran Hari Ini'}</div>
-      <div class="stat-value">${presentToday}/${staffCount}</div>
-      <div class="stat-sub">${en?'staff clocked in':'staf clock in'}</div>
-    </div>
+  <div class="grid dash-quickstats" style="margin-bottom:22px;">
+    ${dashTile(ICONS.calendar, bookingsToday, en?'Bookings Today':'Tempahan Hari Ini')}
+    ${dashTile(ICONS.done, completedToday, en?'Completed Today':'Selesai Hari Ini')}
+    ${dashTile(ICONS.staff, `${presentToday}/${staffCount}`, en?'Attendance Today':'Kehadiran Hari Ini')}
+    ${dashTile(ICONS.jobs, activeJobs.length, t('stat_active_jobs'))}
   </div>
 
-  <div class="grid grid-3" style="margin-bottom:22px;">
-    <div class="stat-card">
-      <div class="stat-icon">${ICONS.jobs}</div>
-      <div class="stat-label">${t('stat_active_jobs')}</div>
-      <div class="stat-value">${activeJobs.length}</div>
-      <div class="stat-sub">${waitingJobs.length} ${tt('menunggu tindakan')}</div>
-    </div>
+  <div class="grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:22px;">
     <div class="stat-card ${lowStock.length ? 'warn' : 'ok'}">
       <div class="stat-icon">${ICONS.inventory}</div>
       <div class="stat-label">${t('stat_low_stock')}</div>
@@ -165,7 +144,7 @@ function viewDashboard(){
     </div>
   </div>
 
-  <div class="grid grid-2">
+  <div class="grid grid-2 dash-split">
     <div class="panel">
       <h2>${tt('Kad Kerja Aktif')} <span class="tag">${activeJobs.length}</span></h2>
       ${activeJobs.length===0 ? emptyState(tt('Tiada kerja aktif buat masa ini.')) : `
@@ -200,7 +179,7 @@ function viewDashboard(){
     const overdueContracts = db.contracts.filter(c=>c.nextDue<=now);
     if(upcomingAppts.length===0 && overdueContracts.length===0) return '';
     return `
-    <div class="grid grid-2" style="margin-top:20px;">
+    <div class="grid grid-2 dash-split" style="margin-top:20px;">
       <div class="panel">
         <h2>${ICONS.calendar} ${tt('Tempahan Akan Datang')} <span class="tag">${upcomingAppts.length}</span></h2>
         ${upcomingAppts.length===0 ? emptyState(tt('Tiada tempahan dijadualkan.')) : upcomingAppts.map(a=>{
@@ -259,5 +238,22 @@ function viewDashboard(){
 
 function emptyState(msg){
   return `<div class="empty">${ICONS.wrench}<div>${msg}</div></div>`;
+}
+
+// Vivid brand-colored tile for the dashboard's "today at a glance" row --
+// icon+number share a header row rather than stacking (see .stat-tile in
+// styles.css), matching the reference mobile layout the user shared. Kept
+// as its own component rather than reusing .stat-card, whose vertical
+// icon/label/value stack is a deliberately different shape used everywhere
+// else in the app (Jobs, Inventory, etc.) that this change isn't meant to touch.
+function dashTile(icon, value, label){
+  return `
+  <div class="stat-tile">
+    <div class="stat-tile-top">
+      <div class="stat-tile-icon">${icon}</div>
+      <div class="stat-tile-value">${value}</div>
+    </div>
+    <div class="stat-tile-label">${label}</div>
+  </div>`;
 }
 
