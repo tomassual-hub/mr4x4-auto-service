@@ -188,18 +188,20 @@ body::before{
 
 .sidebar-backdrop{display:none;position:fixed;inset:0;background:var(--backdrop);z-index:40;}
 
-.sidebar-account-mobile{display:none;}
-
-/* ---------- MOBILE BOTTOM TAB BAR ----------
-   Replaces the hamburger + off-canvas sidebar as the PRIMARY nav on
-   small screens -- only the 4 most-used sections get a permanent tab;
-   everything else (Customers, Tech Reference, Reports, Payroll, Staff,
-   Appointments, Settings, plus account/logout/theme/language) stays
-   reachable through "Lagi"/"More", which still opens the exact same
-   sidebar drawer as before, just triggered from the bottom instead of
-   a top-corner icon. Desktop is untouched -- the sidebar remains the
-   primary nav there, this bar simply never renders. */
+/* ---------- MOBILE BOTTOM TAB BAR + "MORE" SHEET ----------
+   Replaces the sidebar as the PRIMARY nav on small screens entirely --
+   .sidebar is hidden outright below 880px (see the media query further
+   down), not just moved off-canvas, so mobile never renders a shrunk copy
+   of the desktop drawer. Only the 4 most-used sections get a permanent
+   tab; everything else (Customers, Tech Reference, Reports, Payroll,
+   Staff, Appointments, Settings, plus account/logout/theme/language)
+   stays reachable through "Lagi"/"More", which opens .more-sheet -- a
+   native-style bottom sheet with its own icon-grid layout (see
+   renderMobileMoreSheet() in chrome.js), not a re-skinned sidebar list.
+   Desktop is untouched -- the sidebar remains the primary nav there, this
+   bar and sheet simply never render. */
 .mobile-tabbar{display:none;}
+.more-sheet{display:none;}
 /* Desktop already carries the ServisPro brand in the sidebar (see
    .brand-title in chrome.js/renderSidebar) -- this wordmark is mobile-only,
    where there's no persistent sidebar to show it. Hidden by default,
@@ -211,8 +213,7 @@ body::before{
 .dash-hero-brand{display:none;}
 
 @media screen and (max-width:880px){
-  .sidebar{position:fixed;left:0;top:0;height:100vh;transform:translateX(-100%);transition:transform .28s ease;z-index:50;box-shadow:12px 0 32px var(--shadow);}
-  .sidebar.nav-open{transform:translateX(0);}
+  .sidebar{display:none;}
   .hamburger-btn{display:none;}
   .sidebar-backdrop.show{display:block;}
   .topbar{padding:16px 16px;}
@@ -305,18 +306,54 @@ body::before{
   .mobile-tab-item.active .mobile-tab-badge{box-shadow:0 0 0 2px var(--accent);}
   .user-name,.user-role{display:none;}
   .topbar-account{display:none;}
-  .sidebar-account-mobile{display:block;margin-top:auto;padding:16px;border-top:1px solid var(--glass-border);}
   .sidebar-account-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
   .sidebar-account-row .user-avatar{flex-shrink:0;}
   /* Split into two rows (preference toggles, then icon action buttons)
      instead of one flex row -- with 2FA + Face ID + logout all as
      btn-icons alongside both toggles, a single row no longer fits the
-     238px sidebar width and buttons spilled outside it. Each row alone
-     comfortably fits, and stays that way as more buttons get added. */
+     sheet's own side padding and buttons spilled outside it. Each row
+     alone comfortably fits, and stays that way as more buttons get added. */
   .sidebar-account-actions{display:flex;flex-direction:column;gap:8px;}
   .sidebar-account-toggles{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .sidebar-account-buttons{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .sidebar-account-buttons [data-action="logout"]{margin-left:auto;}
+
+  /* ---------- MOBILE "MORE" SHEET (native bottom-sheet, not a sidebar) --
+     Slides up from the bottom with a grabber handle and rounded top
+     corners, same visual language as .modal's own mobile bottom-sheet
+     treatment elsewhere in this file, rather than sliding in from the
+     side like a desktop drawer would. */
+  .more-sheet{
+    display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;
+    max-height:82vh;overflow-y:auto;
+    background:linear-gradient(180deg, var(--glass-highlight), transparent 18%), var(--glass-modal);
+    border-top:1px solid var(--glass-border);border-radius:20px 20px 0 0;
+    box-shadow:0 -14px 36px var(--shadow), inset 0 1px 0 var(--glass-highlight);
+    backdrop-filter:blur(calc(var(--glass-blur) + 10px)) saturate(calc(var(--glass-sat) + .2));-webkit-backdrop-filter:blur(calc(var(--glass-blur) + 10px)) saturate(calc(var(--glass-sat) + .2));
+    transform:translateY(100%);transition:transform .28s cubic-bezier(.2,.7,.3,1);
+    z-index:50;padding:10px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .more-sheet.show{transform:translateY(0);}
+  .more-sheet-handle{width:36px;height:4px;border-radius:3px;background:var(--glass-border-strong);margin:2px auto 14px;flex-shrink:0;}
+  .more-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;}
+  .more-sheet-shop{display:flex;align-items:center;gap:10px;min-width:0;}
+  .more-sheet-shop .workspace-name{font-size:13px;}
+  .more-sheet-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .more-grid-item{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    padding:14px 4px;border-radius:var(--r-md);background:var(--glass-2);border:1px solid var(--glass-border);
+    color:var(--text-muted);cursor:pointer;text-align:center;box-shadow:inset 0 1px 0 var(--glass-highlight);
+    transition:background .18s cubic-bezier(.2,.7,.3,1),border-color .18s ease,color .15s ease,transform .18s cubic-bezier(.2,.7,.3,1);
+  }
+  .more-grid-item:active{transform:scale(.95);}
+  .more-grid-item svg{width:21px;height:21px;opacity:.9;}
+  .more-grid-item span{font-size:10.5px;font-weight:600;line-height:1.25;}
+  .more-grid-item.active{
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));color:var(--accent-ink);border-color:transparent;
+    box-shadow:0 6px 16px -4px var(--accent-shadow), inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .more-grid-item.active svg{opacity:1;}
+  .more-sheet-account{padding:16px 2px 2px;border-top:1px solid var(--glass-border);margin-top:16px;}
 }
 @media screen and (max-width:600px){
   .grid-4,.grid-3{grid-template-columns:1fr 1fr;}

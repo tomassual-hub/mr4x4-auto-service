@@ -1,5 +1,6 @@
-function renderSidebar(){
-  const en = state.language==='en';
+// Shared by the desktop sidebar and the mobile "More" sheet so both stay in
+// sync on admin/simpleMode filtering instead of maintaining two lists.
+function getNavItems(){
   const lowStockCount = db.inventory.filter(i=>i.qty<=i.lowStock).length;
   const activeJobs = db.jobs.filter(j=>j.status!=='delivered').length;
   let items = [
@@ -20,6 +21,15 @@ function renderSidebar(){
   // figures inside them (see dashboard.js/pos.js/appointments.js/reports.js).
   if(!canManage()) items = items.filter(it=>!it.adminOnly);
   if(db.settings.simpleMode) items = items.filter(it=>!it.advancedOnly);
+  return items;
+}
+
+// Desktop-only permanent left nav (hidden outright on mobile -- see
+// .sidebar's display:none inside the 880px media query in styles.css;
+// renderMobileMoreSheet() below is the mobile equivalent).
+function renderSidebar(){
+  const en = state.language==='en';
+  const items = getNavItems();
   return `
   <div class="sidebar ${state.navOpen?'nav-open':''}">
     <div class="brand" style="position:relative;">
@@ -38,7 +48,63 @@ function renderSidebar(){
           ${it.badge ? `<span class="nav-badge" style="${it.badgeWarn && it.badge>0 ? 'background:var(--danger);color:#fff;':''}">${it.badge}</span>` : ''}
         </div>`).join('')}
     </div>
-    <div class="sidebar-account-mobile">
+  </div>`;
+}
+
+// The 4 most-used sections get a permanent bottom tab on mobile (only
+// rendered ≤880px, see .mobile-tabbar in styles.css); everything else
+// (Customers, Tech Reference, Reports, Payroll, Staff, Appointments,
+// Settings, account/logout/theme/language) stays reachable through
+// "Lagi"/"More", which opens renderMobileMoreSheet() below -- a dedicated
+// bottom sheet, not the desktop sidebar drawer (that's hidden outright on
+// mobile now so the app doesn't read as a shrunk desktop web page).
+function renderMobileTabBar(){
+  const en = state.language==='en';
+  const primaryKeys = ['dashboard','jobs','pos','inventory'];
+  const allItems = getNavItems();
+  const primary = primaryKeys.map(k=>allItems.find(it=>it.k===k)).filter(Boolean);
+  const isPrimaryView = primary.some(it=>it.k===state.view);
+  return `
+  <div class="mobile-tabbar">
+    ${primary.map(it=>`
+      <div class="mobile-tab-item ${state.view===it.k?'active':''}" data-nav="${it.k}">
+        ${it.icon}<span>${it.l}</span>
+        ${it.badge ? `<span class="mobile-tab-badge">${it.badge}</span>` : ''}
+      </div>`).join('')}
+    <div class="mobile-tab-item ${!isPrimaryView?'active':''}" data-action="open-nav">
+      ${ICONS.menu}<span>${en?'More':'Lagi'}</span>
+    </div>
+  </div>`;
+}
+
+// Mobile's "More" destination: a native-style bottom sheet (grabber handle,
+// slides up from the bottom, rounded top corners) with the overflow nav laid
+// out as a tappable icon grid, not a re-skinned vertical sidebar list --
+// deliberately a different shape from .sidebar so mobile reads as its own
+// surface rather than the desktop nav squeezed into a drawer. Reuses the
+// exact same navOpen/open-nav/close-nav state and .sidebar-backdrop as the
+// old drawer did (see render-core.js), just with new markup/classes.
+function renderMobileMoreSheet(){
+  const en = state.language==='en';
+  const primaryKeys = ['dashboard','jobs','pos','inventory'];
+  const items = getNavItems().filter(it=>!primaryKeys.includes(it.k));
+  return `
+  <div class="more-sheet ${state.navOpen?'show':''}">
+    <div class="more-sheet-handle"></div>
+    <div class="more-sheet-head">
+      <div class="more-sheet-shop">
+        <div class="workspace-logo">${db.settings.shopLogo ? `<img src="${db.settings.shopLogo}" alt="" width="30" height="30" style="object-fit:contain;">` : logoMarkHtml(30)}</div>
+        <div class="workspace-name">${esc(db.settings.shopName || (en?'ServisPro Auto Service':'ServisPro Auto Servis'))}</div>
+      </div>
+      <button class="btn-icon" data-action="close-nav" title="${en?'Close':'Tutup'}">${ICONS.x}</button>
+    </div>
+    <div class="more-sheet-grid">
+      ${items.map(it=>`
+        <div class="more-grid-item ${state.view===it.k?'active':''}" data-nav="${it.k}">
+          ${it.icon}<span>${it.l}</span>
+        </div>`).join('')}
+    </div>
+    <div class="more-sheet-account">
       <div class="sidebar-account-row">
         <div class="user-avatar">${initials(state.currentStaff?state.currentStaff.name:'')}</div>
         <div>
@@ -63,36 +129,6 @@ function renderSidebar(){
           <button class="btn-icon" data-action="logout" title="${t('btn_logout')}">${ICONS.logout}</button>
         </div>
       </div>
-    </div>
-  </div>`;
-}
-
-// The 4 most-used sections get a permanent bottom tab on mobile (only
-// rendered ≤880px, see .mobile-tabbar in styles.css); everything else
-// (Customers, Tech Reference, Reports, Payroll, Staff, Appointments,
-// Settings, account/logout/theme/language) stays reachable through
-// "Lagi"/"More", which opens the same sidebar drawer as before via the
-// existing open-nav action -- nothing about the drawer itself changes,
-// only what triggers it on a small screen.
-function renderMobileTabBar(){
-  const en = state.language==='en';
-  const activeJobs = db.jobs.filter(j=>j.status!=='delivered').length;
-  const primary = [
-    {k:'dashboard', l:t('nav_dashboard'), icon:ICONS.dashboard},
-    {k:'jobs', l:t('nav_jobs'), icon:ICONS.jobs, badge:activeJobs},
-    {k:'pos', l:t('nav_pos'), icon:ICONS.pos},
-    {k:'inventory', l:t('nav_inventory'), icon:ICONS.inventory},
-  ];
-  const isPrimaryView = primary.some(it=>it.k===state.view);
-  return `
-  <div class="mobile-tabbar">
-    ${primary.map(it=>`
-      <div class="mobile-tab-item ${state.view===it.k?'active':''}" data-nav="${it.k}">
-        ${it.icon}<span>${it.l}</span>
-        ${it.badge ? `<span class="mobile-tab-badge">${it.badge}</span>` : ''}
-      </div>`).join('')}
-    <div class="mobile-tab-item ${!isPrimaryView?'active':''}" data-action="open-nav">
-      ${ICONS.menu}<span>${en?'More':'Lagi'}</span>
     </div>
   </div>`;
 }

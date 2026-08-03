@@ -126,6 +126,7 @@ function render(){
         <div class="content">${renderView()}</div>
       </div>
       ${renderMobileTabBar()}
+      ${renderMobileMoreSheet()}
     </div>
     ${state.modal ? renderModal() : ''}
     ${state.confirmAction ? renderConfirmModal() : ''}
