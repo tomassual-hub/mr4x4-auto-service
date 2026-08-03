@@ -499,6 +499,7 @@ declare function payrollPaymentModalHTML(staffId: string): string;
 declare function viewStaff(): string;
 declare function viewAppointments(): string;
 declare function viewSettings(): string;
+declare function viewAccount(): string;
 declare function renderView(): string;
 declare function getNavItems(): { k: string; l: string; icon: string; badge?: number; badgeWarn?: boolean; adminOnly?: boolean; advancedOnly?: boolean }[];
 declare function renderSidebar(): string;

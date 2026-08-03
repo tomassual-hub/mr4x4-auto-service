@@ -46,6 +46,7 @@ const FILE_ORDER = [
   'views/staff.js',
   'views/appointments.js',
   'views/settings.js',
+  'views/account.js',
   'views/dashboard.js',
   'views/jobs.js',
   'views/inventory.js',

@@ -234,7 +234,7 @@ body::before{
   .topbar{padding:16px 16px;}
   .topbar h1{font-size:17px;}
   .topbar .date{display:none;}
-  .content{padding:16px 16px 86px;}
+  .content{padding:16px 16px 108px;}
   /* .dash-hero/.dash-target-panel/.dash-quickstats move to the very top of
      the dashboard on mobile (order:-3/-2/-1 inside this flex wrapper) as one
      grouped "today at a glance" block -- mirrors a reference mobile layout
@@ -255,8 +255,13 @@ body::before{
        edge-to-edge under the topbar instead of floating as just another
        bordered card, matching the reference's edge-to-edge header. */
     margin-left:-16px;margin-right:-16px;margin-top:-16px;
-    border-radius:0;border-left:none;border-right:none;border-top:none;
-    padding:20px 16px 24px;
+    /* Rounded bottom corners (was a flat-cut rectangle) so the banner reads
+       as a distinct rounded surface rather than a bare strip -- mirrors a
+       reference app's softer, more app-native banner shape the user
+       pointed to, kept in ServisPro's own colors rather than adopting
+       that reference's palette. */
+    border-radius:0 0 26px 26px;border-left:none;border-right:none;border-top:none;
+    padding:20px 16px 28px;
   }
   .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
   .dash-hero .stat-label{color:rgba(243,240,232,.72);}
@@ -288,13 +293,20 @@ body::before{
   .grid-2.dash-split .tickets{grid-template-columns:1fr;}
   .grid-2.dash-split .job-ticket{padding:16px 14px 14px 30px;}
   .grid-2.dash-split .jt-head,.grid-2.dash-split .jt-foot{flex-wrap:wrap;gap:6px;}
+  /* Floating pill (was an edge-to-edge bar flush with the screen bottom) --
+     mirrors a reference app's floating rounded nav bar the user pointed to,
+     kept in ServisPro's own dark-glass surface and amber accent rather than
+     that reference's light/blue palette. Margin on all sides + full corner
+     rounding is the whole shape change; the per-tab chip styling below is
+     untouched. */
   .mobile-tabbar{
-    display:flex;gap:7px;position:fixed;left:0;right:0;bottom:0;z-index:45;
+    display:flex;gap:7px;position:fixed;left:12px;right:12px;
+    bottom:calc(12px + env(safe-area-inset-bottom));z-index:45;
     background:linear-gradient(180deg, var(--glass-highlight), transparent 30%), var(--glass-sidebar);
-    border-top:1px solid var(--glass-border);
+    border:1px solid var(--glass-border);border-radius:24px;
     backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));
-    box-shadow:0 -10px 26px var(--shadow), inset 0 1px 0 var(--glass-highlight);
-    padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+    box-shadow:0 10px 30px var(--shadow), inset 0 1px 0 var(--glass-highlight);
+    padding:8px;
   }
   /* Each tab is its own glass "chip" (separated by the bar's own gap
      above) rather than a plain flex slice of one continuous strip --
@@ -755,6 +767,19 @@ tr:hover td{background:var(--glass-highlight);}
 .user-avatar{width:33px;height:33px;border-radius:50%;background:var(--glass-2);display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:600;font-size:13px;color:var(--accent);border:1px solid var(--glass-border);box-shadow:0 0 0 3px var(--accent-soft);}
 .user-name{font-size:12.5px;font-weight:600;line-height:1.2;}
 .user-role{font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;}
+
+/* ---------- ACCOUNT PAGE (mobile profile, see viewAccount() in
+   src/views/account.js) ---------- */
+.account-hero{display:flex;align-items:center;gap:16px;}
+.account-hero-avatar{width:60px;height:60px;font-size:20px;flex-shrink:0;}
+.account-hero-name{font-family:'Oswald',sans-serif;font-size:18px;font-weight:600;}
+.account-hero-role{font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.account-hero-email{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-top:8px;}
+.account-row{display:flex;align-items:center;gap:12px;}
+.account-row.clickable svg:last-child{flex-shrink:0;color:var(--text-muted);}
+.account-row-title{font-size:14px;font-weight:600;}
+.account-row-sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+.account-page-actions{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 
 /* ---------- PRINT INVOICE ---------- */
 #print-area{display:none;}

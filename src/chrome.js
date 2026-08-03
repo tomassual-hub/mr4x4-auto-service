@@ -105,12 +105,13 @@ function renderMobileMoreSheet(){
         </div>`).join('')}
     </div>
     <div class="more-sheet-account">
-      <div class="sidebar-account-row">
+      <div class="sidebar-account-row clickable" data-nav="account">
         <div class="user-avatar">${initials(state.currentStaff?state.currentStaff.name:'')}</div>
-        <div>
+        <div style="flex:1;min-width:0;">
           <div class="staff-name">${state.currentStaff?state.currentStaff.name:''}</div>
           <div class="staff-role">${state.currentStaff?state.currentStaff.role:''}</div>
         </div>
+        ${ICONS.chevronRight}
       </div>
       <div class="sidebar-account-actions">
         <div class="sidebar-account-toggles">
@@ -241,7 +242,7 @@ function renderGlobalSearchResultsHTML(){
   </div>`;
 }
 function renderTopbar(){
-  const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll'), techref: state.language==='en'?'Technical Reference':'Rujukan Teknikal'};
+  const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll'), techref: state.language==='en'?'Technical Reference':'Rujukan Teknikal', account: state.language==='en'?'Account':'Akaun'};
   const en = state.language==='en';
   const s = state.currentStaff;
   const q = state.globalSearch||'';
@@ -401,6 +402,7 @@ function renderView(){
     case 'staffpage': return viewStaff();
     case 'appointments': return viewAppointments();
     case 'settings': return viewSettings();
+    case 'account': return viewAccount();
     default: return '';
   }
 }
