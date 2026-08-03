@@ -154,8 +154,8 @@ async function run(){
   // ================= 4. Dashboard: Bookings/Completed/Attendance Today =================
   const readStat = async (label) => {
     return await pageA.evaluate((lbl) => {
-      const card = Array.from(document.querySelectorAll('.stat-card')).find(c => c.querySelector('.stat-label') && c.querySelector('.stat-label').textContent.trim()===lbl);
-      return card ? card.querySelector('.stat-value').textContent.trim() : null;
+      const card = Array.from(document.querySelectorAll('.stat-tile')).find(c => c.querySelector('.stat-tile-label') && c.querySelector('.stat-tile-label').textContent.trim()===lbl);
+      return card ? card.querySelector('.stat-tile-value').textContent.trim() : null;
     }, label);
   };
 
