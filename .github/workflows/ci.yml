@@ -58,15 +58,15 @@ jobs:
 
       - run: npm run build
 
-      # GitHub Pages runs Jekyll processing by default, which can mangle
-      # filenames like ours that contain spaces — .nojekyll opts out.
-      - run: touch "Mr 4x4 Auto Service-pwa/.nojekyll"
+      # GitHub Pages runs Jekyll processing by default — .nojekyll opts out
+      # (also skips any accidental _-prefixed file being treated specially).
+      - run: touch "servispro-pwa/.nojekyll"
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: "Mr 4x4 Auto Service-pwa"
+          path: "servispro-pwa"
 
       - id: deployment
         uses: actions/deploy-pages@v4

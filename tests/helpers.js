@@ -15,7 +15,7 @@ const TEST_EMAIL = process.env.MR4X4_TEST_EMAIL || 'sync-test-mr4x4@mailinator.c
 const TEST_PASSWORD = process.env.MR4X4_TEST_PASSWORD || 'SyncTest123!';
 
 function appUrl(){
-  const filePath = path.join(__dirname, '.test-build', 'Mr 4x4 Auto Service.html');
+  const filePath = path.join(__dirname, '.test-build', 'ServisPro.html');
   return 'file:///' + filePath.replace(/\\/g, '/').replace(/ /g, '%20');
 }
 

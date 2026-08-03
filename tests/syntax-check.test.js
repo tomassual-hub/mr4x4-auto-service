@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 function run(){
-  const filePath = path.join(__dirname, '..', 'Mr 4x4 Auto Service-pwa', 'Mr 4x4 Auto Service.html');
+  const filePath = path.join(__dirname, '..', 'servispro-pwa', 'ServisPro.html');
   const html = fs.readFileSync(filePath, 'utf8');
   const blocks = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
   console.log(`syntax-check: found ${blocks.length} <script> blocks`);

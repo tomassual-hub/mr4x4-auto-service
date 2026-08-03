@@ -23,4 +23,4 @@ execFileSync('node', ['build/build.js'], { stdio: 'inherit', cwd: root, env });
 // shell:true joins argv with plain spaces before handing it to cmd.exe, so the
 // space-containing dir must carry its own quotes rather than relying on argv
 // separation — otherwise cmd.exe sees "Mr", "4x4", ... as separate arguments.
-execFileSync('npx', ['netlify', 'deploy', '--prod', '--dir="Mr 4x4 Auto Service-pwa"'], { stdio: 'inherit', cwd: root, env, shell: true });
+execFileSync('npx', ['netlify', 'deploy', '--prod', '--dir="servispro-pwa"'], { stdio: 'inherit', cwd: root, env, shell: true });

@@ -1,5 +1,5 @@
 // Reassembles src/*.js + src/styles.css into the single-file
-// Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html that Netlify actually
+// servispro-pwa/ServisPro.html that GitHub Pages actually
 // serves. The app runs as one big global script (no ES module boundaries
 // between these files) — this build step is about organizing the source
 // for editing/type-checking, not changing runtime behavior. Order between
@@ -14,8 +14,8 @@ const SRC = path.join(ROOT, 'src');
 // Overridable so `npm run build:test` can point a build at a throwaway
 // Supabase project + a separate output folder, without touching the real
 // production build at all. Defaults reproduce the exact previous behavior.
-const OUT_DIR = path.join(ROOT, process.env.BUILD_OUT_DIR || 'Mr 4x4 Auto Service-pwa');
-const OUT_HTML = path.join(OUT_DIR, 'Mr 4x4 Auto Service.html');
+const OUT_DIR = path.join(ROOT, process.env.BUILD_OUT_DIR || 'servispro-pwa');
+const OUT_HTML = path.join(OUT_DIR, 'ServisPro.html');
 const OUT_SW = path.join(OUT_DIR, 'service-worker.js');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://knvevgtoigcteqdinyvk.supabase.co';
 // Switched from the legacy JWT-based `anon` key to the newer `publishable`

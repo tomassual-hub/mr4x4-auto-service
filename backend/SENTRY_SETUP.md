@@ -13,7 +13,7 @@ berfungsi seperti biasa tanpanya.
    penggunaan kecil — cukup untuk satu bengkel).
 2. Cipta **Project** baharu.
 3. Bila diminta pilih platform, pilih **Browser JavaScript**.
-4. Bagi nama projek, contoh: `mr4x4-auto-service`.
+4. Bagi nama projek, contoh: `servispro`.
 
 ## 2. Dapatkan DSN
 
@@ -73,7 +73,7 @@ dimaklumkan secara automatik.
    ralat yang ditugaskan khas kepada anda)
 
 **B. Tetapan projek (alert rule)**
-1. Buka projek `mr4x4-auto-service` di Sentry
+1. Buka projek `servispro` di Sentry
 2. **Settings** (projek, bukan akaun) → **Alerts** → tab **Rules**
 3. Patut ada satu rule sedia-ada (Sentry cipta automatik bila projek
    dibuat) — biasanya "Send a notification for new issues". Kalau **tiada**

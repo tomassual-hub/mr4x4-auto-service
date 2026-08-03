@@ -1,4 +1,4 @@
-// Mr 4x4 Auto Service Service Worker
+// ServisPro Service Worker
 // Caches the app shell so it can load offline after the first visit.
 // The app now loads live data from Supabase, so real offline USE of the
 // data is limited (see the in-app offline-fallback banner for that) — this
@@ -13,10 +13,10 @@
 // until this string itself changes and forces a fresh precache. A static
 // version string here previously meant every code fix shipped was
 // invisible to anyone with the app already installed/cached.
-const CACHE_NAME = 'mr4x4-cache-__BUILD_ID__';
+const CACHE_NAME = 'servispro-cache-__BUILD_ID__';
 const APP_SHELL = [
   './',
-  './Mr 4x4 Auto Service.html',
+  './ServisPro.html',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

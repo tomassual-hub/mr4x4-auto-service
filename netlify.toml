@@ -1,5 +1,5 @@
 [build]
-  publish = "Mr 4x4 Auto Service-pwa"
+  publish = "servispro-pwa"
 
 # CSP still needs 'unsafe-inline' for script-src/style-src: the whole app is
 # one inline <script>/<style> block in a single static HTML file (see

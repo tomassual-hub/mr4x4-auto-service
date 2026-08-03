@@ -7,7 +7,7 @@ Go to [supabase.com](https://supabase.com) and sign up (GitHub login is fastest,
 
 ## 2. Create a new project
 - Click **New Project**.
-- **Name**: `mr4x4-auto-service` (or anything you like).
+- **Name**: `servispro` (or anything you like).
 - **Database Password**: generate/save one — you likely won't need it day-to-day (the app won't use it directly), but keep it somewhere safe in case you ever need direct database access.
 - **Region**: pick the one closest to you (e.g. Singapore, for Malaysia).
 - Click **Create new project** and wait ~2 minutes for it to provision.

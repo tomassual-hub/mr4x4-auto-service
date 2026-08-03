@@ -6,7 +6,7 @@ Bengkel / Automotif POS) yang telah dibina.
 ## Struktur Folder
 
 ```
-Mr 4x4 Auto Service/
+servispro/
 ├── src/                       ← KOD SUMBER — edit fail di sini, BUKAN fail HTML terus
 │   ├── views/                 ← satu fail bagi setiap skrin (dashboard, pos, jobs, dll.)
 │   ├── sync-engine.js         ← logik sync Supabase + log masuk + sandaran automatik
@@ -29,8 +29,8 @@ Mr 4x4 Auto Service/
 ├── tsconfig.json                ← `npm run typecheck` — semakan jenis (TypeScript/JSDoc)
 ├── package.json                  ← `npm install` dahulu, kemudian npm run build / test / check / deploy
 ├── LICENSE                       ← lesen kod sumber
-└── Mr 4x4 Auto Service-pwa/         ← OUTPUT — fail yang sebenarnya di-deploy (jangan edit terus)
-    ├── Mr 4x4 Auto Service.html ← DIHASILKAN oleh `npm run build`, bukan fail sumber
+└── servispro-pwa/         ← OUTPUT — fail yang sebenarnya di-deploy (jangan edit terus)
+    ├── ServisPro.html ← DIHASILKAN oleh `npm run build`, bukan fail sumber
     ├── manifest.json      ← Metadata PWA (nama, ikon, warna tema)
     ├── service-worker.js  ← DIHASILKAN oleh `npm run build`, bukan fail sumber
     ├── icons/             ← Ikon aplikasi
@@ -45,14 +45,14 @@ dalam `src/` (bukan terus dalam fail HTML). Untuk buat sebarang perubahan:
 ```
 npm install               # sekali sahaja
 npm run typecheck         # semak jenis data (tangkap silap sebelum jalan)
-npm run build              # cantumkan src/ jadi Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html
+npm run build              # cantumkan src/ jadi servispro-pwa/ServisPro.html
 npm test                   # jalankan suite ujian automatik (perlukan sambungan internet)
 npm run check               # buat kesemua 3 di atas sekali gus
 npm run deploy               # backup manual ke Netlify (perlukan .env dengan NETLIFY_AUTH_TOKEN) — tak digunakan sekarang, lihat "Git & CI"
 ```
 
-**Jangan edit `Mr 4x4 Auto Service-pwa/Mr 4x4 Auto Service.html` atau
-`Mr 4x4 Auto Service-pwa/service-worker.js` terus** — kedua-duanya akan
+**Jangan edit `servispro-pwa/ServisPro.html` atau
+`servispro-pwa/service-worker.js` terus** — kedua-duanya akan
 ditimpa semula pada `npm run build` yang seterusnya. Edit fail dalam
 `src/` sebaliknya.
 
@@ -131,12 +131,11 @@ Laman GitHub Pages di atas ialah yang sebenarnya live.
 
 ## Ikon Aplikasi
 
-Ikon aplikasi (`Mr 4x4 Auto Service-pwa/icons/`) menggunakan logo rasmi Mr 4x4 Auto Service
-(dijana sendiri oleh pemilik perniagaan menggunakan alat pembuat logo).
+Ikon aplikasi (`servispro-pwa/icons/`) menggunakan lambang rasmi ServisPro
+(perisai + kunci inggeris + gear + kereta).
 
-- `icon-512.png`, `icon-192.png`, `apple-touch-icon.png` — lambang sahaja (gear + penumbuk + "M"), untuk ikon app
-- `logo-full-lockup.png` — versi penuh (lambang + nama syarikat), untuk README/splash screen/bahan pemasaran
-- `logo-source-original.png` — fail asal yang dimuat naik (rujukan/sandaran)
+- `icon-512.png`, `icon-192.png`, `icon-*-maskable.png`, `apple-touch-icon.png` — dijana daripada `src/servispro-logo-data.js` (lihat lambang penuh di `servispro-logo-source.png`), untuk ikon app/favicon
+- `logo-full-lockup.png`, `logo-source-original.png`, `logo-transparent.png` — versi/iterasi lama, disimpan sebagai rujukan sahaja (tidak dirujuk oleh kod)
 
 **Nota kualiti:** Fail sumber asal bersaiz kecil (200×200px, biasa untuk muat turun percuma
 alat logo maker). Jika perniagaan berkembang dan perlukan bahan cetak/pemasaran
