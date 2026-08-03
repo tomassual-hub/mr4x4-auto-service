@@ -1,7 +1,7 @@
 # ServisPro — Android APK
 
 Generated via [PWABuilder](https://www.pwabuilder.com) from the live site
-at `https://tomassual-hub.github.io/mr4x4-auto-service/`, then signed so
+at `https://tomassual-hub.github.io/servispro/`, then signed so
 it installs directly — no Play Store needed.
 
 ⚠️ **Signing identity rotated 2026-07-31** — the previous keystore +
@@ -38,7 +38,7 @@ one's identity doesn't carry forward across a domain change anyway.
   public repo or share them outside the shop — already gitignored, never
   tracked.
 - **`assetlinks.json`** — hosted at
-  `https://tomassual-hub.github.io/mr4x4-auto-service/.well-known/assetlinks.json`
+  `https://tomassual-hub.github.io/servispro/.well-known/assetlinks.json`
   so the installed app opens with zero browser UI (no address bar
   sliver at the top). Without it the app still installs and works, just
   shows a thin URL bar like a stripped-down browser tab. **Must match

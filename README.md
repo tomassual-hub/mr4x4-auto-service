@@ -58,7 +58,7 @@ ditimpa semula pada `npm run build` yang seterusnya. Edit fail dalam
 
 ## Git & CI
 
-Kod ini disimpan di GitHub (`tomassual-hub/mr4x4-auto-service`, **repo
+Kod ini disimpan di GitHub (`tomassual-hub/servispro`, **repo
 awam** — diperlukan untuk GitHub Pages percuma; tiada rahsia/kunci
 dalam kod, semua dalam `.env` yang tak pernah masuk Git). Setiap
 `git push` ke `master` men-trigger GitHub Actions
@@ -69,7 +69,7 @@ dalam kod, semua dalam `.env` yang tak pernah masuk Git). Setiap
    pangkalan data sama, tapi pangkalan data yang lain sama sekali
    daripada data kedai sebenar.
 2. Kalau semua ujian lulus, **deploy automatik ke GitHub Pages** —
-   laman live: **https://tomassual-hub.github.io/mr4x4-auto-service/**
+   laman live: **https://tomassual-hub.github.io/servispro/**
 
 **Netlify** (`netlify.toml`, `npm run deploy`) adalah persediaan lama —
 dibiarkan terpasang sebagai pilihan sandaran (kalau kredit had percuma

@@ -23,8 +23,8 @@ jobs:
         id: healthcheck
         run: |
           FAIL=""
-          if ! curl -sf --max-time 15 -o /dev/null "https://tomassual-hub.github.io/mr4x4-auto-service/"; then
-            FAIL="${FAIL}- Laman GitHub Pages tidak dapat diakses (https://tomassual-hub.github.io/mr4x4-auto-service/)\n"
+          if ! curl -sf --max-time 15 -o /dev/null "https://tomassual-hub.github.io/servispro/"; then
+            FAIL="${FAIL}- Laman GitHub Pages tidak dapat diakses (https://tomassual-hub.github.io/servispro/)\n"
           fi
           # Anon key here is the same one already shipped client-side in the
           # built HTML (see build/build.js) -- it's meant to be public;
