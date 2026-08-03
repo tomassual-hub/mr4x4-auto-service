@@ -4,6 +4,21 @@ Generated via [PWABuilder](https://www.pwabuilder.com) from the live site
 at `https://tomassual-hub.github.io/servispro/`, then signed so
 it installs directly — no Play Store needed.
 
+**2026-08-03 rebuild** (versionCode 2): regenerated with
+[Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) directly
+against the live manifest, reusing the same `signing.keystore` (same
+`sha256_cert_fingerprints` as `assetlinks.json` — confirmed with
+`apksigner verify`), so it installs as a normal update over the
+existing app rather than a conflicting one. This picked up everything
+shipped since the last build: the ServisPro rebrand cleanup and the
+native bottom-sheet mobile nav (previously the app still had `Mr4x4`
+strings baked in and the old sidebar-drawer nav).
+
+A JDK, the Android SDK build-tools, and Bubblewrap are now installed
+on this machine (Bubblewrap config at `~/.bubblewrap/config.json`), so
+future rebuilds don't need PWABuilder's website — see "Rebuilding
+locally with Bubblewrap" below.
+
 ⚠️ **Signing identity rotated 2026-07-31** — the previous keystore +
 password had been sitting in plain text in a folder that left the
 machine, so it's treated as compromised. This is a completely fresh
@@ -75,6 +90,51 @@ sources" question again on first install — that's normal.
   uninstall the old one first. Reuse the keystore to avoid that (as long
   as the URL hasn't changed — see the warning at the top) *and* as long
   as that keystore hasn't been compromised the way the previous one was.
+
+## Rebuilding locally with Bubblewrap
+
+Whenever the site changes and you want the APK to match (new branding,
+new manifest fields, etc.):
+
+```
+bubblewrap update --appVersionCode=<next number>   # inside the project dir, see below
+bubblewrap build
+```
+
+The generated Android project (not part of this repo — it's a scratch
+build folder, not source) lives at `C:\bw-build\servispro-twa` on this
+machine. `twa-manifest.json` there already points `signingKey` at this
+folder's `signing.keystore`. Set these before running `build` so it
+signs non-interactively instead of prompting:
+
+```
+$env:BUBBLEWRAP_KEYSTORE_PASSWORD = "<see signing-key-info.txt>"
+$env:BUBBLEWRAP_KEY_PASSWORD = "<see signing-key-info.txt>"
+```
+
+Bump `appVersionCode` each rebuild (Play Store requires strictly
+increasing version codes if this ever gets published there; sideloaded
+installs don't strictly require it, but it's the correct habit). Then
+copy the two output files here:
+
+```
+cp app-release-signed.apk  <repo>/android-app/ServisPro.apk
+cp app-release-bundle.aab  <repo>/android-app/ServisPro.aab
+```
+
+**Windows-specific gotchas hit setting this up**, already fixed in the
+installed copy (`%APPDATA%\npm\node_modules\@bubblewrap\cli\node_modules\@bubblewrap\core\dist\lib\`)
+so you shouldn't hit them again unless Bubblewrap gets reinstalled/updated:
+- `GradleWrapper.js` invoked bare `gradlew.bat` — this sandbox's `cmd.exe`
+  doesn't resolve an unqualified command from cwd, so it's patched to
+  `.\gradlew.bat`.
+- `JarSigner.js` invoked bare `jarsigner` relying on PATH — same issue,
+  patched to call the full `<javaHome>/bin/jarsigner.exe` path.
+- The JDK installed via winget lands under `C:\Program Files\...`, and
+  Bubblewrap's Windows `apksigner` invocation doesn't quote that path,
+  so a space in `Program Files` broke it. Fixed with a directory
+  junction: `C:\jdk17` → the real JDK install, referenced from
+  `~/.bubblewrap/config.json` instead of the spaced path.
 
 ## iOS
 
