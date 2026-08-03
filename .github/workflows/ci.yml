@@ -11,6 +11,18 @@ permissions:
   pages: write
   id-token: write
 
+# The test suite runs against one shared, live Supabase test project (see
+# tests/README.md) -- not isolated per run. Two "check" jobs racing (e.g. a
+# master push and a Dependabot PR check firing together) collide on that
+# same backend: RLS 403s, timeouts, and other cross-run interference that
+# looks like a real regression but isn't. Serialize every run of this
+# workflow, across all triggers/refs, so only one ever hits the test
+# backend at a time. cancel-in-progress stays false so a queued run
+# completes instead of getting killed mid-deploy.
+concurrency:
+  group: ci-shared-test-backend
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
