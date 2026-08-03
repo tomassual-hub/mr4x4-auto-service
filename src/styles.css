@@ -177,8 +177,23 @@ body::before{
 .topbar-left{display:flex;align-items:center;gap:14px;min-width:0;}
 .topbar-account{display:flex;align-items:center;gap:10px;}
 .topbar h1{font-family:'Oswald',sans-serif;font-size:21px;margin:0;font-weight:600;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.topbar .date{font-size:12px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;}
+.topbar .date{font-size:12px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
 .content{padding:30px 32px 64px;max-width:1520px;}
+
+/* The 238px sidebar is fixed-width regardless of viewport, so just above
+   880px (where the sidebar switches back on) the topbar has noticeably
+   less room than it does at a normal desktop width, but none of the
+   ≤880px decluttering below has kicked in yet -- title fell back to its
+   ellipsis, the date wrapped to two lines, and the staff name/role
+   wrapped too, all at once. Drop the lowest-value bits (date, search
+   placeholder, name/role text) in this narrow gap rather than letting
+   them wrap or collide; the avatar alone still identifies who's logged
+   in, same as it does below 880px. */
+@media screen and (min-width:881px) and (max-width:1000px){
+  .topbar .date{display:none;}
+  .user-name,.user-role{display:none;}
+  .global-search-wrap{max-width:180px;}
+}
 
 .hamburger-btn{display:none;background:var(--glass-2);border:1px solid var(--glass-border);border-radius:var(--r-sm);padding:8px;cursor:pointer;color:var(--text);flex-shrink:0;}
 .theme-toggle{background:var(--glass-2);border:1px solid var(--glass-border);border-radius:20px;padding:6px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:4px;flex-shrink:0;}
