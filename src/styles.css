@@ -285,6 +285,15 @@ body::before{
      topbar layout has to account for their absence. */
   .main[data-hero-notif="1"] .topbar-notif{display:none;}
   .main[data-hero-notif="1"] .topbar-title-dashboard{display:none;}
+  /* Collapses the whole topbar strip to nothing so the hero below starts
+     right at the very top of the screen, matching a reference app's home
+     screen where its own branded banner IS the top of the screen -- not a
+     colored panel sitting a header-bar's height below it. The sync dot is
+     the last remaining topbar element with real content in this state
+     (hamburger/title/search were already hidden elsewhere); dropped here
+     too rather than left floating alone in an otherwise-empty bar. */
+  .main[data-hero-notif="1"] .topbar{padding:0;border-bottom:none;background:transparent;box-shadow:none;min-height:0;}
+  .main[data-hero-notif="1"] .topbar #sync-indicator{display:none;}
   .dash-target-panel{order:-2;}
   .dash-quickstats{order:-1;}
   /* The dashboard's paired appointments/contracts panel stays 2 equal
