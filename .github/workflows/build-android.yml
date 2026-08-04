@@ -45,6 +45,17 @@ jobs:
           unzip -q "$RUNNER_TEMP/cmdline-tools.zip" -d "$SDK_ROOT/cmdline-tools"
           mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
           chmod +x "$SDK_ROOT/cmdline-tools/latest/bin/"*
+          # Bubblewrap's own AndroidSdkTools.validatePath() still checks for
+          # a `bin` or `tools` folder directly at the SDK root -- the layout
+          # from before Google introduced the versioned cmdline-tools/latest/
+          # nesting -- so without this it rejects an otherwise-working SDK
+          # with "The provided androidSdk isn't correct." A symlink is enough
+          # since nothing else in Bubblewrap actually reads through this path
+          # (build-tools/platform paths are resolved directly from
+          # androidSdkPath elsewhere); sdkmanager itself is invoked below
+          # with an explicit --sdk_root, so it doesn't rely on its own
+          # location to find the SDK root either.
+          ln -s "$SDK_ROOT/cmdline-tools/latest/bin" "$SDK_ROOT/bin"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
