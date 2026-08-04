@@ -31,7 +31,7 @@ function viewDashboard(){
     <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
   </div>` : ''}
 
-  ${isAdmin && (db.settings.monthlySalesTarget>0 || db.settings.monthlyUnitTarget>0) ? (()=>{
+  ${isAdmin ? (()=>{
     const period = state.dashTargetPeriod || 'weekly';
     const monthKey = currentMonthStr();
     const monthInvoices = db.invoices.filter(inv=>{
@@ -70,15 +70,31 @@ function viewDashboard(){
             <div class="progress-ring-label"><div class="progress-ring-pct">${salesPct}%</div><div class="progress-ring-sub">${en?'Sales':'Jualan'}</div></div>
           </div>
           <div style="font-size:12.5px;font-weight:600;">${fmtRM(actualSales)} / ${fmtRM(salesTarget)}</div>
-        </div>` : ''}
+        </div>` : `
+        <div style="text-align:center;">
+          <div class="progress-ring progress-ring-locked" style="margin:0 auto 10px;">
+            <div class="progress-ring-label">${ICONS.lock}<div class="progress-ring-sub">${en?'Sales':'Jualan'}</div></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-muted);">${en?'Not set':'Belum ditetapkan'}</div>
+        </div>`}
         ${monthUnitTarget>0 ? `
         <div style="text-align:center;">
           <div class="progress-ring" style="--pct:${unitPct};margin:0 auto 10px;">
             <div class="progress-ring-label"><div class="progress-ring-pct">${unitPct}%</div><div class="progress-ring-sub">${en?'Units':'Unit'}</div></div>
           </div>
           <div style="font-size:12.5px;font-weight:600;">${actualUnits} / ${unitTarget.toFixed(0)} ${en?'invoices':'invois'}</div>
-        </div>` : ''}
+        </div>` : `
+        <div style="text-align:center;">
+          <div class="progress-ring progress-ring-locked" style="margin:0 auto 10px;">
+            <div class="progress-ring-label">${ICONS.lock}<div class="progress-ring-sub">${en?'Units':'Unit'}</div></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-muted);">${en?'Not set':'Belum ditetapkan'}</div>
+        </div>`}
       </div>
+      ${monthSalesTarget===0 && monthUnitTarget===0 && canManage() ? `
+      <div style="text-align:center;margin-top:16px;">
+        <span class="btn btn-outline btn-sm" data-nav="settings">${en?'Set a target in Settings':'Tetapkan sasaran dalam Tetapan'}</span>
+      </div>` : ''}
     </div>`;
   })() : ''}
 
