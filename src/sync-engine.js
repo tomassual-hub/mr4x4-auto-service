@@ -399,7 +399,7 @@ function loadOfflineSnapshot(userId){
 const AUTO_BACKUP_INTERVAL_MS = 7*24*60*60*1000;
 const AUTO_BACKUP_KEEP = 10;
 async function maybeAutoBackup(){
-  if(!state.currentStaff || state.currentStaff.role!=='Admin') return;
+  if(!state.currentStaff || !isOwnerLevel(state.currentStaff.role)) return;
   const last = db.settings.lastBackupAt;
   if(last && Date.now()-last < AUTO_BACKUP_INTERVAL_MS) return;
   try{

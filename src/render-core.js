@@ -121,7 +121,7 @@ function render(){
   // renders (isAdmin, same gate as the hero panel itself), so the topbar's
   // own copies must stay visible for non-Admin roles, who never get a hero
   // to replace them. Must match viewDashboard()'s own isAdmin check exactly.
-  const heroReplacesTopbar = state.view==='dashboard' && state.currentStaff && state.currentStaff.role==='Admin';
+  const heroReplacesTopbar = state.view==='dashboard' && canSeeRevenue();
   root.innerHTML = `
     <div class="app">
       ${renderSidebar()}

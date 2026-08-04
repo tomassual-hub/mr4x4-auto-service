@@ -1,12 +1,15 @@
 /* ============================= WAITING-AREA DISPLAY BOARD ============================= */
 // Meant to run on a TV/tablet in the shop's waiting area so a customer can
-// glance up and see their car's status without asking staff. Reached
-// either from the login screen's "Open Waiting Area Display Board" link,
-// or by bookmarking ?board=1 as that device's home page (see initApp() in
-// sync-engine.js). Anonymous-safe: kiosk_list_active_jobs() is
-// security-definer and returns only job no./plate/model/status for jobs
-// not yet delivered -- no customer name/phone, no pricing, same minimal
-// shape as kiosk_lookup_job.
+// glance up and see their car's status without asking staff. Reached from
+// the login screen's "Open Waiting Area Display Board" link, by bookmarking
+// ?board=1 as that device's home page (see initApp() in sync-engine.js) --
+// both stay working without logging in, intentionally, since that's how an
+// always-on shop TV needs to load it -- or, for a staff member previewing/
+// setting up that screen without logging out first, the "Open Display
+// Board" button in Settings (see 'open-board-in-app' in event-handlers.js).
+// Anonymous-safe: kiosk_list_active_jobs() is security-definer and returns
+// only job no./plate/model/status for jobs not yet delivered -- no customer
+// name/phone, no pricing, same minimal shape as kiosk_lookup_job.
 let boardRefreshTimer = null;
 
 function renderDisplayBoard(){
@@ -54,7 +57,11 @@ function renderDisplayBoard(){
     </div>
     ${rows}
     <div style="text-align:center;margin-top:36px;">
-      <span class="clickable" data-action="close-board" style="font-size:11px;color:var(--text-muted);text-decoration:underline;">← ${en?'Back to Staff Log In':'Kembali ke Log Masuk Staf'}</span>
+      <span class="clickable" data-action="close-board" style="font-size:11px;color:var(--text-muted);text-decoration:underline;">←
+        ${state.currentStaff
+          ? (en?'Back to App':'Kembali ke Aplikasi')
+          : (en?'Back to Staff Log In':'Kembali ke Log Masuk Staf')}
+      </span>
     </div>
   </div>`;
 }

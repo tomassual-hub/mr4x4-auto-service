@@ -2,7 +2,7 @@
 function viewAppointments(){
   // Contract cycle totals are a revenue figure -- same Admin-only gating as
   // the dashboard/POS sales figures (see viewDashboard/viewPOS).
-  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
+  const isAdmin = canSeeRevenue();
   const statusLabel = {scheduled:tt('Dijadualkan'), done:tt('Selesai')||'Selesai', cancelled:tt('Dibatalkan')};
   const appts = [...db.appointments].sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
   const now = Date.now();

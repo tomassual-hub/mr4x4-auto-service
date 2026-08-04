@@ -109,7 +109,7 @@ function viewSettings(){
       <label style="display:block;">${tt('Pulihkan daripada Fail Sandaran')}</label>
       <input type="file" id="restore-file" accept="application/json" style="padding:8px;">
       <div style="font-size:11.5px;color:var(--danger);margin-top:8px;">⚠️ ${tt('Memulihkan akan menggantikan SEMUA data semasa.')}</div>
-      ${state.currentStaff && state.currentStaff.role==='Admin' ? `
+      ${canSeeRevenue() ? `
       <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border);">
         <h2 style="font-size:13px;">${ICONS.download} ${state.language==='en'?'Automatic Backups':'Sandaran Automatik'}</h2>
         <p style="font-size:11.5px;color:var(--text-muted);margin-top:0;">${state.language==='en'?'A snapshot is saved to the server automatically (at most every 7 days) whenever an Admin logs in — a recovery point even if nobody remembers to download one.':'Satu salinan disimpan ke pelayan secara automatik (selang 7 hari) setiap kali Admin log masuk — titik pemulihan walaupun tiada siapa ingat untuk muat turun.'}</p>
@@ -163,6 +163,12 @@ function viewSettings(){
       </div>`}
     </div>`;
   })()}
+
+  <div class="panel" style="margin-top:20px;">
+    <h2>${ICONS.gauge} ${state.language==='en'?'Waiting Area Display Board':'Papan Paparan Kawasan Menunggu'}</h2>
+    <p style="font-size:12.5px;color:var(--text-muted);margin-top:0;">${state.language==='en'?'Launch the TV/tablet board showing active jobs\' status, without logging out first — useful for setting up or previewing the waiting-area screen. It can also still be reached without logging in at all (the login screen\'s own link, or bookmarking this site with ?board=1), which stays the normal way an always-on shop TV loads it.':'Lancarkan papan TV/tablet yang memaparkan status kad kerja aktif, tanpa perlu log keluar dahulu — berguna untuk menyediakan atau pratonton skrin kawasan menunggu. Ia masih boleh diakses tanpa log masuk (pautan pada skrin log masuk, atau bookmark laman ini dengan ?board=1), iaitu cara biasa TV bengkel yang sentiasa hidup memuatkannya.'}</p>
+    <button class="btn btn-outline" data-action="open-board-in-app">${ICONS.gauge} ${state.language==='en'?'Open Display Board':'Buka Papan Paparan'}</button>
+  </div>
   `;
 }
 

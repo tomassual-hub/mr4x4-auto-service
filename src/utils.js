@@ -77,16 +77,26 @@ function normalizePhone(phone){
 // Two separate permission questions, kept as two functions rather than one
 // "isAdmin" so a role can answer them differently: Kerani gets full
 // Admin-level access to Reports/Staff/Settings/Payroll (canManage) but is
-// excluded from actual sales/revenue figures (canSeeRevenue) -- Admin is
-// the only role where both are true. Mekanik/Ketua Mekanik are both false
-// for everything (handled by the existing role==='Admin' checks that were
+// excluded from actual sales/revenue figures (canSeeRevenue) -- Admin and
+// Pemilik are the only roles where both are true. Mekanik/Ketua Mekanik are
+// both false for everything (handled by the existing role checks that were
 // already scoped to hide revenue from them, now reused via canSeeRevenue).
+// "Pemilik" (Owner) is Admin in every way that matters here -- a separate,
+// same-access role so a shop's actual owner can be labeled that instead of
+// the more generic "Admin", without touching what any existing Admin
+// account can do. See isOwnerLevel() for the "don't strand a shop with zero
+// owner-level staff" safety checks in staff.js/event-handlers.js, which
+// need Admin and Pemilik counted together, not this same true/false split.
 function canManage(){
   const role = state.currentStaff && state.currentStaff.role;
-  return role==='Admin' || role==='Kerani';
+  return role==='Admin' || role==='Pemilik' || role==='Kerani';
 }
 function canSeeRevenue(){
-  return !!(state.currentStaff && state.currentStaff.role==='Admin');
+  const role = state.currentStaff && state.currentStaff.role;
+  return role==='Admin' || role==='Pemilik';
+}
+function isOwnerLevel(role){
+  return role==='Admin' || role==='Pemilik';
 }
 
 // LOGO_DATA_URI is a flat-gold silhouette (logo shape + transparency, no

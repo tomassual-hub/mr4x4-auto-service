@@ -2,7 +2,7 @@
 function viewStaff(){
   const simple = db.settings.simpleMode;
   const tab = (simple && state.staffTab==='attendance') ? 'staff' : (state.staffTab || 'staff');
-  const adminCount = db.staff.filter(s=>s.role==='Admin').length;
+  const adminCount = db.staff.filter(s=>isOwnerLevel(s.role)).length;
   const staffTabHTML = `
   <div class="section-head">
     <div><div class="sub">${tt('Urus akaun staf & mekanik yang boleh log masuk')}</div></div>
@@ -10,7 +10,7 @@ function viewStaff(){
   </div>
   <div class="grid grid-3">
     ${db.staff.map(s=>{
-      const isLastAdmin = s.role==='Admin' && adminCount===1;
+      const isLastAdmin = isOwnerLevel(s.role) && adminCount===1;
       return `
       <div class="panel" style="text-align:center;">
         <div class="staff-avatar" style="margin:0 auto 10px;">${initials(s.name)}</div>
@@ -130,11 +130,13 @@ function staffModalHTML(staffMember){
     <div class="field"><label>${tt('Peranan')||'Peranan'}</label>
       <select id="sf-role">
         <option value="Admin" ${staffMember.role==='Admin'?'selected':''}>Admin</option>
+        <option value="Pemilik" ${staffMember.role==='Pemilik'?'selected':''}>Pemilik</option>
         <option value="Kerani" ${staffMember.role==='Kerani'?'selected':''}>Kerani</option>
         <option value="Ketua Mekanik" ${staffMember.role==='Ketua Mekanik'?'selected':''}>Ketua Mekanik</option>
         <option value="Mekanik" ${staffMember.role==='Mekanik'?'selected':''}>Mekanik</option>
       </select>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+        ${en?'"Pemilik" has the exact same full access as Admin — just a separate label for whoever actually owns the shop.':'"Pemilik" ada akses penuh sama seperti Admin — cuma label berasingan untuk sesiapa yang benar-benar memiliki bengkel.'}<br>
         ${en?'"Head Mechanic" is a title only — same restricted access as Mekanik (no sales/revenue figures).':'"Ketua Mekanik" cuma gelaran — akses terhad sama seperti Mekanik (tiada lihat jualan/hasil).'}<br>
         ${en?'"Kerani" has full Admin-level access (Staff, Settings, Payroll, Reports) EXCEPT sales/revenue figures.':'"Kerani" ada akses penuh setaraf Admin (Staf, Tetapan, Gaji, Laporan) KECUALI angka jualan/pendapatan.'}
       </div>

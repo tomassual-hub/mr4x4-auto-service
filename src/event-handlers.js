@@ -755,17 +755,18 @@ function attachHandlers(){
   });
   bindAllAction('delete-staff', el=>{
     const staffMember = db.staff.find(s=>s.id===el.dataset.id);
-    // Losing the last Admin is unrecoverable through the app: claim_staff_record()
-    // only lets a new login self-bootstrap as Admin when the staff table is
-    // completely empty, so if any non-Admin row survives, nobody can ever
-    // become Admin again without direct database access. Block it here rather
-    // than relying on the button-hide in viewStaff() alone, since that's a
+    // Losing the last owner-level (Admin/Pemilik) staff is unrecoverable
+    // through the app: claim_staff_record() only lets a new login
+    // self-bootstrap as Admin when the staff table is completely empty, so
+    // if any lower-access row survives, nobody can ever regain owner-level
+    // access without direct database access. Block it here rather than
+    // relying on the button-hide in viewStaff() alone, since that's a
     // rendering nicety, not a safety guarantee.
-    const isLastAdmin = staffMember.role==='Admin' && db.staff.filter(s=>s.role==='Admin').length===1;
+    const isLastAdmin = isOwnerLevel(staffMember.role) && db.staff.filter(s=>isOwnerLevel(s.role)).length===1;
     if(isLastAdmin){
       showToast(state.language==='en'
-        ? 'Cannot delete the last Admin — appoint another Admin first.'
-        : 'Tidak boleh memadam Admin terakhir. Lantik Admin lain dahulu.');
+        ? 'Cannot delete the last Admin/Pemilik — appoint another one first.'
+        : 'Tidak boleh memadam Admin/Pemilik terakhir. Lantik seorang lagi dahulu.');
       return;
     }
     askConfirm(tt('Padam akaun staf "')+staffMember.name+'"?', ()=>{
@@ -787,12 +788,14 @@ function attachHandlers(){
     try{
       if(id){
         const staffMember = db.staff.find(s=>s.id===id);
-        // Demoting the sole remaining Admin away from Admin is just as
-        // unrecoverable as deleting them outright (see delete-staff above).
-        if(staffMember.role==='Admin' && role!=='Admin' && db.staff.filter(s=>s.role==='Admin').length===1){
+        // Demoting the sole remaining owner-level (Admin/Pemilik) staff away
+        // from both is just as unrecoverable as deleting them outright (see
+        // delete-staff above) -- switching between Admin and Pemilik is
+        // fine either way, neither leaves the shop without one.
+        if(isOwnerLevel(staffMember.role) && !isOwnerLevel(role) && db.staff.filter(s=>isOwnerLevel(s.role)).length===1){
           showToast(state.language==='en'
-            ? 'Cannot demote the last Admin — appoint another Admin first.'
-            : 'Tidak boleh menurunkan pangkat Admin terakhir. Lantik Admin lain dahulu.');
+            ? 'Cannot demote the last Admin/Pemilik — appoint another one first.'
+            : 'Tidak boleh menurunkan pangkat Admin/Pemilik terakhir. Lantik seorang lagi dahulu.');
           return;
         }
         Object.assign(staffMember, {name, role, email, commissionPercent, baseSalary});
@@ -999,6 +1002,7 @@ function attachHandlers(){
     render();
     showToast(tt('Tetapan disimpan.'));
   });
+  bindAction('open-board-in-app', ()=>{ state.boardMode = true; state.boardJobs = null; render(); });
   bindAction('new-bay', ()=>setState({modal:{type:'new-bay'}}));
   bindAllAction('edit-bay', el=>{
     const bay = (db.bays||[]).find(b=>b.id===el.dataset.id);

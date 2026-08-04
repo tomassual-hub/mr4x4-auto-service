@@ -128,7 +128,7 @@ interface CreditNote {
 interface Staff {
   id: string;
   name: string;
-  role: 'Admin' | 'Mekanik' | 'Ketua Mekanik' | 'Kerani';
+  role: 'Admin' | 'Pemilik' | 'Mekanik' | 'Ketua Mekanik' | 'Kerani';
   email?: string;
   commissionPercent?: number;
   baseSalary?: number;
@@ -437,6 +437,7 @@ declare function localDateStr(d?: Date): string;
 declare function normalizePhone(phone: string): string;
 declare function canManage(): boolean;
 declare function canSeeRevenue(): boolean;
+declare function isOwnerLevel(role: string | undefined): boolean;
 declare function logoMarkHtml(px: number): string;
 declare function logAudit(action: string, detail: string): void;
 declare function getCustomer(id: string | null | undefined): Customer | undefined;

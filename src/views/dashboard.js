@@ -10,7 +10,7 @@ function viewDashboard(){
   const lowStock = db.inventory.filter(i=>i.qty<=i.lowStock);
   // Sales figures (today's total, recent invoice amounts) are Admin-only —
   // Mekanik still sees everything else (active jobs, stock, customer count).
-  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
+  const isAdmin = canSeeRevenue();
 
   const bookingsToday = db.appointments.filter(a=>a.date===todayStr).length;
   const completedToday = db.jobs.filter(j=>(j.status==='done'||j.status==='delivered') && j.doneAt && localDateStr(new Date(j.doneAt))===todayStr).length;

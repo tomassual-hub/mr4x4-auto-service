@@ -29,7 +29,7 @@ function viewJobs(){
     {k:'semua', l:tt('Semua')}, {k:'waiting', l:tt('Menunggu')}, {k:'progress', l:tt('Dalam Proses')},
     {k:'done', l:tt('Siap')}, {k:'delivered', l:tt('Dihantar')}
   ];
-  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
+  const isAdmin = canSeeRevenue();
   let jobs = [...db.jobs].sort((a,b)=>b.createdAt-a.createdAt);
   if(state.currentBranch!=='all'){
     jobs = jobs.filter(j=>j.branchId===state.currentBranch || (!j.branchId && state.currentBranch==='main'));

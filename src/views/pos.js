@@ -3,7 +3,7 @@ function viewPOS(){
   // Invoice history and cash-closing totals are sales/revenue figures —
   // Mekanik keeps full checkout ability (cart, current invoice total) but
   // doesn't see the aggregate history or daily cash reconciliation.
-  const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
+  const isAdmin = canSeeRevenue();
   const cart = state.posCart;
   const subtotal = cart.reduce((s,c)=>s+c.price*c.qty,0);
   let discountAmt = 0;
