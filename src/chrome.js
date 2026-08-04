@@ -134,6 +134,21 @@ function renderMobileMoreSheet(){
   </div>`;
 }
 
+// Floating help launcher, mobile only -- a placeholder for a future in-app
+// support/assistant channel (see the reference app's own floating bubble),
+// not wired to anything real yet, so it just shows a "coming soon" toast
+// (see the 'mobile-help' binding in event-handlers.js). Hidden whenever a
+// sheet/modal is already covering the screen so it can't float on top of
+// or behind either.
+function renderMobileHelpBubble(){
+  if(state.navOpen || state.modal || state.confirmAction || state.showOnboarding) return '';
+  const en = state.language==='en';
+  return `
+  <button class="mobile-help-bubble" data-action="mobile-help" title="${en?'Help & Support':'Bantuan & Sokongan'}">
+    ${ICONS.chat}
+  </button>`;
+}
+
 // Self-service 2FA (TOTP) management — reachable by EVERY staff member
 // (Mekanik included), unlike the rest of Settings which is Admin-only, so
 // this lives in its own modal rather than inside the Settings view.

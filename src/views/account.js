@@ -1,16 +1,51 @@
 /* ============================= ACCOUNT (mobile profile page) =============================
    Reached by tapping the avatar/name row in the mobile "More" sheet (see
    .more-sheet-account in chrome.js/styles.css) -- mirrors a reference app's
-   dedicated Account screen the user shared (avatar+role header, a shop-info
-   card, then preference/action rows), using ServisPro's own colors rather
-   than that reference's palette. Deliberately skips that reference's
-   Credit Balance / Referral Code / Subscription-tier rows -- those are the
-   other app's own monetization model, which ServisPro doesn't have. */
+   dedicated Account screen the user shared (avatar+role header, credit/
+   referral/subscription rows, grouped settings rows, a big Log Out button),
+   using ServisPro's own colors rather than that reference's palette.
+
+   The reference app's Credit Balance / Referral Code / Subscription rows are
+   that OTHER app's own monetization model (a credit-based marketplace with
+   paid tiers) -- ServisPro doesn't have one of those yet. Rather than either
+   faking a working feature or omitting the rows entirely, they're built as
+   honestly-labeled previews (a small "coming soon" tag, no real balance/
+   reward promised) so the layout matches without misleading real shop staff
+   using this in production. Referral copy/share still genuinely works --
+   it just shares an app invite, not a reward claim.
+
+   Also deliberately does NOT add lock icons to Staff/Appointments/Reports/
+   Payroll below -- those are real, fully working ServisPro features (just
+   role-gated the same way the rest of the app already gates them via
+   getNavItems()), not premium-tier teasers, so hiding them behind a fake
+   paywall would be a real regression, not a cosmetic one. */
 function viewAccount(){
   const en = state.language==='en';
   const s = state.currentStaff;
   const shop = db.settings;
   const manage = canManage();
+  const year = new Date().getFullYear();
+  const referralCode = referralCodeStub();
+
+  // Curated settings/management rows for this page -- not a repeat of the
+  // full getNavItems() list (that's already one tap away via the "More"
+  // sheet this page was opened from); just the subset that reads as
+  // "account & business configuration" the way the reference app groups it.
+  const groups = [
+    { title: en?'Profile & Plan':'Profil & Pelan', rows: [
+      { icon:ICONS.star, title:en?'Subscription':'Langganan', sub:en?'Manage plan and billing':'Urus pelan dan bil', badge:en?'Free':'Percuma', action:'account-coming-soon' },
+      manage ? { icon:ICONS.settings, title:en?'Workshop Details':'Butiran Bengkel', sub:en?'Address, services, facilities and branding':'Alamat, perkhidmatan, kemudahan dan jenama', nav:'settings' } : null,
+    ]},
+    { title: en?'Daily Operations':'Operasi Harian', rows: [
+      manage ? { icon:ICONS.staff, title:t('nav_staff'), sub:en?'QR attendance, add staff':'Kehadiran QR, tambah staf', nav:'staffpage' } : null,
+      (!db.settings.simpleMode) ? { icon:ICONS.calendar, title:t('nav_appointments'), sub:en?'Bookings and service reminders':'Tempahan dan peringatan servis', nav:'appointments' } : null,
+    ]},
+    { title: en?'Business Management':'Pengurusan Perniagaan', rows: [
+      manage ? { icon:ICONS.reports, title:t('nav_reports'), sub:en?'Sales, KPIs and trends':'Jualan, KPI dan trend', nav:'reports' } : null,
+      manage ? { icon:ICONS.wallet, title:tt('Gaji'), sub:en?'Staff payroll and payslips':'Gaji staf dan slip gaji', nav:'payroll' } : null,
+    ]},
+  ].map(g=>({ ...g, rows: g.rows.filter(Boolean) })).filter(g=>g.rows.length>0);
+
   return `
   <div class="section-head">
     <div>
@@ -22,24 +57,61 @@ function viewAccount(){
   <div class="panel account-hero">
     <div class="user-avatar account-hero-avatar">${initials(s?s.name:'')}</div>
     <div style="min-width:0;">
-      <div class="account-hero-name">${esc(s?s.name:'')}</div>
+      <div class="account-hero-name">${esc(s?s.name:'')} ${ICONS.verified}</div>
       <div class="account-hero-role">${esc(s?s.role:'')}</div>
+      <div class="account-hero-email">${ICONS.pin}<span>${shop.shopAddress ? esc(shop.shopAddress) : (en?'No address set':'Alamat belum ditetapkan')}</span></div>
       ${s && s.email ? `<div class="account-hero-email">${ICONS.mail}<span>${esc(s.email)}</span></div>` : ''}
     </div>
   </div>
 
-  <div class="panel">
-    <h2>${ICONS.settings} ${en?'Workshop':'Bengkel'}</h2>
-    <div class="account-row ${manage?'clickable':''}" ${manage?'data-nav="settings"':''}>
-      <div class="workspace-logo">${shop.shopLogo ? `<img src="${shop.shopLogo}" alt="" width="40" height="40" style="object-fit:contain;">` : logoMarkHtml(40)}</div>
-      <div style="min-width:0;flex:1;">
-        <div class="account-row-title">${esc(shop.shopName || (en?'ServisPro Auto Service':'ServisPro Auto Servis'))}</div>
-        <div class="account-row-sub">${esc(shop.shopPhone || (en?'No phone number set':'Tiada nombor telefon'))}</div>
-      </div>
-      ${manage ? ICONS.chevronRight : ''}
+  <div class="panel account-credit-bar clickable" data-action="account-coming-soon">
+    ${ICONS.wallet}
+    <div style="flex:1;min-width:0;">
+      <div class="account-credit-label">${en?'Credit Balance':'Baki Kredit'}</div>
+      <div class="account-credit-tag">${en?'Coming soon':'Akan datang'}</div>
     </div>
-    ${!manage ? `<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">${en?'Ask your shop Admin to update workshop details.':'Minta Admin bengkel kemas kini maklumat bengkel.'}</div>` : ''}
+    <div class="account-credit-value">0</div>
   </div>
+
+  <div class="account-teaser-row">
+    <div class="panel account-teaser-card">
+      <div class="account-teaser-icon">${ICONS.wallet}</div>
+      <div class="account-teaser-label">${en?`Sales ${year}`:`Jualan ${year}`}</div>
+      <div class="account-teaser-value">${ICONS.lock} ****</div>
+    </div>
+    <div class="panel account-teaser-card">
+      <div class="account-teaser-icon">${ICONS.jobs}</div>
+      <div class="account-teaser-label">${en?`Jobs ${year}`:`Kerja ${year}`}</div>
+      <div class="account-teaser-value">${ICONS.lock} ****</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h2 style="margin:0;">${en?'Referral Code':'Kod Rujukan'}</h2>
+      <span class="tag">${en?'Coming soon':'Akan datang'}</span>
+    </div>
+    <div class="account-referral-box">
+      <code>${esc(referralCode)}</code>
+      <button class="btn-icon" data-action="copy-referral-code" data-code="${esc(referralCode)}" title="${en?'Copy':'Salin'}">${ICONS.copy}</button>
+      <button class="btn-icon" data-action="share-referral-code" data-code="${esc(referralCode)}" title="${en?'Share':'Kongsi'}">${ICONS.share}</button>
+    </div>
+  </div>
+
+  ${groups.map(g=>`
+  <div class="panel account-group">
+    <div class="account-group-title">${g.title}</div>
+    ${g.rows.map(r=>`
+      <div class="account-row ${r.nav?'clickable':''}" ${r.nav?`data-nav="${r.nav}"`:`data-action="${r.action}"`}>
+        <div class="account-row-icon">${r.icon}</div>
+        <div style="min-width:0;flex:1;">
+          <div class="account-row-title">${r.title}</div>
+          <div class="account-row-sub">${r.sub}</div>
+        </div>
+        ${r.badge ? `<span class="tag">${r.badge}</span>` : ''}
+        ${r.nav ? ICONS.chevronRight : ''}
+      </div>`).join('')}
+  </div>`).join('')}
 
   <div class="panel">
     <h2>${en?'Preferences':'Keutamaan'}</h2>
@@ -57,9 +129,20 @@ function viewAccount(){
       <div class="sidebar-account-buttons">
         <button class="btn-icon" data-action="open-mfa-settings" title="2FA">${ICONS.shield}</button>
         ${faceIdSupportedSync() ? `<button class="btn-icon" data-action="open-faceid-settings" title="Face ID">${ICONS.faceid}</button>` : ''}
-        <button class="btn-icon" data-action="logout" title="${t('btn_logout')}">${ICONS.logout}</button>
       </div>
     </div>
   </div>
+
+  <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:64px;" data-action="logout">${ICONS.logout} ${en?'Log Out':'Log Keluar'}</button>
   `;
+}
+
+// Deterministic per-staff placeholder code (not a real referral program yet
+// -- see the comment at the top of this file) so it stays stable across
+// renders/sessions instead of re-randomizing every time this page opens.
+function referralCodeStub(){
+  const seed = (state.currentStaff && state.currentStaff.id) || 'servispro';
+  let hash = 0;
+  for(let i=0;i<seed.length;i++){ hash = ((hash<<5)-hash + seed.charCodeAt(i))|0; }
+  return Math.abs(hash).toString(36).toUpperCase().slice(0,6).padEnd(6,'0');
 }

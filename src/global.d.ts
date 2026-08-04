@@ -505,6 +505,8 @@ declare function getNavItems(): { k: string; l: string; icon: string; badge?: nu
 declare function renderSidebar(): string;
 declare function renderMobileTabBar(): string;
 declare function renderMobileMoreSheet(): string;
+declare function renderMobileHelpBubble(): string;
+declare function referralCodeStub(): string;
 declare function renderTopbar(): string;
 declare function renderSyncErrorBanner(): string;
 declare function renderModal(): string;

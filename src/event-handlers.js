@@ -373,6 +373,36 @@ function attachHandlers(){
     setState({currentStaff:null, view:'dashboard', authMode:'login', mfaChallenge:null});
   });
 
+  bindAllAction('mobile-help', ()=>{
+    showToast(state.language==='en' ? 'Support chat is coming soon.' : 'Sembang sokongan akan datang tidak lama lagi.');
+  });
+  bindAllAction('account-coming-soon', ()=>{
+    showToast(state.language==='en' ? 'This feature is coming soon.' : 'Ciri ini akan datang tidak lama lagi.');
+  });
+  bindAllAction('copy-referral-code', async (el)=>{
+    const code = el.dataset.code || '';
+    const en = state.language==='en';
+    try{
+      await navigator.clipboard.writeText(code);
+      showToast(en?'Code copied.':'Kod disalin.');
+    }catch(e){
+      showToast(en?'Could not copy — copy it manually.':'Gagal salin — sila salin secara manual.');
+    }
+  });
+  bindAllAction('share-referral-code', async (el)=>{
+    const code = el.dataset.code || '';
+    const en = state.language==='en';
+    const text = (en
+      ? `Try ServisPro for workshop management — my code: ${code}`
+      : `Cuba ServisPro untuk urus bengkel — kod saya: ${code}`);
+    if(navigator.share){
+      try{ await navigator.share({ title:'ServisPro', text }); }catch(e){ /* user cancelled */ }
+    } else {
+      try{ await navigator.clipboard.writeText(text); showToast(en?'Copied — paste it anywhere to share.':'Disalin — tampal di mana-mana untuk kongsi.'); }
+      catch(e){ showToast(en?'Sharing not supported on this device.':'Perkongsian tidak disokong pada peranti ini.'); }
+    }
+  });
+
   bindAllAction('open-mfa-settings', ()=>setState({modal:{type:'mfa-settings'}}));
   bindAction('start-mfa-enroll', ()=>startMfaEnrollment());
   bindAction('cancel-mfa-enroll', ()=>{ state.mfaEnrollment = null; setState({modal:null}); });

@@ -127,6 +127,7 @@ function render(){
       </div>
       ${renderMobileTabBar()}
       ${renderMobileMoreSheet()}
+      ${renderMobileHelpBubble()}
     </div>
     ${state.modal ? renderModal() : ''}
     ${state.confirmAction ? renderConfirmModal() : ''}
