@@ -4,6 +4,16 @@ Generated via [PWABuilder](https://www.pwabuilder.com) from the live site
 at `https://tomassual-hub.github.io/servispro/`, then signed so
 it installs directly — no Play Store needed.
 
+**2026-08-04 automation**: every push to `master` now rebuilds and
+re-signs the APK/AAB automatically once the site finishes deploying (see
+`.github/workflows/build-android.yml`) and publishes them as a
+[GitHub Release](../../releases) tagged `android-vNNN` — no manual
+Bubblewrap run needed anymore. **`ServisPro.apk`/`ServisPro.aab` in this
+folder are the last *manually* built copies (2026-08-03, versionCode 2)**
+and will lag behind; grab the newest signed build from the
+[Releases page](../../releases) instead. They're left here as a stable
+fallback direct-download link, not because they're current.
+
 **2026-08-03 rebuild** (versionCode 2): regenerated with
 [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) directly
 against the live manifest, reusing the same `signing.keystore` (same
@@ -92,6 +102,9 @@ sources" question again on first install — that's normal.
   as that keystore hasn't been compromised the way the previous one was.
 
 ## Rebuilding locally with Bubblewrap
+
+This is now automated in CI (see above) — you shouldn't normally need
+this. Kept for manual rebuilds/debugging on this machine specifically.
 
 Whenever the site changes and you want the APK to match (new branding,
 new manifest fields, etc.):

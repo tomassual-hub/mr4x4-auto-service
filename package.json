@@ -11,9 +11,11 @@
     "test:xss": "npm run build:test && node tests/xss-escaping.test.js",
     "test:sync": "npm run build:test && node tests/job-pos-invoice.test.js",
     "check": "npm run typecheck && npm run build && npm test",
-    "deploy": "node build/deploy.js"
+    "deploy": "node build/deploy.js",
+    "build:android": "node build/build-android.js"
   },
   "devDependencies": {
+    "@bubblewrap/cli": "^1.25.0",
     "playwright": "^1.48.0",
     "typescript": "^5.6.0"
   }

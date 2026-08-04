@@ -1,0 +1,84 @@
+name: Build Android APK
+
+# Runs after CI finishes deploying to GitHub Pages, not on every push directly
+# -- build/build-android.js fetches the *live* manifest.json from GH Pages
+# (see MANIFEST_URL there), so it needs the deploy to have already landed.
+# branches: [master] means this only fires for CI runs on master, which is
+# exactly the set of CI runs that also deploy (see deploy-pages's `if:` in
+# ci.yml), so this and the site it wraps never drift out of sync.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Bubblewrap needs the Android SDK's build-tools/platform-tools present
+      # on disk (see build/build-android.js) -- installed by hand here
+      # (official Google-hosted cmdline-tools zip + sdkmanager) rather than a
+      # third-party marketplace action, since this job handles the app
+      # signing key.
+      - name: Install Android SDK
+        run: |
+          set -e
+          SDK_ROOT="$HOME/android-sdk"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          curl -fsSL -o "$RUNNER_TEMP/cmdline-tools.zip" \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q "$RUNNER_TEMP/cmdline-tools.zip" -d "$SDK_ROOT/cmdline-tools"
+          mv "$SDK_ROOT/cmdline-tools/cmdline-tools" "$SDK_ROOT/cmdline-tools/latest"
+          chmod +x "$SDK_ROOT/cmdline-tools/latest/bin/"*
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" --licenses <<< $'y\ny\ny\ny\ny\ny\ny\ny\ny\ny' > /dev/null
+          "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" \
+            "platform-tools" "platforms;android-36" "build-tools;36.1.0" > /dev/null
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Decode signing keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/signing.keystore"
+
+      - name: Build signed APK/AAB
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/signing.keystore
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: npm run build:android
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="android-v${{ github.run_number }}"
+          gh release create "$TAG" \
+            android-app/ServisPro.apk android-app/ServisPro.aab \
+            --title "Android build $TAG" \
+            --notes "Automated Android build from commit ${{ github.event.workflow_run.head_sha || github.sha }}."
