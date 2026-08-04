@@ -132,7 +132,12 @@ end $$;
 -- or append-only, and RLS should actually enforce that, not just hide it.
 -- ---------------------------------------------------------------------
 
--- is_admin(): true if the calling user's linked staff record has role Admin.
+-- is_admin(): true if the calling user's linked staff record has role Admin
+-- OR Pemilik -- Pemilik is a same-access-as-Admin role (see canSeeRevenue()/
+-- isOwnerLevel() in src/utils.js) added later than this function; without
+-- 'Pemilik' listed here too, switching an account to Pemilik makes the UI
+-- claim full access while every actual write against Admin-gated tables
+-- gets silently rejected by RLS underneath it.
 create or replace function is_admin()
 returns boolean
 language sql
@@ -140,14 +145,14 @@ security definer
 stable
 as $$
   select exists(
-    select 1 from staff where user_id = auth.uid() and data->>'role' = 'Admin'
+    select 1 from staff where user_id = auth.uid() and data->>'role' in ('Admin','Pemilik')
   );
 $$;
 revoke execute on function is_admin() from public;
 revoke execute on function is_admin() from anon;
 grant execute on function is_admin() to authenticated;
 
--- is_manager(): true for Admin OR Kerani -- mirrors the client-side
+-- is_manager(): true for Admin/Pemilik OR Kerani -- mirrors the client-side
 -- canManage() split in src/utils.js (Kerani gets full Admin-level access to
 -- Staff/Settings/Payroll, just not revenue figures, which is a client-side-
 -- only concern since no table holds "revenue" as its own row). Written
@@ -161,7 +166,7 @@ security definer
 stable
 as $$
   select exists(
-    select 1 from staff where user_id = auth.uid() and data->>'role' in ('Admin','Kerani')
+    select 1 from staff where user_id = auth.uid() and data->>'role' in ('Admin','Pemilik','Kerani')
   );
 $$;
 revoke execute on function is_manager() from public;
