@@ -51,6 +51,12 @@ create table if not exists quotations     (id text primary key, data jsonb not n
 -- (see the "Bay Management" section in Settings and the Bay field on job
 -- cards) -- same open trust tier as branches, not Admin-restricted.
 create table if not exists bays           (id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+-- support_messages: internal staff <-> management help channel (see
+-- src/support-chat.js) -- one thread per non-manager staff member, not
+-- restricted to Admin/Kerani/Pemilik like staff/shop_meta/payroll_records
+-- below, since a regular Mekanik has to be able to write into their own
+-- thread too. Same open trust tier as jobs/customers, not Admin-only.
+create table if not exists support_messages(id text primary key, data jsonb not null, updated_at timestamptz not null default now());
 
 -- Staff needs a real column linking to Supabase Auth (real per-staff login),
 -- everything else about a staff member stays in data jsonb (name, role).
@@ -112,7 +118,8 @@ begin
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
     'cash_closures','staff','shop_meta','counters','tech_refs','leads',
-    'packages','credit_notes','attendance','quotations','bays'
+    'packages','credit_notes','attendance','quotations','bays',
+    'support_messages'
   ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -403,7 +410,8 @@ begin
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
     'cash_closures','staff','shop_meta','tech_refs','leads',
-    'packages','credit_notes','attendance','quotations','bays'
+    'packages','credit_notes','attendance','quotations','bays',
+    'support_messages'
   ])
   loop
     if not exists (

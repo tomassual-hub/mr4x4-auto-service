@@ -310,6 +310,22 @@ interface Lead {
   convertedCustomerId?: string;
 }
 
+// support_messages: internal staff <-> management help channel (see
+// src/support-chat.js). One thread per non-manager staff member
+// (threadStaffId), holding every message either they or any manager sent
+// into it -- not a 1:1 chat with a specific manager, "management" answers
+// collectively the same way a shared support inbox works.
+interface SupportMessage {
+  id: string;
+  threadStaffId: string;
+  senderId: string;
+  senderName: string;
+  senderSide: 'staff' | 'manager';
+  message: string;
+  createdAt: number;
+  read: boolean;
+}
+
 interface DB {
   customers: Customer[];
   vehicles: Vehicle[];
@@ -332,6 +348,7 @@ interface DB {
   attendance: AttendanceRecord[];
   quotations: Quotation[];
   bays: Bay[];
+  supportMessages: SupportMessage[];
   settings: ShopSettings;
   counters: Counters;
 }
@@ -393,6 +410,7 @@ interface AppState {
   boardMode?: boolean;
   boardJobs?: any[] | null;
   dashTargetPeriod?: 'weekly' | 'monthly';
+  supportChatThreadId?: string | null;
   [key: string]: any; // state accumulates ad-hoc UI flags; keep this escape hatch rather than chasing every one
 }
 
@@ -507,6 +525,12 @@ declare function renderSidebar(): string;
 declare function renderMobileTabBar(): string;
 declare function renderMobileMoreSheet(): string;
 declare function renderMobileHelpBubble(): string;
+declare function renderSupportChatModal(): string;
+declare function supportThreadIdForCurrentUser(): string | null;
+declare function supportMessagesForThread(threadStaffId: string): SupportMessage[];
+declare function supportThreadsForManager(): { staffId: string; staffName: string; lastMessage: string; lastAt: number; unreadCount: number }[];
+declare function supportUnreadCount(): number;
+declare function markSupportThreadRead(threadStaffId: string | null): void;
 declare function referralCodeStub(): string;
 declare function renderNotifBell(extraClass?: string): string;
 declare function renderTopbar(): string;

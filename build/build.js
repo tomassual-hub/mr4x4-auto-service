@@ -41,6 +41,7 @@ const FILE_ORDER = [
   'attendance.js',
   'inspection-report.js',
   'display-board.js',
+  'support-chat.js',
   'onboarding-confirm.js',
   'chrome.js',
   'views/staff.js',

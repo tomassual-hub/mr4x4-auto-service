@@ -70,6 +70,10 @@ let state = {
   boardMode: false,
   boardJobs: /** @type {any[]|null} */ (null),
   dashTargetPeriod: /** @type {'weekly'|'monthly'} */ ('weekly'),
+  // Which staff member's thread a manager is currently viewing in the
+  // support chat modal -- null means "show the inbox list". Meaningless
+  // for a non-manager, whose thread is always just their own id.
+  supportChatThreadId: /** @type {string|null} */ (null),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

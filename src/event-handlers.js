@@ -373,9 +373,60 @@ function attachHandlers(){
     setState({currentStaff:null, view:'dashboard', authMode:'login', mfaChallenge:null});
   });
 
-  bindAllAction('mobile-help', ()=>{
-    showToast(state.language==='en' ? 'Support chat is coming soon.' : 'Sembang sokongan akan datang tidak lama lagi.');
+  bindAllAction('open-support-chat', ()=>{
+    // Opening as a regular staff member always means "my own thread" -- for
+    // a manager, land back on the inbox list unless they were already mid-
+    // thread (state.modal getting replaced by a fresh render shouldn't
+    // reset which thread they were reading).
+    if(!canManage()) state.supportChatThreadId = state.currentStaff.id;
+    setState({modal:{type:'support-chat'}});
+    markSupportThreadRead(supportThreadIdForCurrentUser());
   });
+  bindAllAction('open-support-thread', el=>{
+    state.supportChatThreadId = el.dataset.id;
+    render();
+    markSupportThreadRead(el.dataset.id);
+  });
+  bindAction('back-to-support-inbox', ()=>{
+    state.supportChatThreadId = null;
+    render();
+  });
+  bindAllAction('send-support-message', el=>{
+    const input = /** @type {HTMLInputElement} */ (document.getElementById('support-chat-input'));
+    const threadStaffId = el.dataset.id;
+    const text = input && input.value.trim();
+    if(!text || !threadStaffId) return;
+    db.supportMessages = db.supportMessages || [];
+    db.supportMessages.push({
+      id: uid(),
+      threadStaffId,
+      senderId: state.currentStaff.id,
+      senderName: state.currentStaff.name,
+      senderSide: canManage() ? 'manager' : 'staff',
+      message: text,
+      createdAt: Date.now(),
+      read: false,
+    });
+    queueSave();
+    render();
+    const list = document.getElementById('support-chat-messages');
+    if(list) list.scrollTop = list.scrollHeight;
+    const freshInput = /** @type {HTMLInputElement} */ (document.getElementById('support-chat-input'));
+    if(freshInput) freshInput.focus();
+  });
+  const supportInput = document.getElementById('support-chat-input');
+  if(supportInput){
+    supportInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        const btn = /** @type {HTMLElement} */ (document.querySelector('[data-action="send-support-message"]'));
+        if(btn) btn.click();
+      }
+    });
+    // Land at the bottom of the thread on open, not scrolled to the top of
+    // an old conversation.
+    const list = document.getElementById('support-chat-messages');
+    if(list) list.scrollTop = list.scrollHeight;
+  }
   bindAllAction('account-coming-soon', ()=>{
     showToast(state.language==='en' ? 'This feature is coming soon.' : 'Ciri ini akan datang tidak lama lagi.');
   });

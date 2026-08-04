@@ -148,9 +148,11 @@ function renderMobileMoreSheet(){
 function renderMobileHelpBubble(){
   if(state.navOpen || state.modal || state.confirmAction || state.showOnboarding) return '';
   const en = state.language==='en';
+  const unread = supportUnreadCount();
   return `
-  <button class="mobile-help-bubble" data-action="mobile-help" title="${en?'Help & Support':'Bantuan & Sokongan'}">
+  <button class="mobile-help-bubble" data-action="open-support-chat" title="${en?'Support':'Sokongan'}">
     ${ICONS.chat}
+    ${unread>0 ? `<span class="notif-badge">${unread}</span>` : ''}
   </button>`;
 }
 
@@ -312,6 +314,11 @@ function renderTopbar(){
         <option value="all" ${state.currentBranch==='all'?'selected':''}>${en?'All Branches':'Semua Cawangan'}</option>
         ${db.branches.map(b=>`<option value="${b.id}" ${state.currentBranch===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}
       </select>` : ''}
+      ${(()=>{ const unread = supportUnreadCount(); return `
+      <button class="btn-icon" data-action="open-support-chat" title="${en?'Support':'Sokongan'}" style="position:relative;">
+        ${ICONS.chat}
+        ${unread>0 ? `<span class="notif-badge">${unread}</span>` : ''}
+      </button>`; })()}
       ${renderNotifBell('topbar-notif')}
       <div class="topbar-account">
         <div class="theme-toggle" data-action="toggle-theme" title="${tt('Tukar tema')}">

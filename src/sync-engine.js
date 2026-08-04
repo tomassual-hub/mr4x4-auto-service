@@ -47,6 +47,7 @@ function defaultDB(){
     attendance: [],
     quotations: [],
     bays: [],
+    supportMessages: [],
     settings: { shopName:'', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', shopLogo:'', lastBackupAt:null, servicedBrands:[], monthlySalesTarget:0, monthlyUnitTarget:0, countryCode:'60' },
     counters: { job: 1, invoice: 1, po: 1, creditNote: 1, quote: 1 }
   };
@@ -63,9 +64,17 @@ const TABLE_MAP = {
   suppliers:'suppliers', purchaseOrders:'purchase_orders', auditLog:'audit_log',
   branches:'branches', cashClosures:'cash_closures', payrollRecords:'payroll_records',
   techRefs:'tech_refs', leads:'leads', packages:'packages', creditNotes:'credit_notes',
-  attendance:'attendance', quotations:'quotations', bays:'bays'
+  attendance:'attendance', quotations:'quotations', bays:'bays',
+  supportMessages:'support_messages'
 };
 const REVERSE_TABLE_MAP = Object.fromEntries(Object.entries(TABLE_MAP).map(([k,v])=>[v,k]));
+// Tables loadRemoteDB() found missing (schema not migrated on this shop's
+// project yet -- see the 42P01/PGRST205 handling there). subscribeRealtime()
+// checks this before registering a table, because every table shares ONE
+// realtime channel/subscription: registering postgres_changes for a table
+// that doesn't exist errors the whole channel, silently killing realtime
+// sync for every OTHER table too, not just the missing one.
+const missingTables = new Set();
 let lastSynced = null; // per-table Map(id -> JSON snapshot), set once db is first loaded
 
 function staffDiffKey(rec){
@@ -131,15 +140,36 @@ async function loadRemoteDB(){
   const [tableResults, staffRows, metaRes, counterRows] = await Promise.all([
     Promise.all(tableEntries.map(([key, table]) =>
       (table==='audit_log' ? fetchRecentAuditLog() : fetchAllRows(table, 'id,data'))
-        .then(data => ({ key, data, error: /** @type {any} */ (null) }))
-        .catch(error => ({ key, data: /** @type {any[]} */ ([]), error }))
+        .then(data => ({ key, table, data, error: /** @type {any} */ (null) }))
+        .catch(error => ({ key, table, data: /** @type {any[]} */ ([]), error }))
     )),
     fetchAllRows('staff', 'id,user_id,data'),
     supabaseClient.from('shop_meta').select('data').eq('id','settings').maybeSingle(),
     fetchAllRows('counters', 'name,value'),
   ]);
   for(const r of tableResults){
-    if(r.error) throw r.error;
+    if(r.error){
+      // 42P01 = Postgres "undefined_table"; PGRST205 = PostgREST's own
+      // "table not found in schema cache" (what actually comes back in
+      // practice -- PostgREST wraps/reinterprets the underlying Postgres
+      // error rather than passing 42P01 through as-is). Either means this
+      // shop's Supabase project hasn't run the latest backend/schema.sql
+      // yet (a new db.* array was added to TABLE_MAP ahead of every
+      // existing installation's schema catching up). Degrading that one
+      // array to empty rather than aborting the whole login means adding a
+      // new synced table can never brick every shop's login the moment the
+      // code ships, only leave the new feature itself empty until the
+      // schema catches up. Any other error (RLS, network, ...) still
+      // hard-fails as before -- those are real problems worth surfacing
+      // loudly, not something to paper over.
+      if(r.error.code === '42P01' || r.error.code === 'PGRST205'){
+        reportError(r.error, `Missing table for db.${r.key} -- run the latest backend/schema.sql`);
+        missingTables.add(r.table);
+        d[r.key] = [];
+        continue;
+      }
+      throw r.error;
+    }
     d[r.key] = (r.data||[]).map(row=>row.data);
   }
   d.staff = staffRows.map(r=>({...r.data, id:r.id, userId:r.user_id}));
@@ -207,6 +237,7 @@ function subscribeRealtime(){
   if(realtimeChannel) return;
   realtimeChannel = supabaseClient.channel('shop-sync');
   [...Object.values(TABLE_MAP), 'staff', 'shop_meta'].forEach(table=>{
+    if(missingTables.has(table)) return; // see missingTables' own comment above
     realtimeChannel.on('postgres_changes', { event:'*', schema:'public', table }, payload=>handleRemoteChange(table, payload));
   });
   realtimeChannel.subscribe();
@@ -725,6 +756,12 @@ async function runSaveCycle(){
   try{
     const newSnap = {};
     for(const [key, table] of Object.entries(TABLE_MAP)){
+      // Skip a table known missing (schema not migrated yet -- see
+      // missingTables' own comment) rather than let it throw here: this
+      // loop is sequential and stops at the first error, so one unmigrated
+      // table would otherwise silently block saving every OTHER table that
+      // sorts after it too, not just fail to save itself.
+      if(missingTables.has(table)) continue;
       newSnap[key] = await syncListTable(key, table, key==='auditLog');
     }
     newSnap.staff = await syncStaffTable();
