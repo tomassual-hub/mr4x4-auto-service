@@ -8,7 +8,6 @@ function viewDashboard(){
   const todaySales = todaysInvoices.reduce((s,i)=>s+i.total,0);
   const activeJobs = db.jobs.filter(j=>j.status!=='delivered' && branchFilter(j));
   const lowStock = db.inventory.filter(i=>i.qty<=i.lowStock);
-  const recentInvoices = [...db.invoices].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
   // Sales figures (today's total, recent invoice amounts) are Admin-only —
   // Mekanik still sees everything else (active jobs, stock, customer count).
   const isAdmin = state.currentStaff && state.currentStaff.role==='Admin';
@@ -21,54 +20,15 @@ function viewDashboard(){
     return todaysPunches[0] && todaysPunches[0].type==='in';
   }).length;
 
-  // Workshop's own step-by-step process (customer -> vehicle -> job sheet ->
-  // parts/labour -> invoice/payment -> history/follow-up), grouped into the
-  // 4 pages that actually exist rather than 6 separate destinations -- "Add
-  // Vehicle Profile" lives inside Customers and "Add Parts/Labour/Expenses"
-  // lives inside a job's own detail modal, neither has its own page, so
-  // pretending otherwise would just be a dead link. Visible to every role
-  // (not gated by isAdmin) since none of this is revenue data.
-  const workflowSteps = [
-    { nav:'customers', icon:ICONS.customers,
-      title: en?'1. Register Customer & Vehicle':'1. Daftar Pelanggan & Kenderaan',
-      desc: en?'Create a customer record and log their vehicle details':'Cipta rekod pelanggan dan catat butiran kenderaan' },
-    { nav:'jobs', icon:ICONS.jobs,
-      title: en?'2. Open Job Sheet & Add Parts':'2. Buka Kad Kerja & Tambah Alat Ganti',
-      desc: en?'Start a job card, then log parts, labour and expenses as work happens':'Mulakan kad kerja, catat alat ganti, kerja dan perbelanjaan' },
-    { nav:'pos', icon:ICONS.pos,
-      title: en?'3. Quote, Invoice & Payment':'3. Sebut Harga, Invois & Bayaran',
-      desc: en?'Turn the job into an invoice and record how the customer paid':'Tukar kerja kepada invois dan rekod cara pelanggan bayar' },
-    { nav:'customers', icon:ICONS.history,
-      title: en?'4. Service History & Follow-Up':'4. Sejarah Servis & Susulan',
-      desc: en?"Every job saves to the vehicle's history — remind customers when due":'Setiap kerja disimpan dalam sejarah kenderaan — ingatkan pelanggan bila perlu' },
-  ];
-
   return `
   <div class="dashboard-view">
-  <div class="panel" style="margin-bottom:22px;">
-    <h2>${ICONS.repeat} ${en?'Workshop Workflow':'Aliran Kerja Bengkel'}</h2>
-    <div class="grid dash-workflow" style="gap:12px;">
-      ${workflowSteps.map(s=>`
-        <div class="stat-card" style="cursor:pointer;" data-nav="${s.nav}">
-          <div class="stat-icon">${s.icon}</div>
-          <div class="stat-label" style="text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:700;color:var(--text);">${s.title}</div>
-          <div class="stat-sub">${s.desc}</div>
-        </div>`).join('')}
-    </div>
-  </div>
-
   ${isAdmin ? `
   <div class="panel dash-hero" style="margin-bottom:22px;">
+    ${renderNotifBell('hero-notif')}
     <div class="dash-hero-brand">ServisPro</div>
     <div class="stat-label">${esc(db.settings.shopName)} · ${t('stat_today_sales')}</div>
     <div class="dash-hero-value">${fmtRM(todaySales)}</div>
     <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
-  </div>` : ''}
-
-  ${isAdmin ? `
-  <div class="panel" style="margin-bottom:22px;">
-    <h2>${ICONS.reports} ${en?'Sales Trend (Last 30 Days)':'Trend Jualan (30 Hari Lepas)'}</h2>
-    ${renderSalesChart(db.invoices.filter(branchFilter), 30)}
   </div>` : ''}
 
   ${isAdmin && (db.settings.monthlySalesTarget>0 || db.settings.monthlyUnitTarget>0) ? (()=>{
@@ -127,50 +87,8 @@ function viewDashboard(){
     ${dashTile(ICONS.done, completedToday, en?'Completed Today':'Selesai Hari Ini')}
     ${dashTile(ICONS.staff, `${presentToday}/${staffCount}`, en?'Attendance Today':'Kehadiran Hari Ini')}
     ${dashTile(ICONS.jobs, activeJobs.length, t('stat_active_jobs'))}
-  </div>
-
-  <div class="grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:22px;">
-    <div class="stat-card ${lowStock.length ? 'warn' : 'ok'}">
-      <div class="stat-icon">${ICONS.inventory}</div>
-      <div class="stat-label">${t('stat_low_stock')}</div>
-      <div class="stat-value">${lowStock.length}</div>
-      <div class="stat-sub">${tt('item perlu ditambah')}</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon">${ICONS.customers}</div>
-      <div class="stat-label">${t('stat_total_customers')}</div>
-      <div class="stat-value">${db.customers.length}</div>
-      <div class="stat-sub">${db.vehicles.length} ${tt('kenderaan direkod')}</div>
-    </div>
-  </div>
-
-  <div class="grid grid-2 dash-split">
-    <div class="panel">
-      <h2>${tt('Kad Kerja Aktif')} <span class="tag">${activeJobs.length}</span></h2>
-      ${activeJobs.length===0 ? emptyState(tt('Tiada kerja aktif buat masa ini.')) : `
-      <div class="tickets">${activeJobs.slice(0,4).map(renderJobTicket).join('')}</div>`}
-      ${activeJobs.length>0 ? `<div style="margin-top:14px;"><span class="btn btn-outline btn-sm" data-nav="jobs">${tt('Lihat Semua Kad Kerja')}</span></div>` : ''}
-    </div>
-    <div class="panel">
-      <h2>${ICONS.reports} ${tt('Amaran Stok Rendah')}</h2>
-      ${lowStock.length===0 ? emptyState(tt('Semua stok mencukupi.')) : lowStock.map(i=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--border);">
-          <div>
-            <div style="font-weight:600;font-size:13px;">${esc(i.name)}</div>
-            <div style="font-size:11.5px;color:var(--text-muted);">${esc(i.sku)}</div>
-          </div>
-          <span class="pill pill-low">${i.qty} ${tt('baki')}</span>
-        </div>`).join('')}
-      ${isAdmin ? `
-      <h2 style="margin-top:22px;">${tt('Invois Terkini')}</h2>
-      ${recentInvoices.length===0 ? emptyState(tt('Belum ada invois.')) : recentInvoices.map(inv=>{
-        const cust = getCustomer(inv.customerId);
-        return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px;">
-          <span>${inv.invoiceNo} — ${cust?esc(cust.name):tt('Walk-in')}</span>
-          <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">${fmtRM(inv.total)}</span>
-        </div>`;
-      }).join('')}` : ''}
-    </div>
+    ${dashTile(ICONS.inventory, lowStock.length, t('stat_low_stock'))}
+    ${dashTile(ICONS.customers, db.customers.length, t('stat_total_customers'))}
   </div>
 
   ${(()=>{

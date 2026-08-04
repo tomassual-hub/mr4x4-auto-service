@@ -256,6 +256,32 @@ function renderGlobalSearchResultsHTML(){
       </div>`).join('')}
   </div>`;
 }
+// Shared by the topbar and the mobile dashboard hero (see viewDashboard's
+// bell button, which replaces the topbar's copy on mobile so the bell isn't
+// hidden along with the rest of the topbar there) -- one notifOpen toggle,
+// one dropdown markup, so both copies always agree on what's open. Whichever
+// copy is actually visible is decided by CSS (.topbar-notif/.hero-notif),
+// not by which one got clicked -- see the [data-hero-notif] rule in
+// styles.css and bindAllAction('toggle-notif', ...) in event-handlers.js.
+function renderNotifBell(extraClass){
+  const en = state.language==='en';
+  const n = getNotifications();
+  return `
+  <div class="notif-wrap ${extraClass||''}">
+    <button class="btn-icon" data-action="toggle-notif" title="${en?'Notifications':'Notifikasi'}" style="position:relative;">
+      ${ICONS.bell}
+      ${n.length>0 ? `<span class="notif-badge">${n.length}</span>` : ''}
+    </button>
+    ${state.notifOpen ? `
+    <div class="global-search-results" style="width:300px;right:0;left:auto;">
+      ${n.length===0 ? `<div class="gs-empty">${en?'No new notifications.':'Tiada notifikasi baharu.'}</div>` : n.map(item=>`
+        <div class="gs-item" data-notif-nav="${item.view}">
+          <div class="gs-type" style="background:${item.urgent?'rgba(225,75,75,.18)':'var(--panel-alt)'};color:${item.urgent?'var(--danger)':'var(--text-muted)'};">${item.tag}</div>
+          <div><div class="gs-label">${esc(item.label)}</div><div class="gs-sub">${esc(item.sub)}</div></div>
+        </div>`).join('')}
+    </div>` : ''}
+  </div>`;
+}
 function renderTopbar(){
   const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll'), techref: state.language==='en'?'Technical Reference':'Rujukan Teknikal', account: state.language==='en'?'Account':'Akaun'};
   const en = state.language==='en';
@@ -265,7 +291,7 @@ function renderTopbar(){
   <div class="topbar">
     <div class="topbar-left">
       <button class="btn-icon hamburger-btn" data-action="open-nav" title="${state.language==='en'?'Open menu':'Buka menu'}">${ICONS.menu}</button>
-      <div style="min-width:0;">
+      <div style="min-width:0;" class="${state.view==='dashboard'?'topbar-title-dashboard':''}">
         <h1>${titles[state.view]}</h1>
         <div class="date" style="margin-top:2px;">${new Date().toLocaleDateString('ms-MY',{weekday:'long', day:'2-digit', month:'long', year:'numeric'})}</div>
       </div>
@@ -280,24 +306,8 @@ function renderTopbar(){
       <select id="branch-selector" style="width:auto;padding:8px 10px;font-size:12px;">
         <option value="all" ${state.currentBranch==='all'?'selected':''}>${en?'All Branches':'Semua Cawangan'}</option>
         ${db.branches.map(b=>`<option value="${b.id}" ${state.currentBranch===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}
-      </select>` : ''}      <div class="notif-wrap">
-        <button class="btn-icon" data-action="toggle-notif" title="${en?'Notifications':'Notifikasi'}" style="position:relative;">
-          ${ICONS.bell}
-          ${(()=>{ const n = getNotifications(); return n.length>0 ? `<span class="notif-badge">${n.length}</span>` : ''; })()}
-        </button>
-        ${state.notifOpen ? `
-        <div class="global-search-results" style="width:300px;right:0;left:auto;">
-          ${(()=>{
-            const n = getNotifications();
-            if(n.length===0) return `<div class="gs-empty">${en?'No new notifications.':'Tiada notifikasi baharu.'}</div>`;
-            return n.map(item=>`
-              <div class="gs-item" data-notif-nav="${item.view}">
-                <div class="gs-type" style="background:${item.urgent?'rgba(225,75,75,.18)':'var(--panel-alt)'};color:${item.urgent?'var(--danger)':'var(--text-muted)'};">${item.tag}</div>
-                <div><div class="gs-label">${esc(item.label)}</div><div class="gs-sub">${esc(item.sub)}</div></div>
-              </div>`).join('');
-          })()}
-        </div>` : ''}
-      </div>
+      </select>` : ''}
+      ${renderNotifBell('topbar-notif')}
       <div class="topbar-account">
         <div class="theme-toggle" data-action="toggle-theme" title="${tt('Tukar tema')}">
           <div class="t-icon ${state.theme==='light'?'active':''}">${ICONS.sun}</div>

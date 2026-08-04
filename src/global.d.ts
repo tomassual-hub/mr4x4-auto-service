@@ -507,6 +507,7 @@ declare function renderMobileTabBar(): string;
 declare function renderMobileMoreSheet(): string;
 declare function renderMobileHelpBubble(): string;
 declare function referralCodeStub(): string;
+declare function renderNotifBell(extraClass?: string): string;
 declare function renderTopbar(): string;
 declare function renderSyncErrorBanner(): string;
 declare function renderModal(): string;

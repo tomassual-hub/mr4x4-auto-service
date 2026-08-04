@@ -227,6 +227,7 @@ body::before{
    viewport is active, since @media doesn't add specificity on its own --
    the exact bug class already hit once earlier this session. */
 .dash-hero-brand{display:none;}
+.hero-notif{display:none;}
 
 @media screen and (max-width:880px){
   .sidebar{display:none;}
@@ -249,7 +250,7 @@ body::before{
      .stat-sub normally resolve to. */
   .dashboard-view{display:flex;flex-direction:column;}
   .dash-hero{
-    order:-3;text-align:left;
+    order:-3;text-align:left;position:relative;
     background:linear-gradient(135deg, #1c130a, #0d0906 65%, #030201);
     border-color:rgba(242,167,59,.28);
     /* Full-bleed: break out of .content's side padding so the banner runs
@@ -264,36 +265,37 @@ body::before{
     border-radius:0 0 26px 26px;border-left:none;border-right:none;border-top:none;
     padding:20px 16px 28px;
   }
-  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:21px;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
+  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:30px;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
   .dash-hero .stat-label{color:rgba(243,240,232,.72);}
   .dash-hero .stat-sub{color:rgba(243,240,232,.55);}
+  /* Replaces the topbar's own bell on this page -- see [data-hero-notif] on
+     .main below, and the topbar-title-dashboard rule further down, which
+     together clear the topbar so this hero banner is the page's whole
+     "header" on mobile, the way the reference app's home screen has no
+     separate page-title bar above its own branded banner. The compound
+     `.dash-hero .hero-notif` selector isn't just scoping -- it also has to
+     out-specificity the plain `.notif-wrap{position:relative}` rule (same
+     element, both classes) declared later in this file, which would
+     otherwise win on source order and silently cancel this positioning. */
+  .dash-hero .hero-notif{display:block;position:absolute;top:16px;right:16px;}
+  .hero-notif .btn-icon{background:rgba(255,255,255,.1);}
+  /* Topbar's own bell/title are redundant once the hero above is showing
+     its own copies (Admin dashboard only, see [data-hero-notif] set in
+     render-core.js) -- hidden rather than not-rendered so no other view's
+     topbar layout has to account for their absence. */
+  .main[data-hero-notif="1"] .topbar-notif{display:none;}
+  .main[data-hero-notif="1"] .topbar-title-dashboard{display:none;}
   .dash-target-panel{order:-2;}
   .dash-quickstats{order:-1;}
-  /* Workshop Workflow stays 4-across (see .dash-workflow base rule) even at
-     phone width -- each tile shrinks to icon + wrapped title only, since a
-     ~70px-wide column can't also fit the full description sentence. */
-  .dash-workflow{gap:8px;}
-  /* min-width:0 overrides the grid item default of min-width:auto, which
-     otherwise sizes each 1fr track to fit its content's min-content width
-     (e.g. an unbroken word like "Kenderaan") -- without it, 4 narrow columns
-     of Malay text force the whole grid, and the page, wider than the
-     390px viewport instead of wrapping inside their own column. */
-  .dash-workflow .stat-card{padding:10px 8px;min-width:0;}
-  .dash-workflow .stat-icon{width:26px;height:26px;margin-bottom:8px;}
-  .dash-workflow .stat-icon svg{width:14px;height:14px;}
-  .dash-workflow .stat-sub{display:none;}
-  .dash-workflow .stat-label{font-size:10px;line-height:1.25;overflow-wrap:break-word;word-break:break-word;}
-  /* The dashboard's paired panels (active jobs/low stock, appointments/
-     contracts) stay 2 equal columns on mobile instead of collapsing to 1 --
-     .dash-split beats the plain .grid-2 rule below on specificity alone.
-     Same min-width:0 reasoning as .dash-workflow above -- a job ticket's
-     plate number or an invoice row's amount would otherwise force its
-     column (and the page) wider than the viewport. */
+  /* The dashboard's paired appointments/contracts panel stays 2 equal
+     columns on mobile instead of collapsing to 1 -- .dash-split beats the
+     plain .grid-2 rule below on specificity alone. min-width:0 overrides
+     the grid item default of min-width:auto, which otherwise sizes each
+     1fr track to fit its content's min-content width -- without it, an
+     unbroken date/time string forces its column (and the page) wider than
+     the viewport instead of wrapping inside it. */
   .grid-2.dash-split{grid-template-columns:repeat(2,1fr);gap:12px;}
   .grid-2.dash-split > .panel{min-width:0;}
-  .grid-2.dash-split .tickets{grid-template-columns:1fr;}
-  .grid-2.dash-split .job-ticket{padding:16px 14px 14px 30px;}
-  .grid-2.dash-split .jt-head,.grid-2.dash-split .jt-foot{flex-wrap:wrap;gap:6px;}
   /* Floating pill (was an edge-to-edge bar flush with the screen bottom) --
      mirrors a reference app's floating rounded nav bar the user pointed to,
      kept in ServisPro's own dark-glass surface and amber accent rather than
@@ -313,11 +315,15 @@ body::before{
      above) rather than a plain flex slice of one continuous strip --
      rounded-square corners, a soft tinted fill, and a hairline border so
      it reads as a discrete pressable button even before it's active. */
+  /* Inactive tabs are flat -- just icon+label, no chip of their own -- so
+     the whole bar reads as one big rounded pill (see .mobile-tabbar) with a
+     single highlighted pill floating inside it for whichever tab is active,
+     matching a reference app's bottom nav the user pointed to, rather than
+     every tab having its own visible button outline all the time. */
   .mobile-tab-item{
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
     padding:7px 2px;border-radius:var(--r-md);color:var(--text-muted);cursor:pointer;position:relative;
-    background:var(--glass-2);border:1px solid var(--glass-border);
-    box-shadow:inset 0 1px 0 var(--glass-highlight);
+    background:transparent;border:1px solid transparent;
     transition:background .18s cubic-bezier(.2,.7,.3,1),border-color .18s ease,color .15s ease,transform .18s cubic-bezier(.2,.7,.3,1);
   }
   .mobile-tab-item:active{transform:scale(.94);}
@@ -452,14 +458,8 @@ body::before{
    separate component from .stat-card (used everywhere else in the app)
    since that one's vertical icon/label/value stack is a deliberately
    different, unrelated shape this change isn't meant to touch. */
-.dash-quickstats{grid-template-columns:repeat(4,1fr);}
+.dash-quickstats{grid-template-columns:repeat(3,1fr);}
 @media screen and (max-width:1000px){.dash-quickstats{grid-template-columns:repeat(2,1fr);}}
-/* Workshop Workflow: always 4 across, even on a phone -- unlike .grid-4
-   elsewhere (customer/staff cards, which need to drop to 1-2 columns so
-   their longer text doesn't wrap mid-word), these 4 steps are meant to read
-   as one compact step-tracker row. See the mobile media query below for the
-   icon/label shrink that keeps that row legible at phone width. */
-.dash-workflow{grid-template-columns:repeat(4,1fr);}
 .stat-tile{
   background:linear-gradient(135deg, var(--accent), var(--accent-2));border-radius:var(--r-lg);
   padding:16px;color:var(--accent-ink);position:relative;overflow:hidden;

@@ -55,7 +55,7 @@ function attachHandlers(){
   bindGlobalSearchResultHandlers();
   document.querySelectorAll('[data-action="open-nav"]').forEach(el=>el.addEventListener('click', ()=>setState({navOpen:true})));
   document.querySelectorAll('[data-action="close-nav"]').forEach(el=>el.addEventListener('click', ()=>setState({navOpen:false})));
-  bindAction('toggle-notif', ()=>setState({notifOpen: !state.notifOpen}));
+  bindAllAction('toggle-notif', ()=>setState({notifOpen: !state.notifOpen}));
   bindAction('retry-sync-now', async ()=>{ await runSaveCycle(); });
   document.querySelectorAll('[data-notif-nav]').forEach(el=>el.addEventListener('click', ()=>{
     if(el.dataset.notifNav==='mfa-settings'){ setState({modal:{type:'mfa-settings'}, notifOpen:false}); return; }

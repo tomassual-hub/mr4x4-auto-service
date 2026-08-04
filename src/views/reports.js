@@ -203,6 +203,21 @@ function viewReports(){
     ${renderSalesChart(invInRange, state.reportRange)}
   </div>` : ''}
 
+  ${canRevenue ? (()=>{
+    const recentInvoices = [...db.invoices].sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
+    return `
+    <div class="panel" style="margin-bottom:20px;">
+      <h2>${tt('Invois Terkini')}</h2>
+      ${recentInvoices.length===0 ? emptyState(tt('Belum ada invois.')) : recentInvoices.map(inv=>{
+        const cust = getCustomer(inv.customerId);
+        return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px;">
+          <span>${inv.invoiceNo} — ${cust?esc(cust.name):tt('Walk-in')}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;color:var(--accent);">${fmtRM(inv.total)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  })() : ''}
+
   <div class="grid grid-2">
     ${canRevenue ? `
     <div class="panel">
