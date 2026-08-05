@@ -69,6 +69,44 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+// Displays a real OS-level notification for a push sent by the
+// notify-support-message Edge Function (see backend/schema.sql and
+// supabase/functions/notify-support-message/) -- this fires even if no tab
+// of the app is open at all, unlike the in-app unread badge. The payload
+// shape (title/body/tag) is produced by that same Edge Function; a missing
+// or unparsable payload still shows a generic notification rather than
+// silently doing nothing, since some push services deliver an empty push
+// as a liveness check.
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try{ payload = event.data ? event.data.json() : {}; }catch(e){ /* not JSON -- fall through to defaults below */ }
+  const title = payload.title || 'ServisPro';
+  const options = {
+    body: payload.body || '',
+    tag: payload.tag || 'servispro-notification',
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    data: { url: payload.url || './' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Focuses an already-open tab if one exists, rather than always opening a
+// new one -- this app is usually kept open as an installed PWA, so most
+// clicks should just bring that existing window forward.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || './';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for(const client of clientList){
+        if('focus' in client) return client.focus();
+      }
+      if(self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>

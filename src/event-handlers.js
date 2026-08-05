@@ -427,6 +427,11 @@ function attachHandlers(){
     const list = document.getElementById('support-chat-messages');
     if(list) list.scrollTop = list.scrollHeight;
   }
+  bindAllAction('toggle-push-notifications', async ()=>{
+    if(state.pushSubscribed) await unsubscribeFromPush();
+    else await subscribeToPush();
+    await refreshPushSubscriptionState();
+  });
   bindAllAction('open-plan-picker', ()=>setState({modal:{type:'plan-picker'}}));
   bindAllAction('upgrade-plan-test', el=>upgradePlanTestMode(el.dataset.plan));
   bindAllAction('redeem-credit-upgrade', el=>redeemCreditForUpgrade(el.dataset.plan));

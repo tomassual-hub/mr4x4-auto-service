@@ -148,6 +148,11 @@ function viewAccount(){
           <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
           <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
         </div>
+        ${pushSupported() ? `
+        <div class="theme-toggle" data-action="toggle-push-notifications" title="${en?'Push notifications':'Notifikasi push'}">
+          <div class="t-icon ${!state.pushSubscribed?'active':''}" style="font-size:10px;font-weight:700;">OFF</div>
+          <div class="t-icon ${state.pushSubscribed?'active':''}">${ICONS.bell}</div>
+        </div>` : ''}
       </div>
       <div class="sidebar-account-buttons">
         <button class="btn-icon" data-action="open-mfa-settings" title="2FA">${ICONS.shield}</button>

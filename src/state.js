@@ -77,7 +77,11 @@ let state = {
   // Set once per login by checkLicenseStatus() (see license.js) -- null
   // until then, treated the same as the free plan by hasFeature() in the
   // meantime so nothing is gated before the first check completes.
-  license: /** @type {{plan:string,status:string,expiresAt:string|null,checkedAt:number,live:boolean}|null} */ (null),
+  license: /** @type {{plan:string,status:string,expiresAt:string|null,creditBalance:number,referralCode:string|null,checkedAt:number,live:boolean}|null} */ (null),
+  // Set once per login by refreshPushSubscriptionState() (see
+  // push-notifications.js) -- null until then ("not yet known", the
+  // Account page toggle renders in a neutral state meanwhile).
+  pushSubscribed: /** @type {boolean|null} */ (null),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

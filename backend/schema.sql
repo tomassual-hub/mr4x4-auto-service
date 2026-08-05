@@ -688,4 +688,86 @@ as $$
 $$;
 revoke execute on function kiosk_list_active_jobs() from public;
 grant execute on function kiosk_list_active_jobs() to anon;
+
+-- push_subscriptions: Web Push endpoints registered per staff device (see
+-- src/push-notifications.js) -- synced like every other db.* array via
+-- TABLE_MAP, but scoped to "your own devices only", same trust tier as
+-- support_messages, not the open "any staff" tier most tables above use.
+-- A staff member has no legitimate reason to read or delete another staff
+-- member's raw push endpoint. The Edge Function that actually SENDS
+-- notifications (see supabase/functions/notify-support-message/) runs with
+-- the service-role key and bypasses RLS entirely, so it can still reach
+-- every subscription regardless of this scoping.
+create table if not exists push_subscriptions(id text primary key, data jsonb not null, updated_at timestamptz not null default now());
+alter table push_subscriptions enable row level security;
+drop policy if exists "push_subscriptions select" on push_subscriptions;
+drop policy if exists "push_subscriptions insert" on push_subscriptions;
+drop policy if exists "push_subscriptions update" on push_subscriptions;
+drop policy if exists "push_subscriptions delete" on push_subscriptions;
+create policy "push_subscriptions select" on push_subscriptions for select to authenticated
+  using (data->>'staffId' = (select id from staff where user_id = auth.uid()));
+create policy "push_subscriptions insert" on push_subscriptions for insert to authenticated
+  with check (data->>'staffId' = (select id from staff where user_id = auth.uid()));
+create policy "push_subscriptions update" on push_subscriptions for update to authenticated
+  using (data->>'staffId' = (select id from staff where user_id = auth.uid()))
+  with check (data->>'staffId' = (select id from staff where user_id = auth.uid()));
+create policy "push_subscriptions delete" on push_subscriptions for delete to authenticated
+  using (data->>'staffId' = (select id from staff where user_id = auth.uid()));
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'push_subscriptions'
+  ) then
+    alter publication supabase_realtime add table push_subscriptions;
+  end if;
+  alter table push_subscriptions replica identity full;
+end $$;
+
+-- notify_new_support_message trigger: fires an HTTP call to the
+-- notify-support-message Edge Function (see supabase/functions/) on every
+-- new support message, so the recipient gets a real push notification even
+-- if the app is fully closed. Uses pg_net (bundled with every Supabase
+-- project) rather than requiring a separate cron/poller -- the call is
+-- fire-and-forget (net.http_post queues it async) so a slow/unreachable
+-- Edge Function never blocks or fails the message insert itself.
+--
+-- app.settings.edge_function_url / app.settings.edge_function_anon_key
+-- must be set once per project (see supabase/functions/README.md) via:
+--   alter database postgres set app.settings.edge_function_url = 'https://<project-ref>.functions.supabase.co/notify-support-message';
+--   alter database postgres set app.settings.edge_function_anon_key = '<anon key>';
+-- Until those are set, this trigger silently no-ops (current_setting's
+-- missing_ok=true below) rather than breaking support chat.
+create extension if not exists pg_net with schema extensions;
+
+create or replace function notify_new_support_message()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  fn_url text := current_setting('app.settings.edge_function_url', true);
+  fn_key text := current_setting('app.settings.edge_function_anon_key', true);
+begin
+  if fn_url is not null and fn_key is not null then
+    perform net.http_post(
+      url := fn_url,
+      headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || fn_key),
+      body := jsonb_build_object(
+        'id', new.id,
+        'threadStaffId', new.data->>'threadStaffId',
+        'senderId', new.data->>'senderId',
+        'senderName', new.data->>'senderName',
+        'senderSide', new.data->>'senderSide',
+        'message', new.data->>'message'
+      )
+    );
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists support_messages_notify on support_messages;
+create trigger support_messages_notify after insert on support_messages
+  for each row execute function notify_new_support_message();
 grant execute on function kiosk_list_active_jobs() to authenticated;

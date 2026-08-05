@@ -327,6 +327,18 @@ interface SupportMessage {
   read: boolean;
 }
 
+// push_subscriptions row (see src/push-notifications.js and
+// backend/schema.sql) -- `subscription` is exactly what
+// PushSubscription.toJSON() returns from the browser's Push API, stored
+// verbatim so the send side (supabase/functions/notify-support-message/)
+// can pass it straight to the web-push library unmodified.
+interface PushSubscriptionRecord {
+  id: string;
+  staffId: string;
+  subscription: PushSubscriptionJSON;
+  createdAt: number;
+}
+
 interface DB {
   customers: Customer[];
   vehicles: Vehicle[];
@@ -350,6 +362,7 @@ interface DB {
   quotations: Quotation[];
   bays: Bay[];
   supportMessages: SupportMessage[];
+  pushSubscriptions: PushSubscriptionRecord[];
   settings: ShopSettings;
   counters: Counters;
 }
@@ -413,6 +426,7 @@ interface AppState {
   dashTargetPeriod?: 'weekly' | 'monthly';
   supportChatThreadId?: string | null;
   license?: { plan: string; status: string; expiresAt: string | null; creditBalance: number; referralCode: string | null; checkedAt: number; live: boolean } | null;
+  pushSubscribed?: boolean | null;
   [key: string]: any; // state accumulates ad-hoc UI flags; keep this escape hatch rather than chasing every one
 }
 
@@ -550,6 +564,12 @@ declare function supportMessagesForThread(threadStaffId: string): SupportMessage
 declare function supportThreadsForManager(): { staffId: string; staffName: string; lastMessage: string; lastAt: number; unreadCount: number }[];
 declare function supportUnreadCount(): number;
 declare function markSupportThreadRead(threadStaffId: string | null): void;
+declare const PUSH_VAPID_PUBLIC_KEY: string;
+declare function pushSupported(): boolean;
+declare function isPushSubscribed(): Promise<boolean>;
+declare function refreshPushSubscriptionState(): Promise<void>;
+declare function subscribeToPush(): Promise<boolean>;
+declare function unsubscribeFromPush(): Promise<boolean>;
 declare function renderNotifBell(extraClass?: string): string;
 declare function renderTopbar(): string;
 declare function renderSyncErrorBanner(): string;
