@@ -44,6 +44,7 @@ const FILE_ORDER = [
   'display-board.js',
   'support-chat.js',
   'push-notifications.js',
+  'customer-portal.js',
   'onboarding-confirm.js',
   'chrome.js',
   'views/staff.js',

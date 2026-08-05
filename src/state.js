@@ -27,6 +27,7 @@ let state = {
   globalSearch: '',
   apptTab: 'appointments',
   kioskMode: false,
+  kioskTab: /** @type {'status'|'history'|'book'} */ ('status'),
   kioskQuery: '',
   // null = no search yet, 'loading' = RPC in flight, 'notfound' = searched
   // with no match, or the {id,jobNo,status,plate,model,rating,feedback}
@@ -82,6 +83,29 @@ let state = {
   // push-notifications.js) -- null until then ("not yet known", the
   // Account page toggle renders in a neutral state meanwhile).
   pushSubscribed: /** @type {boolean|null} */ (null),
+  // ---- customer self-service screens (all anonymous, token-gated -- see
+  // src/customer-portal.js and the kiosk_* RPCs in backend/schema.sql) ----
+  quoteMode: false,
+  quoteId: /** @type {string|null} */ (null),
+  quoteToken: /** @type {string|null} */ (null),
+  quoteResult: /** @type {any} */ (null), // 'loading' | 'invalid' | the quotation object once loaded
+  quoteResultLoading: false,
+  invoiceMode: false,
+  invoiceId: /** @type {string|null} */ (null),
+  invoiceToken: /** @type {string|null} */ (null),
+  invoiceResult: /** @type {any} */ (null), // 'loading' | 'invalid' | the invoice object once loaded
+  invoiceResultLoading: false,
+  historyPlate: '',
+  historyPhone: '',
+  historyResult: /** @type {any} */ (null), // 'loading' | 'notfound' | the {plate,model,jobs,invoices} object
+  bookName: '',
+  bookPhone: '',
+  bookPlate: '',
+  bookDate: '',
+  bookTime: '',
+  bookNotes: '',
+  bookBusy: false,
+  bookSubmitted: false,
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

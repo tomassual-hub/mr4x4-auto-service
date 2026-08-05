@@ -98,6 +98,18 @@ function render(){
     attachInspectionReportHandlers();
     return;
   }
+  if(state.quoteMode){
+    root.innerHTML = renderQuotationApproval();
+    makeClickablesFocusable();
+    attachQuotationApprovalHandlers();
+    return;
+  }
+  if(state.invoiceMode){
+    root.innerHTML = renderInvoiceView();
+    makeClickablesFocusable();
+    attachInvoiceViewHandlers();
+    return;
+  }
   if(state.boardMode){
     root.innerHTML = renderDisplayBoard();
     makeClickablesFocusable();

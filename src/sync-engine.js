@@ -630,11 +630,29 @@ async function initApp(){
       state.inspectToken = inspToken;
       state.inspectReport = 'loading';
     }
+    // Same shared-link pattern as ?inspect= above, for the two other
+    // anonymous customer-facing screens (see src/customer-portal.js).
+    const quoteId = params.get('quote');
+    const quoteToken = params.get('token');
+    if(quoteId && quoteToken && !state.attendanceMode && !state.inspectMode){
+      state.quoteMode = true;
+      state.quoteId = quoteId;
+      state.quoteToken = quoteToken;
+      state.quoteResult = 'loading';
+    }
+    const invoiceId = params.get('invoice');
+    const invoiceToken = params.get('token');
+    if(invoiceId && invoiceToken && !state.attendanceMode && !state.inspectMode && !state.quoteMode){
+      state.invoiceMode = true;
+      state.invoiceId = invoiceId;
+      state.invoiceToken = invoiceToken;
+      state.invoiceResult = 'loading';
+    }
     // The waiting-area Display Board is meant to be bookmarked as the home
     // page of a dedicated TV/tablet browser at the shop, so it needs to
     // load straight into board mode from a plain URL (?board=1) too, not
     // just via the login-screen link.
-    if(params.get('board') && !state.attendanceMode && !state.inspectMode){
+    if(params.get('board') && !state.attendanceMode && !state.inspectMode && !state.quoteMode && !state.invoiceMode){
       state.boardMode = true;
     }
   }catch(e){ /* malformed URL -- fall through to the normal login screen */ }

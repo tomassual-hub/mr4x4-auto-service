@@ -688,6 +688,7 @@ as $$
 $$;
 revoke execute on function kiosk_list_active_jobs() from public;
 grant execute on function kiosk_list_active_jobs() to anon;
+grant execute on function kiosk_list_active_jobs() to authenticated;
 
 -- push_subscriptions: Web Push endpoints registered per staff device (see
 -- src/push-notifications.js) -- synced like every other db.* array via
@@ -788,4 +789,224 @@ $$;
 drop trigger if exists support_messages_notify on support_messages;
 create trigger support_messages_notify after insert on support_messages
   for each row execute function notify_new_support_message();
-grant execute on function kiosk_list_active_jobs() to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Customer-facing self-service: quotation approval, vehicle service
+-- history, appointment requests, invoice/receipt viewing. Same
+-- anonymous-safe, token-gated pattern as kiosk_lookup_job/
+-- kiosk_inspection_report above -- security definer functions returning
+-- only the minimal fields each screen needs, never direct table access.
+-- ---------------------------------------------------------------------
+
+-- kiosk_get_quotation()/kiosk_respond_quotation(): the customer's side of
+-- "share a quotation for approval" (see the "Share for Approval" button in
+-- the staff Quotations tab). Link is ?quote=<id>&token=<quoteToken> -- the
+-- token is set client-side on the quotation record the same way
+-- inspectionToken is set on a job (staff already has full write access to
+-- quotations via the blanket policy above), so no separate RPC is needed
+-- just to generate/share the link, only to read/respond to it anonymously.
+create or replace function kiosk_get_quotation(p_quote_id text, p_token text)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  rec record;
+begin
+  select q.data->>'quoteNo' as quote_no, q.data->>'status' as status,
+         q.data->>'quoteToken' as token, q.data->'items' as items,
+         (q.data->>'subtotal')::numeric as subtotal, (q.data->>'discount')::numeric as discount,
+         (q.data->>'taxRate')::numeric as tax_rate, (q.data->>'tax')::numeric as tax,
+         (q.data->>'total')::numeric as total, (q.data->>'createdAt')::bigint as created_at,
+         c.data->>'name' as customer_name, v.data->>'plate' as plate, v.data->>'model' as model
+    into rec
+    from quotations q
+    left join customers c on c.id = q.data->>'customerId'
+    left join vehicles v on v.id = q.data->>'vehicleId'
+    where q.id = p_quote_id;
+
+  if not found or rec.token is null or rec.token <> p_token then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'quoteNo', rec.quote_no, 'status', rec.status, 'items', rec.items,
+    'subtotal', rec.subtotal, 'discount', rec.discount, 'taxRate', rec.tax_rate,
+    'tax', rec.tax, 'total', rec.total, 'createdAt', rec.created_at,
+    'customerName', rec.customer_name, 'plate', rec.plate, 'model', rec.model
+  );
+end;
+$$;
+revoke execute on function kiosk_get_quotation(text, text) from public;
+grant execute on function kiosk_get_quotation(text, text) to anon;
+grant execute on function kiosk_get_quotation(text, text) to authenticated;
+
+-- Only moves a quotation OUT of 'sent' -- can't approve/reject a draft
+-- (never shared), and can't respond twice to one already accepted/rejected/
+-- converted/expired. That guard is what stops a stale or reused link from
+-- flipping a decision after the fact.
+create or replace function kiosk_respond_quotation(p_quote_id text, p_token text, p_approved boolean)
+returns boolean
+language plpgsql
+security definer
+as $$
+declare
+  cur jsonb;
+begin
+  select data into cur from quotations where id = p_quote_id;
+  if not found then return false; end if;
+  if (cur->>'quoteToken') is null or (cur->>'quoteToken') <> p_token then return false; end if;
+  if (cur->>'status') <> 'sent' then return false; end if;
+
+  update quotations
+    set data = data || jsonb_build_object('status', case when p_approved then 'accepted' else 'rejected' end),
+        updated_at = now()
+    where id = p_quote_id;
+  return true;
+end;
+$$;
+revoke execute on function kiosk_respond_quotation(text, text, boolean) from public;
+grant execute on function kiosk_respond_quotation(text, text, boolean) to anon;
+grant execute on function kiosk_respond_quotation(text, text, boolean) to authenticated;
+
+-- kiosk_vehicle_history(): full service history for a vehicle, gated on
+-- BOTH the plate AND the phone number of the customer it's registered to
+-- (unlike kiosk_lookup_job, which only needs a job/plate number) -- a
+-- single job status is low-stakes to expose to anyone with the plate
+-- number (visible on the car itself), but a full history is more than a
+-- stranger walking past the vehicle should be able to pull up.
+create or replace function kiosk_vehicle_history(p_plate text, p_phone text)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  veh record;
+begin
+  select v.id, v.data->>'plate' as plate, v.data->>'model' as model, v.data->>'customerId' as customer_id
+    into veh
+    from vehicles v
+    where replace(lower(v.data->>'plate'), ' ', '') = replace(lower(p_plate), ' ', '')
+    limit 1;
+  if not found then return null; end if;
+
+  if not exists (
+    select 1 from customers c
+    where c.id = veh.customer_id
+      and regexp_replace(coalesce(c.data->>'phone',''), '\D', '', 'g') = regexp_replace(coalesce(p_phone,''), '\D', '', 'g')
+      and regexp_replace(coalesce(c.data->>'phone',''), '\D', '', 'g') <> ''
+  ) then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'plate', veh.plate, 'model', veh.model,
+    'jobs', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'jobNo', j.data->>'jobNo', 'status', j.data->>'status',
+        'description', j.data->>'description', 'createdAt', (j.data->>'createdAt')::bigint
+      ) order by (j.data->>'createdAt')::bigint desc), '[]'::jsonb)
+      from jobs j where j.data->>'vehicleId' = veh.id
+    ),
+    'invoices', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'invoiceNo', i.data->>'invoiceNo', 'total', (i.data->>'total')::numeric,
+        'createdAt', (i.data->>'createdAt')::bigint
+      ) order by (i.data->>'createdAt')::bigint desc), '[]'::jsonb)
+      from invoices i where i.data->>'vehicleId' = veh.id
+    )
+  );
+end;
+$$;
+revoke execute on function kiosk_vehicle_history(text, text) from public;
+grant execute on function kiosk_vehicle_history(text, text) to anon;
+grant execute on function kiosk_vehicle_history(text, text) to authenticated;
+
+-- kiosk_request_appointment(): a public "book a service" form (no login,
+-- no existing customer/vehicle record required) files the request as a new
+-- Lead (source: online booking) rather than writing straight into
+-- `appointments` -- staff already has a working Leads workflow (see
+-- leadsTabHTML in src/views/customers.js) to review, call to confirm
+-- details, and only then create a real confirmed Appointment. Writing
+-- straight into `appointments` would mean an unverified public submission
+-- shows up looking exactly like a staff-confirmed booking.
+create or replace function kiosk_request_appointment(p_name text, p_phone text, p_plate text, p_date text, p_time text, p_notes text)
+returns boolean
+language plpgsql
+security definer
+as $$
+declare
+  notes text;
+begin
+  if coalesce(trim(p_name), '') = '' or coalesce(trim(p_phone), '') = '' then
+    return false;
+  end if;
+  notes := format('Kenderaan: %s%sTarikh/masa diminta: %s %s%s',
+    coalesce(nullif(trim(p_plate), ''), '-'), chr(10),
+    coalesce(nullif(trim(p_date), ''), '-'), coalesce(nullif(trim(p_time), ''), ''), chr(10));
+  if coalesce(trim(p_notes), '') <> '' then
+    notes := notes || chr(10) || trim(p_notes);
+  end if;
+
+  insert into leads (id, data, updated_at)
+  values (
+    gen_random_uuid()::text,
+    jsonb_build_object(
+      'name', trim(p_name), 'phone', trim(p_phone), 'source', 'Tempahan Dalam Talian',
+      'notes', notes, 'status', 'new', 'createdAt', (extract(epoch from now())*1000)::bigint
+    ),
+    now()
+  );
+  return true;
+end;
+$$;
+revoke execute on function kiosk_request_appointment(text, text, text, text, text, text) from public;
+grant execute on function kiosk_request_appointment(text, text, text, text, text, text) to anon;
+grant execute on function kiosk_request_appointment(text, text, text, text, text, text) to authenticated;
+
+-- kiosk_get_invoice(): anonymous-safe receipt view/download, same
+-- token-gated pattern as kiosk_get_quotation above. Includes basic shop
+-- letterhead fields (shop_meta) since this page has no other way to reach
+-- them -- unlike the staff-side print, which already has db.settings loaded.
+create or replace function kiosk_get_invoice(p_invoice_id text, p_token text)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  rec record;
+  shop jsonb;
+begin
+  select i.data->>'invoiceNo' as invoice_no, i.data->>'invoiceToken' as token,
+         i.data->'items' as items, (i.data->>'subtotal')::numeric as subtotal,
+         (i.data->>'discount')::numeric as discount, (i.data->>'taxRate')::numeric as tax_rate,
+         (i.data->>'tax')::numeric as tax, (i.data->>'total')::numeric as total,
+         i.data->>'payment' as payment, (i.data->>'createdAt')::bigint as created_at,
+         c.data->>'name' as customer_name, v.data->>'plate' as plate, v.data->>'model' as model
+    into rec
+    from invoices i
+    left join customers c on c.id = i.data->>'customerId'
+    left join vehicles v on v.id = i.data->>'vehicleId'
+    where i.id = p_invoice_id;
+
+  if not found or rec.token is null or rec.token <> p_token then
+    return null;
+  end if;
+
+  select data into shop from shop_meta where id = 'settings';
+
+  return jsonb_build_object(
+    'invoiceNo', rec.invoice_no, 'items', rec.items, 'subtotal', rec.subtotal,
+    'discount', rec.discount, 'taxRate', rec.tax_rate, 'tax', rec.tax, 'total', rec.total,
+    'payment', rec.payment, 'createdAt', rec.created_at,
+    'customerName', rec.customer_name, 'plate', rec.plate, 'model', rec.model,
+    'shopName', shop->>'shopName', 'shopAddress', shop->>'shopAddress', 'shopPhone', shop->>'shopPhone'
+  );
+end;
+$$;
+revoke execute on function kiosk_get_invoice(text, text) from public;
+grant execute on function kiosk_get_invoice(text, text) to anon;
+grant execute on function kiosk_get_invoice(text, text) to authenticated;

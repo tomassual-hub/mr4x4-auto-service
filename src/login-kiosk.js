@@ -385,6 +385,37 @@ function attachLoginHandlers(){
    internal notes). */
 function renderKioskScreen(){
   const en = state.language==='en';
+  const tab = state.kioskTab || 'status';
+  return `
+  <div class="login-screen">
+    <div class="login-box">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+        <div class="theme-toggle" data-action="toggle-lang" title="Switch language">
+          <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
+          <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
+        </div>
+      </div>
+      <div class="login-brand">
+        <div class="mark">${logoMarkHtml(112)}</div>
+        <div class="sub">${en?'Customer Self-Service':'Layanan Kendiri Pelanggan'}</div>
+      </div>
+      <div class="tabs" style="justify-content:center;margin:0 auto 14px;">
+        <div class="tab-btn ${tab==='status'?'active':''}" data-kiosktab="status">${en?'Job Status':'Status Kerja'}</div>
+        <div class="tab-btn ${tab==='history'?'active':''}" data-kiosktab="history">${en?'Service History':'Sejarah Servis'}</div>
+        <div class="tab-btn ${tab==='book'?'active':''}" data-kiosktab="book">${en?'Book Service':'Tempah Servis'}</div>
+      </div>
+      <div class="panel">
+        ${tab==='status' ? kioskStatusTabHTML() : tab==='history' ? kioskHistoryTabHTML() : kioskBookingTabHTML()}
+        <div style="text-align:center;margin-top:18px;">
+          <span class="clickable" data-action="close-kiosk" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">← ${en?'Back to Staff Log In':'Kembali ke Log Masuk Staf'}</span>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function kioskStatusTabHTML(){
+  const en = state.language==='en';
   const result = state.kioskResult;
   const statusLabel = en
     ? {waiting:'Waiting in Queue', progress:'Being Worked On', done:'Ready for Pickup', delivered:'Delivered'}
@@ -401,38 +432,75 @@ function renderKioskScreen(){
     delivered:'Kenderaan telah dihantar/diambil. Terima kasih kerana menggunakan perkhidmatan kami.'
   };
   return `
-  <div class="login-screen">
-    <div class="login-box">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
-        <div class="theme-toggle" data-action="toggle-lang" title="Switch language">
-          <div class="t-icon ${state.language==='ms'?'active':''}" style="font-size:10px;font-weight:700;">MS</div>
-          <div class="t-icon ${state.language==='en'?'active':''}" style="font-size:10px;font-weight:700;">EN</div>
-        </div>
-      </div>
-      <div class="login-brand">
-        <div class="mark">${logoMarkHtml(112)}</div>
-        <div class="sub">${en?'Check Vehicle Status':'Semak Status Kenderaan'}</div>
-      </div>
-      <div class="panel">
-        <div class="field"><label>${en?'Job No. or Plate No.':'No. Kad Kerja atau No. Plat'}</label>
-          <input id="kiosk-input" placeholder="${en?'e.g. WS-0001 or WXY 1234':'cth: WS-0001 atau WXY 1234'}" value="${esc(state.kioskQuery||'')}">
-        </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="kiosk-check" ${result==='loading'?'disabled':''}>${ICONS.search} ${result==='loading'?(en?'Checking…':'Sedang semak…'):(en?'Check Status':'Semak Status')}</button>
-        ${result==='notfound' ? `<div class="empty" style="padding:20px 0 0;">${en?'No record found. Please check the job/plate number again.':'Tiada rekod dijumpai. Sila semak semula no. kad kerja / plat.'}</div>` : ''}
-        ${result && result!=='notfound' && result!=='loading' ? `
-          <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border);">
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);">${esc(result.jobNo)}</div>
-            <div style="font-size:16px;font-weight:700;margin:4px 0;">${esc(result.plate||'-')} ${result.model?'· '+esc(result.model):''}</div>
-            <span class="pill pill-${result.status==='waiting'?'wait':result.status}">${statusLabel[result.status]}</span>
-            <p style="font-size:12.5px;color:var(--text-muted);margin-top:12px;">${statusDesc[result.status]}</p>
-          </div>
-          ${result.status==='delivered' ? renderKioskFeedback(result) : ''}` : ''}
-        <div style="text-align:center;margin-top:18px;">
-          <span class="clickable" data-action="close-kiosk" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">← ${en?'Back to Staff Log In':'Kembali ke Log Masuk Staf'}</span>
-        </div>
-      </div>
+    <div class="field"><label>${en?'Job No. or Plate No.':'No. Kad Kerja atau No. Plat'}</label>
+      <input id="kiosk-input" placeholder="${en?'e.g. WS-0001 or WXY 1234':'cth: WS-0001 atau WXY 1234'}" value="${esc(state.kioskQuery||'')}">
     </div>
-  </div>`;
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="kiosk-check" ${result==='loading'?'disabled':''}>${ICONS.search} ${result==='loading'?(en?'Checking…':'Sedang semak…'):(en?'Check Status':'Semak Status')}</button>
+    ${result==='notfound' ? `<div class="empty" style="padding:20px 0 0;">${en?'No record found. Please check the job/plate number again.':'Tiada rekod dijumpai. Sila semak semula no. kad kerja / plat.'}</div>` : ''}
+    ${result && result!=='notfound' && result!=='loading' ? `
+      <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border);">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);">${esc(result.jobNo)}</div>
+        <div style="font-size:16px;font-weight:700;margin:4px 0;">${esc(result.plate||'-')} ${result.model?'· '+esc(result.model):''}</div>
+        <span class="pill pill-${result.status==='waiting'?'wait':result.status}">${statusLabel[result.status]}</span>
+        <p style="font-size:12.5px;color:var(--text-muted);margin-top:12px;">${statusDesc[result.status]}</p>
+      </div>
+      ${result.status==='delivered' ? renderKioskFeedback(result) : ''}` : ''}
+  `;
+}
+
+function kioskHistoryTabHTML(){
+  const en = state.language==='en';
+  const result = state.historyResult;
+  const statusLabel = en
+    ? {waiting:'Waiting', progress:'In Progress', done:'Ready', delivered:'Delivered'}
+    : {waiting:'Menunggu', progress:'Dalam Proses', done:'Siap', delivered:'Dihantar'};
+  return `
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?'Enter your vehicle plate and the phone number on file to view its full service history.':'Masukkan no. plat kenderaan dan no. telefon yang didaftarkan untuk lihat sejarah servis penuh.'}</p>
+    <div class="field"><label>${en?'Plate No.':'No. Plat'}</label><input id="history-plate" placeholder="${en?'e.g. WXY 1234':'cth: WXY 1234'}" value="${esc(state.historyPlate||'')}"></div>
+    <div class="field"><label>${en?'Phone No.':'No. Telefon'}</label><input id="history-phone" type="tel" placeholder="012-3456789" value="${esc(state.historyPhone||'')}"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="history-check" ${result==='loading'?'disabled':''}>${ICONS.search} ${result==='loading'?(en?'Checking…':'Sedang semak…'):(en?'View History':'Lihat Sejarah')}</button>
+    ${result==='notfound' ? `<div class="empty" style="padding:20px 0 0;">${en?'No matching record. Check the plate and phone number.':'Tiada rekod sepadan. Semak no. plat dan telefon.'}</div>` : ''}
+    ${result && result!=='notfound' && result!=='loading' ? `
+      <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border);">
+        <div style="font-size:16px;font-weight:700;margin-bottom:10px;">${esc(result.plate||'-')} ${result.model?'· '+esc(result.model):''}</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin-bottom:6px;">${en?'Jobs':'Kerja'}</div>
+        ${result.jobs.length===0 ? `<div style="font-size:12.5px;color:var(--text-muted);">${en?'No jobs yet.':'Belum ada kerja.'}</div>` : result.jobs.map(j=>`
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:5px;">
+            <div style="min-width:0;">
+              <div style="font-size:12.5px;font-weight:600;">${esc(j.description||'-')}</div>
+              <div style="font-size:11px;color:var(--text-muted);">${fmtDate(j.createdAt)}</div>
+            </div>
+            <span class="pill pill-${j.status==='waiting'?'wait':j.status}" style="flex-shrink:0;">${statusLabel[j.status]||j.status}</span>
+          </div>`).join('')}
+        ${result.invoices.length>0 ? `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin:14px 0 6px;">${en?'Invoices':'Invois'}</div>
+        ${result.invoices.map(i=>`
+          <div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:5px;">
+            <div style="font-size:12.5px;font-family:'IBM Plex Mono',monospace;">${esc(i.invoiceNo)}</div>
+            <div style="font-size:12.5px;color:var(--text-muted);">${fmtDate(i.createdAt)}</div>
+            <div style="font-size:12.5px;font-weight:700;color:var(--accent);">${fmtRM(i.total)}</div>
+          </div>`).join('')}` : ''}
+      </div>` : ''}
+  `;
+}
+
+function kioskBookingTabHTML(){
+  const en = state.language==='en';
+  if(state.bookSubmitted){
+    return `<div class="empty" style="padding:30px 0;">${ICONS.done||''}<div style="margin-top:8px;">${en?"Request sent! We'll contact you shortly to confirm.":'Permohonan dihantar! Kami akan hubungi anda tidak lama lagi untuk sahkan.'}</div></div>`;
+  }
+  return `
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?"Request a service slot — we'll call to confirm the exact time.":'Mohon slot servis — kami akan telefon untuk sahkan masa sebenar.'}</p>
+    <div class="field"><label>${en?'Your Name':'Nama Anda'}</label><input id="book-name" placeholder="${en?'Full name':'Nama penuh'}" value="${esc(state.bookName||'')}"></div>
+    <div class="field"><label>${en?'Phone No.':'No. Telefon'}</label><input id="book-phone" type="tel" placeholder="012-3456789" value="${esc(state.bookPhone||'')}"></div>
+    <div class="field"><label>${en?'Plate No.':'No. Plat'}</label><input id="book-plate" placeholder="${en?'e.g. WXY 1234':'cth: WXY 1234'}" value="${esc(state.bookPlate||'')}"></div>
+    <div class="field-row">
+      <div class="field"><label>${en?'Preferred Date':'Tarikh Dikehendaki'}</label><input id="book-date" type="date" value="${esc(state.bookDate||'')}"></div>
+      <div class="field"><label>${en?'Preferred Time':'Masa Dikehendaki'}</label><input id="book-time" type="time" value="${esc(state.bookTime||'')}"></div>
+    </div>
+    <div class="field"><label>${en?'What service do you need?':'Servis apa yang diperlukan?'}</label><textarea id="book-notes" rows="2" placeholder="${en?'e.g. Oil change, brake check':'cth: Tukar minyak, semak brek'}">${esc(state.bookNotes||'')}</textarea></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="book-submit" ${state.bookBusy?'disabled':''}>${state.bookBusy?(en?'Sending…':'Menghantar…'):(en?'Send Request':'Hantar Permohonan')}</button>
+  `;
 }
 
 function renderKioskFeedback(job){
@@ -456,12 +524,21 @@ function renderKioskFeedback(job){
 }
 
 function attachKioskHandlers(){
-  bindAction('close-kiosk', ()=>{ state.kioskMode=false; state.kioskQuery=''; state.kioskResult=null; state.kioskRatingValue=0; render(); });
+  bindAction('close-kiosk', ()=>{
+    state.kioskMode=false; state.kioskTab='status'; state.kioskQuery=''; state.kioskResult=null; state.kioskRatingValue=0;
+    state.historyPlate=''; state.historyPhone=''; state.historyResult=null;
+    state.bookName=''; state.bookPhone=''; state.bookPlate=''; state.bookDate=''; state.bookTime=''; state.bookNotes=''; state.bookSubmitted=false;
+    render();
+  });
   bindAllAction('toggle-lang', ()=>{
     state.language = state.language==='ms' ? 'en' : 'ms';
     render();
     try{ window.storage.set('lang-pref', state.language, false); }catch(e){}
   });
+  document.querySelectorAll('[data-kiosktab]').forEach(el=>el.addEventListener('click', ()=>{
+    state.kioskTab = el.dataset.kiosktab;
+    render();
+  }));
   const doKioskCheck = async ()=>{
     const q = (document.getElementById('kiosk-input')||{}).value?.trim() || '';
     state.kioskQuery = q;
@@ -502,6 +579,69 @@ function attachKioskHandlers(){
     }catch(e){
       reportError(e, 'Hantar maklum balas kiosk gagal');
       showToast(state.language==='en' ? 'Could not send feedback. Try again.' : 'Gagal hantar maklum balas. Cuba lagi.');
+    }
+  });
+
+  // ---- service history tab ----
+  const doHistoryCheck = async ()=>{
+    const en = state.language==='en';
+    const plate = (document.getElementById('history-plate')||{}).value?.trim() || '';
+    const phone = (document.getElementById('history-phone')||{}).value?.trim() || '';
+    state.historyPlate = plate; state.historyPhone = phone;
+    if(!plate || !phone){
+      showToast(en ? 'Enter both plate and phone number.' : 'Masukkan no. plat dan telefon.');
+      return;
+    }
+    state.historyResult = 'loading';
+    render();
+    try{
+      const { data, error } = await supabaseClient.rpc('kiosk_vehicle_history', { p_plate: plate, p_phone: phone });
+      if(error) throw error;
+      state.historyResult = data || 'notfound';
+    }catch(e){
+      reportError(e, 'Semak sejarah servis gagal');
+      state.historyResult = 'notfound';
+    }
+    render();
+  };
+  bindAction('history-check', doHistoryCheck);
+  const hPhone = document.getElementById('history-phone');
+  if(hPhone) hPhone.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doHistoryCheck(); });
+
+  // ---- book a service tab ----
+  bindAction('book-submit', async ()=>{
+    const en = state.language==='en';
+    const name = (document.getElementById('book-name')||{}).value?.trim() || '';
+    const phone = (document.getElementById('book-phone')||{}).value?.trim() || '';
+    const plate = (document.getElementById('book-plate')||{}).value?.trim() || '';
+    const date = (document.getElementById('book-date')||{}).value || '';
+    const time = (document.getElementById('book-time')||{}).value || '';
+    const notes = (document.getElementById('book-notes')||{}).value?.trim() || '';
+    Object.assign(state, { bookName:name, bookPhone:phone, bookPlate:plate, bookDate:date, bookTime:time, bookNotes:notes });
+    if(!name || !phone){
+      showToast(en ? 'Enter your name and phone number.' : 'Masukkan nama dan no. telefon anda.');
+      render();
+      return;
+    }
+    state.bookBusy = true;
+    render();
+    try{
+      const { data: ok, error } = await supabaseClient.rpc('kiosk_request_appointment', {
+        p_name: name, p_phone: phone, p_plate: plate, p_date: date, p_time: time, p_notes: notes
+      });
+      if(error) throw error;
+      state.bookBusy = false;
+      if(ok){
+        state.bookSubmitted = true;
+      } else {
+        showToast(en ? 'Could not send request — check your details and try again.' : 'Gagal hantar permohonan — semak butiran dan cuba lagi.');
+      }
+      render();
+    }catch(e){
+      state.bookBusy = false;
+      reportError(e, 'Hantar permohonan tempahan gagal');
+      showToast(en ? 'Could not send request. Try again.' : 'Gagal hantar permohonan. Cuba lagi.');
+      render();
     }
   });
 }

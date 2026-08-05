@@ -104,6 +104,7 @@ interface Invoice {
   createdAt: number;
   createdBy?: string;
   branchId?: string;
+  invoiceToken?: string; // set client-side when "Share Receipt" is first clicked -- see kiosk_get_invoice in backend/schema.sql
 }
 
 // A credit note reduces what a customer owes/paid on a specific invoice
@@ -168,10 +169,11 @@ interface Quotation {
   taxRate: number;
   tax: number;
   total: number;
-  status: 'draft' | 'sent' | 'accepted' | 'converted' | 'expired';
+  status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired';
   createdAt: number;
   createdBy?: string;
   convertedInvoiceId?: string;
+  quoteToken?: string; // set client-side when "Share for Approval" is first clicked -- see kiosk_get_quotation/kiosk_respond_quotation in backend/schema.sql
 }
 
 // Bays: physical workshop lifts/stations (e.g. "Bay 1 — General Repair").
@@ -410,6 +412,28 @@ interface AppState {
   navOpen?: boolean;
   notifOpen?: boolean;
   kioskMode?: boolean;
+  kioskTab?: 'status' | 'history' | 'book';
+  historyPlate?: string;
+  historyPhone?: string;
+  historyResult?: any;
+  bookName?: string;
+  bookPhone?: string;
+  bookPlate?: string;
+  bookDate?: string;
+  bookTime?: string;
+  bookNotes?: string;
+  bookBusy?: boolean;
+  bookSubmitted?: boolean;
+  quoteMode?: boolean;
+  quoteId?: string | null;
+  quoteToken?: string | null;
+  quoteResult?: any;
+  quoteResultLoading?: boolean;
+  invoiceMode?: boolean;
+  invoiceId?: string | null;
+  invoiceToken?: string | null;
+  invoiceResult?: any;
+  invoiceResultLoading?: boolean;
   attendanceMode?: boolean;
   attendanceStaffId?: string | null;
   attendanceToken?: string | null;
@@ -584,6 +608,16 @@ declare function attachAttendancePunchHandlers(): void;
 declare function renderInspectionReport(): string;
 declare function loadInspectionReport(): Promise<void>;
 declare function attachInspectionReportHandlers(): void;
+declare function kioskStatusTabHTML(): string;
+declare function kioskHistoryTabHTML(): string;
+declare function kioskBookingTabHTML(): string;
+declare function renderQuotationApproval(): string;
+declare function loadQuotationForApproval(): Promise<void>;
+declare function attachQuotationApprovalHandlers(): void;
+declare function renderInvoiceView(): string;
+declare function loadInvoiceForCustomer(): Promise<void>;
+declare function printKioskInvoice(inv: any): void;
+declare function attachInvoiceViewHandlers(): void;
 declare function renderDisplayBoard(): string;
 declare function loadDisplayBoardJobs(): Promise<void>;
 declare function attachDisplayBoardHandlers(): void;

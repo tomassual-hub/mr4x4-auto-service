@@ -1584,6 +1584,44 @@ function attachHandlers(){
       showToast(url);
     }
   });
+  bindAllAction('share-quotation-approval', el=>{
+    const en = state.language==='en';
+    const q = (db.quotations||[]).find(x=>x.id===el.dataset.id);
+    if(!q) return;
+    if(!q.quoteToken) q.quoteToken = uid()+uid();
+    if(q.status==='draft') q.status = 'sent';
+    queueSave();
+    const url = `${location.origin}${location.pathname}?quote=${encodeURIComponent(q.id)}&token=${encodeURIComponent(q.quoteToken)}`;
+    const cust = getCustomer(q.customerId);
+    const waText = encodeURIComponent(`${en?"Here's your quotation":'Ini sebut harga anda'} (${q.quoteNo}) — ${fmtRM(q.total)}: ${url}`);
+    render();
+    if(cust && cust.phone){
+      window.open(`https://wa.me/${normalizePhone(cust.phone)}?text=${waText}`, '_blank');
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(url);
+      showToast(en?'Quotation link copied — no customer phone number on file.':'Pautan sebut harga disalin — tiada no. telefon pelanggan direkodkan.');
+    } else {
+      showToast(url);
+    }
+  });
+  bindAllAction('share-invoice-receipt', el=>{
+    const en = state.language==='en';
+    const inv = db.invoices.find(x=>x.id===el.dataset.id);
+    if(!inv) return;
+    if(!inv.invoiceToken) inv.invoiceToken = uid()+uid();
+    queueSave();
+    const url = `${location.origin}${location.pathname}?invoice=${encodeURIComponent(inv.id)}&token=${encodeURIComponent(inv.invoiceToken)}`;
+    const cust = getCustomer(inv.customerId);
+    const waText = encodeURIComponent(`${en?"Here's your receipt":'Ini resit anda'} (${inv.invoiceNo}) — ${fmtRM(inv.total)}: ${url}`);
+    if(cust && cust.phone){
+      window.open(`https://wa.me/${normalizePhone(cust.phone)}?text=${waText}`, '_blank');
+    } else if(navigator.clipboard){
+      navigator.clipboard.writeText(url);
+      showToast(en?'Receipt link copied — no customer phone number on file.':'Pautan resit disalin — tiada no. telefon pelanggan direkodkan.');
+    } else {
+      showToast(url);
+    }
+  });
 
   bindAction('save-item', ()=>{
     const id = document.querySelector('[data-action="save-item"]').dataset.id;
