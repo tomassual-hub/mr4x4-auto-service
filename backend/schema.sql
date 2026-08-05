@@ -733,12 +733,28 @@ end $$;
 -- fire-and-forget (net.http_post queues it async) so a slow/unreachable
 -- Edge Function never blocks or fails the message insert itself.
 --
--- app.settings.edge_function_url / app.settings.edge_function_anon_key
--- must be set once per project (see supabase/functions/README.md) via:
---   alter database postgres set app.settings.edge_function_url = 'https://<project-ref>.functions.supabase.co/notify-support-message';
---   alter database postgres set app.settings.edge_function_anon_key = '<anon key>';
--- Until those are set, this trigger silently no-ops (current_setting's
--- missing_ok=true below) rather than breaking support chat.
+-- The function URL/key live in this small table rather than
+-- `app.settings.*` database parameters -- `alter database ... set` needs
+-- superuser, which Supabase's SQL Editor role doesn't have (confirmed via
+-- "permission denied to set parameter" when that was tried). A plain table
+-- (same pattern as license_config in central-schema.sql) needs no special
+-- privilege at all -- it's owned by the same role running this script.
+create table if not exists edge_function_config (
+  id text primary key default 'singleton',
+  edge_function_url text,
+  edge_function_anon_key text
+);
+alter table edge_function_config enable row level security;
+revoke all on edge_function_config from anon, authenticated;
+insert into edge_function_config (id) values ('singleton') on conflict (id) do nothing;
+
+-- Set once per project (see supabase/functions/README.md) via:
+--   update edge_function_config set
+--     edge_function_url = 'https://<project-ref>.functions.supabase.co/notify-support-message',
+--     edge_function_anon_key = '<anon key>'
+--   where id = 'singleton';
+-- Until that's run, this trigger silently no-ops (both columns null)
+-- rather than breaking support chat.
 create extension if not exists pg_net with schema extensions;
 
 create or replace function notify_new_support_message()
@@ -747,9 +763,11 @@ language plpgsql
 security definer
 as $$
 declare
-  fn_url text := current_setting('app.settings.edge_function_url', true);
-  fn_key text := current_setting('app.settings.edge_function_anon_key', true);
+  fn_url text;
+  fn_key text;
 begin
+  select edge_function_url, edge_function_anon_key into fn_url, fn_key
+    from edge_function_config where id = 'singleton';
   if fn_url is not null and fn_key is not null then
     perform net.http_post(
       url := fn_url,

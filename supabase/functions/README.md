@@ -39,16 +39,19 @@ every Edge Function — nothing to set for those.
 
 ### Point the trigger at it
 
-Once deployed, run this once in the SQL Editor (fill in the real values):
+Once deployed, run this once in the SQL Editor (fill in the real values).
+Note this is a table update, not `alter database ... set` -- that needs
+superuser, which the SQL Editor's role doesn't have on a managed Supabase
+project (`edge_function_config` exists specifically to avoid needing it):
 ```sql
-alter database postgres set app.settings.edge_function_url =
-  'https://<project-ref>.functions.supabase.co/notify-support-message';
-alter database postgres set app.settings.edge_function_anon_key =
-  '<this project''s anon key>';
+update edge_function_config set
+  edge_function_url = 'https://<project-ref>.functions.supabase.co/notify-support-message',
+  edge_function_anon_key = '<this project''s anon key>'
+where id = 'singleton';
 ```
 `<project-ref>` is the subdomain in the project's URL (e.g.
 `knvevgtoigcteqdinyvk` for `https://knvevgtoigcteqdinyvk.supabase.co`).
 
-Until both of those are set, `notify_new_support_message` silently no-ops
-(see its comment in `backend/schema.sql`) — support chat itself keeps
-working fine either way, it just won't push a notification yet.
+Until that's run, `notify_new_support_message` silently no-ops (see its
+comment in `backend/schema.sql`) — support chat itself keeps working fine
+either way, it just won't push a notification yet.
