@@ -24,8 +24,8 @@
 -- same project).
 
 create table if not exists licenses (
-  id text primary key, -- the license key itself -- generated client-side (see src/license.js) the first time a shop's app checks in, not assigned here
-  shop_name text,
+  id text primary key check (length(id) between 16 and 100), -- the license key itself -- generated client-side (see src/license.js) the first time a shop's app checks in, not assigned here
+  shop_name text check (length(shop_name) <= 200),
   plan text not null default 'free',
   status text not null default 'active', -- active | expired | cancelled
   expires_at timestamptz, -- null = doesn't expire (the free plan)
@@ -74,6 +74,26 @@ revoke execute on function check_license(text, text) from public;
 grant execute on function check_license(text, text) to anon;
 grant execute on function check_license(text, text) to authenticated;
 
+-- license_config: a single-row kill switch for simulate_upgrade() below.
+-- Anyone who has the (publicly embedded, by design) anon key can already
+-- call simulate_upgrade() directly -- e.g. via curl -- and grant themselves
+-- any plan for free, same as this app's own developer did once already
+-- while verifying this system works. That's fine while nothing real is
+-- gated behind a paid plan yet (see PLAN_FEATURES.free in src/license.js),
+-- but becomes a real revenue-bypass the moment something IS gated. Flip
+-- this one flag to false the moment real billing exists, from the SQL
+-- Editor directly:
+--   update license_config set test_mode = false;
+-- -- no app redeploy needed, and simulate_upgrade() stops working for
+-- everyone (including the developer) immediately.
+create table if not exists license_config (
+  id text primary key default 'singleton',
+  test_mode boolean not null default true
+);
+alter table license_config enable row level security;
+revoke all on license_config from anon, authenticated;
+insert into license_config (id, test_mode) values ('singleton', true) on conflict (id) do nothing;
+
 -- simulate_upgrade(): TEST-MODE STAND-IN for real billing. Upgrades a
 -- license immediately with no payment happening at all -- exists purely so
 -- the whole plan-page / upgrade / unlock loop can be built and tested
@@ -81,9 +101,8 @@ grant execute on function check_license(text, text) to authenticated;
 -- with real logic once ToyyibPay is wired up (create a bill, return its
 -- URL, and only actually upgrade from a webhook handler after ToyyibPay
 -- confirms payment landed) -- or drop it entirely once nothing client-side
--- calls it anymore. DO NOT leave this reachable once real billing exists;
--- as written it's a free, unauthenticated way to grant any plan to any
--- license key.
+-- calls it anymore. Gated on license_config.test_mode (see above) so it
+-- can be killed instantly without a code change once that matters.
 create or replace function simulate_upgrade(p_license_key text, p_plan text)
 returns jsonb
 language plpgsql
@@ -91,7 +110,13 @@ security definer
 as $$
 declare
   rec record;
+  test_mode_on boolean;
 begin
+  select test_mode into test_mode_on from license_config where id = 'singleton';
+  if not coalesce(test_mode_on, false) then
+    return null;
+  end if;
+
   update licenses
     set plan = p_plan, status = 'active', expires_at = now() + interval '30 days', updated_at = now()
     where id = p_license_key

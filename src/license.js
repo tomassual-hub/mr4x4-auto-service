@@ -62,7 +62,15 @@ function getLicenseClient(){
 // any individual staff member.
 function getOrCreateLicenseKey(){
   if(!db.settings.licenseKey){
-    db.settings.licenseKey = uid();
+    // uid()+uid(), not a single uid() -- since check_license/simulate_upgrade
+    // run as the Postgres 'anon' role with no other authentication, this
+    // key IS the entire authorization boundary of the central licensing
+    // system across every ServisPro shop. A single uid() is ~41 bits from
+    // Math.random(), not a CSPRNG -- matches why this codebase's other two
+    // anonymous-bearer-token secrets (attendanceToken, inspectionToken in
+    // event-handlers.js) both already double it up instead of using a bare
+    // uid() for the same reason.
+    db.settings.licenseKey = uid()+uid();
     queueSave();
   }
   return db.settings.licenseKey;
@@ -118,6 +126,14 @@ async function upgradePlanTestMode(plan){
     const key = getOrCreateLicenseKey();
     const { data, error } = await client.rpc('simulate_upgrade', { p_license_key:key, p_plan:plan });
     if(error) throw error;
+    // null means simulate_upgrade() refused -- either license_config.test_mode
+    // was switched off (see central-schema.sql) or the license key wasn't
+    // found, never a JS-side bug -- show a real message instead of crashing
+    // on data.plan below.
+    if(!data){
+      showToast(en ? 'Test-mode upgrades are turned off — real billing isn\'t wired up yet.' : 'Naik taraf mod ujian telah dimatikan — bayaran sebenar belum disediakan lagi.');
+      return;
+    }
     state.license = { plan:data.plan, status:data.status, expiresAt:data.expiresAt, checkedAt:Date.now(), live:true };
     cacheLicense(state.license);
     showToast(en ? `Upgraded to ${PLAN_LABELS[plan] ? PLAN_LABELS[plan].en : plan} (test mode -- no real payment made).` : `Dinaik taraf ke ${PLAN_LABELS[plan] ? PLAN_LABELS[plan].ms : plan} (mod ujian -- tiada bayaran sebenar).`);

@@ -118,8 +118,7 @@ begin
     'customers','vehicles','jobs','inventory','invoices','appointments',
     'contracts','suppliers','purchase_orders','audit_log','branches',
     'cash_closures','staff','shop_meta','counters','tech_refs','leads',
-    'packages','credit_notes','attendance','quotations','bays',
-    'support_messages'
+    'packages','credit_notes','attendance','quotations','bays'
   ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -192,6 +191,34 @@ create policy "staff admin insert" on staff for insert to authenticated with che
 create policy "staff admin update" on staff for update to authenticated using (is_manager()) with check (is_manager());
 create policy "staff admin delete" on staff for delete to authenticated using (is_manager());
 
+-- is_manager() (Kerani included) can write to `staff` at all -- needed so
+-- Kerani can add/edit Mekanik accounts -- but without this trigger a
+-- Kerani could set their OWN row's role to 'Admin' or 'Pemilik' via a
+-- direct API call and self-escalate to full revenue access, since RLS
+-- above only checks WHO is writing, never WHICH role value they're
+-- writing. Bootstrap exception: claim_staff_record() self-assigns Admin
+-- when the staff table is still completely empty (the shop's very first
+-- login) -- there's no existing Admin yet to have approved that one, so
+-- it's allowed through once, and only then.
+create or replace function validate_staff_role_write()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  if (new.data->>'role') in ('Admin','Pemilik') and not is_admin() then
+    if TG_OP = 'INSERT' and (select count(*) from staff) = 0 then
+      return new;
+    end if;
+    raise exception 'Only Admin/Pemilik can assign the Admin or Pemilik role';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists staff_validate_role on staff;
+create trigger staff_validate_role before insert or update on staff
+  for each row execute function validate_staff_role_write();
+
 -- shop_meta (settings): everyone reads it (shop name/tax rate/payment QR
 -- show up on invoices for all staff), only Admin/Kerani can change it.
 drop policy if exists "staff full access" on shop_meta;
@@ -203,6 +230,58 @@ create policy "shop_meta select" on shop_meta for select to authenticated using 
 create policy "shop_meta admin insert" on shop_meta for insert to authenticated with check (is_manager());
 create policy "shop_meta admin update" on shop_meta for update to authenticated using (is_manager()) with check (is_manager());
 create policy "shop_meta admin delete" on shop_meta for delete to authenticated using (is_manager());
+
+-- support_messages: one thread per non-manager staff member (see
+-- src/support-chat.js) -- meant to be private between that staff member
+-- and management, NOT visible to every other Mekanik the way jobs/
+-- customers/etc. are. Previously sat in the blanket "any authenticated
+-- staff = full access" policy above, which meant any staff member could
+-- read every OTHER staff member's private thread with management (and
+-- write into it) via a direct API call, entirely bypassing the
+-- thread-scoping that only ever existed client-side. Scoped here to
+-- "your own thread, or any thread if you're a manager" instead.
+alter table support_messages enable row level security;
+drop policy if exists "staff full access" on support_messages;
+drop policy if exists "support_messages select" on support_messages;
+drop policy if exists "support_messages insert" on support_messages;
+drop policy if exists "support_messages update" on support_messages;
+drop policy if exists "support_messages delete" on support_messages;
+create policy "support_messages select" on support_messages for select to authenticated
+  using (is_manager() or data->>'threadStaffId' = (select id from staff where user_id = auth.uid()));
+create policy "support_messages insert" on support_messages for insert to authenticated
+  with check (is_manager() or data->>'threadStaffId' = (select id from staff where user_id = auth.uid()));
+create policy "support_messages update" on support_messages for update to authenticated
+  using (is_manager() or data->>'threadStaffId' = (select id from staff where user_id = auth.uid()))
+  with check (is_manager() or data->>'threadStaffId' = (select id from staff where user_id = auth.uid()));
+create policy "support_messages delete" on support_messages for delete to authenticated
+  using (is_manager() or data->>'threadStaffId' = (select id from staff where user_id = auth.uid()));
+
+-- Row-level scoping above stops reading/writing someone ELSE's thread, but
+-- doesn't stop a staff member writing INTO their own thread while lying
+-- about who a message is from (e.g. senderSide:'manager' to impersonate a
+-- reply from the boss). This closes that: the sender identity on every row
+-- must match who's actually making the call.
+create or replace function validate_support_message()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  my_staff_id text;
+begin
+  select id into my_staff_id from staff where user_id = auth.uid();
+  if (new.data->>'senderId') is distinct from my_staff_id then
+    raise exception 'senderId must match your own staff id';
+  end if;
+  if (new.data->>'senderSide' = 'manager') <> is_manager() then
+    raise exception 'senderSide must match your actual role';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists support_messages_validate on support_messages;
+create trigger support_messages_validate before insert or update on support_messages
+  for each row execute function validate_support_message();
 
 -- audit_log: append-only for everyone (it's an audit trail — nobody,
 -- including Admins, should be able to edit or erase past entries via the
