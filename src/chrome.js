@@ -427,6 +427,15 @@ function renderView(){
       <p style="color:var(--text-muted);font-size:13px;">${en?'This section is for Admin/Kerani roles only. Please contact your shop admin.':'Bahagian ini hanya untuk staf peranan Admin/Kerani. Sila hubungi admin bengkel anda.'}</p>
     </div>`;
   }
+  if(state.view==='reports' && !hasFeature('reports')){
+    const en = state.language==='en';
+    return `<div class="panel" style="text-align:center;padding:50px 20px;">
+      ${ICONS.lock}
+      <h2 style="margin-top:14px;">${en?'Pro Plan Required':'Perlukan Pelan Pro'}</h2>
+      <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">${en?'Reports is part of the Pro plan.':'Laporan adalah sebahagian daripada pelan Pro.'}</p>
+      <button class="btn btn-primary" data-action="open-plan-picker">${en?'View Plans':'Lihat Pelan'}</button>
+    </div>`;
+  }
   switch(state.view){
     case 'dashboard': return viewDashboard();
     case 'jobs': return viewJobs();

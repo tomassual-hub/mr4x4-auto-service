@@ -5,20 +5,26 @@
    referral/subscription rows, grouped settings rows, a big Log Out button),
    using ServisPro's own colors rather than that reference's palette.
 
-   The reference app's Credit Balance / Referral Code / Subscription rows are
-   that OTHER app's own monetization model (a credit-based marketplace with
-   paid tiers) -- ServisPro doesn't have one of those yet. Rather than either
-   faking a working feature or omitting the rows entirely, they're built as
-   honestly-labeled previews (a small "coming soon" tag, no real balance/
-   reward promised) so the layout matches without misleading real shop staff
-   using this in production. Referral copy/share still genuinely works --
-   it just shares an app invite, not a reward claim.
+   The reference app's Credit Balance / Referral Code rows are that OTHER
+   app's own monetization model (a credit-based marketplace) -- ServisPro
+   doesn't have one of those. Rather than either faking a working feature
+   or omitting the rows entirely, they're built as honestly-labeled
+   previews (a small "coming soon" tag, no real balance/reward promised) so
+   the layout matches without misleading real shop staff using this in
+   production. Referral copy/share still genuinely works -- it just shares
+   an app invite, not a reward claim.
 
-   Also deliberately does NOT add lock icons to Staff/Appointments/Reports/
-   Payroll below -- those are real, fully working ServisPro features (just
+   Subscription is different: it's a real (test-mode) plan picker backed by
+   src/license.js/backend/central-schema.sql -- see that file's own
+   comments for why "real" still means no actual payment happens yet.
+
+   Also deliberately does NOT add lock icons to Staff/Appointments/Payroll
+   below -- those are real, fully working ServisPro features (just
    role-gated the same way the rest of the app already gates them via
    getNavItems()), not premium-tier teasers, so hiding them behind a fake
-   paywall would be a real regression, not a cosmetic one. */
+   paywall would be a real regression, not a cosmetic one. Reports IS now
+   plan-gated (see hasFeature('reports') below) -- that's the one
+   deliberate placeholder example of the mechanism actually working. */
 function viewAccount(){
   const en = state.language==='en';
   const s = state.currentStaff;
@@ -33,7 +39,7 @@ function viewAccount(){
   // "account & business configuration" the way the reference app groups it.
   const groups = [
     { title: en?'Profile & Plan':'Profil & Pelan', rows: [
-      { icon:ICONS.star, title:en?'Subscription':'Langganan', sub:en?'Manage plan and billing':'Urus pelan dan bil', badge:en?'Free':'Percuma', action:'account-coming-soon' },
+      { icon:ICONS.star, title:en?'Subscription':'Langganan', sub:en?'Manage plan and billing':'Urus pelan dan bil', badge:(PLAN_LABELS[currentPlan()]||PLAN_LABELS.free)[en?'en':'ms'], action:'open-plan-picker' },
       manage ? { icon:ICONS.settings, title:en?'Workshop Details':'Butiran Bengkel', sub:en?'Address, services, facilities and branding':'Alamat, perkhidmatan, kemudahan dan jenama', nav:'settings' } : null,
     ]},
     { title: en?'Daily Operations':'Operasi Harian', rows: [
@@ -41,7 +47,9 @@ function viewAccount(){
       (!db.settings.simpleMode) ? { icon:ICONS.calendar, title:t('nav_appointments'), sub:en?'Bookings and service reminders':'Tempahan dan peringatan servis', nav:'appointments' } : null,
     ]},
     { title: en?'Business Management':'Pengurusan Perniagaan', rows: [
-      manage ? { icon:ICONS.reports, title:t('nav_reports'), sub:en?'Sales, KPIs and trends':'Jualan, KPI dan trend', nav:'reports' } : null,
+      manage ? (hasFeature('reports')
+        ? { icon:ICONS.reports, title:t('nav_reports'), sub:en?'Sales, KPIs and trends':'Jualan, KPI dan trend', nav:'reports' }
+        : { icon:ICONS.reports, title:t('nav_reports'), sub:en?'Pro plan':'Pelan Pro', locked:true }) : null,
       manage ? { icon:ICONS.wallet, title:tt('Gaji'), sub:en?'Staff payroll and payslips':'Gaji staf dan slip gaji', nav:'payroll' } : null,
     ]},
   ].map(g=>({ ...g, rows: g.rows.filter(Boolean) })).filter(g=>g.rows.length>0);
@@ -102,14 +110,14 @@ function viewAccount(){
   <div class="panel account-group">
     <div class="account-group-title">${g.title}</div>
     ${g.rows.map(r=>`
-      <div class="account-row ${r.nav?'clickable':''}" ${r.nav?`data-nav="${r.nav}"`:`data-action="${r.action}"`}>
+      <div class="account-row clickable" ${r.locked?`data-action="open-plan-picker"`:r.nav?`data-nav="${r.nav}"`:`data-action="${r.action}"`}>
         <div class="account-row-icon">${r.icon}</div>
         <div style="min-width:0;flex:1;">
           <div class="account-row-title">${r.title}</div>
           <div class="account-row-sub">${r.sub}</div>
         </div>
         ${r.badge ? `<span class="tag">${r.badge}</span>` : ''}
-        ${r.nav ? ICONS.chevronRight : ''}
+        ${r.locked ? ICONS.lock : (r.nav ? ICONS.chevronRight : '')}
       </div>`).join('')}
   </div>`).join('')}
 

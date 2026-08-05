@@ -74,6 +74,10 @@ let state = {
   // support chat modal -- null means "show the inbox list". Meaningless
   // for a non-manager, whose thread is always just their own id.
   supportChatThreadId: /** @type {string|null} */ (null),
+  // Set once per login by checkLicenseStatus() (see license.js) -- null
+  // until then, treated the same as the free plan by hasFeature() in the
+  // meantime so nothing is gated before the first check completes.
+  license: /** @type {{plan:string,status:string,expiresAt:string|null,checkedAt:number,live:boolean}|null} */ (null),
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

@@ -48,7 +48,7 @@ function defaultDB(){
     quotations: [],
     bays: [],
     supportMessages: [],
-    settings: { shopName:'', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', shopLogo:'', lastBackupAt:null, servicedBrands:[], monthlySalesTarget:0, monthlyUnitTarget:0, countryCode:'60' },
+    settings: { shopName:'', shopPhone:'', shopAddress:'', shopRegNo:'', shopSstNo:'', shopTin:'', taxRate:0, loyaltyVisits:5, loyaltyDiscount:10, churnDays:180, simpleMode:false, paymentQR:'', shopLogo:'', lastBackupAt:null, servicedBrands:[], monthlySalesTarget:0, monthlyUnitTarget:0, countryCode:'60', licenseKey:'' },
     counters: { job: 1, invoice: 1, po: 1, creditNote: 1, quote: 1 }
   };
 }
@@ -536,6 +536,7 @@ async function handleAuthenticated(session){
     checkOnboarding();
     cacheOfflineSnapshot(session.user.id, staffMember, db);
     maybeAutoBackup(); // fire-and-forget — never delay login on this
+    checkLicenseStatus(); // fire-and-forget — same reasoning, see license.js
     refreshMfaFactors(); // fire-and-forget — Settings' 2FA status shouldn't block login
     maybeOfferFaceIdEnroll(session); // fire-and-forget — mobile-only Face ID quick-unlock offer
     render();

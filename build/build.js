@@ -32,6 +32,7 @@ const FILE_ORDER = [
   'workshop-illustration-data.js',
   'face-id.js', // before sync-engine.js: initApp()/handleAuthenticated() call its functions
   'sync-engine.js',
+  'license.js',
   'utils.js',
   'state.js',
   'icons.js',

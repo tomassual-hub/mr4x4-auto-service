@@ -427,6 +427,8 @@ function attachHandlers(){
     const list = document.getElementById('support-chat-messages');
     if(list) list.scrollTop = list.scrollHeight;
   }
+  bindAllAction('open-plan-picker', ()=>setState({modal:{type:'plan-picker'}}));
+  bindAllAction('upgrade-plan-test', el=>upgradePlanTestMode(el.dataset.plan));
   bindAllAction('account-coming-soon', ()=>{
     showToast(state.language==='en' ? 'This feature is coming soon.' : 'Ciri ini akan datang tidak lama lagi.');
   });

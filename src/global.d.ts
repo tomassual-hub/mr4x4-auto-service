@@ -270,6 +270,7 @@ interface ShopSettings {
   monthlySalesTarget?: number;
   monthlyUnitTarget?: number;
   countryCode?: string;
+  licenseKey?: string;
 }
 
 interface Counters { job: number; invoice: number; po: number; creditNote: number; quote: number; }
@@ -411,6 +412,7 @@ interface AppState {
   boardJobs?: any[] | null;
   dashTargetPeriod?: 'weekly' | 'monthly';
   supportChatThreadId?: string | null;
+  license?: { plan: string; status: string; expiresAt: string | null; checkedAt: number; live: boolean } | null;
   [key: string]: any; // state accumulates ad-hoc UI flags; keep this escape hatch rather than chasing every one
 }
 
@@ -425,6 +427,11 @@ declare const LOGO_DATA_URI: string;
 declare const SERVISPRO_LOGO_DATA_URI: string;
 declare const WORKSHOP_ILLUSTRATION_DATA_URI: string;
 declare const supabaseClient: any;
+// The Supabase CDN script (loaded in the HTML shell) attaches its factory
+// here as window.supabase -- used a second time in license.js to build a
+// separate client pointed at the central licensing project, distinct from
+// the shop's own supabaseClient above.
+interface Window { supabase: any; }
 declare const Sentry: any; // loaded via CDN <script> in the HTML template, only if SENTRY_DSN is configured
 declare function initErrorMonitoring(): void;
 declare function reportError(error: any, context: string): void;
@@ -456,6 +463,15 @@ declare function normalizePhone(phone: string): string;
 declare function canManage(): boolean;
 declare function canSeeRevenue(): boolean;
 declare function isOwnerLevel(role: string | undefined): boolean;
+declare const PLAN_FEATURES: { [plan: string]: string[] };
+declare const PLAN_LABELS: { [plan: string]: { ms: string; en: string; price: string } };
+declare function checkLicenseStatus(): Promise<void>;
+declare function upgradePlanTestMode(plan: string): Promise<void>;
+declare function currentPlan(): string;
+declare function hasFeature(key: string): boolean;
+declare function getOrCreateLicenseKey(): string;
+declare function getLicenseClient(): any;
+declare function planPickerModalHTML(): string;
 declare function logoMarkHtml(px: number): string;
 declare function logAudit(action: string, detail: string): void;
 declare function getCustomer(id: string | null | undefined): Customer | undefined;

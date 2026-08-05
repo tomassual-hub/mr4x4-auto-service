@@ -38,6 +38,7 @@ function renderModal(){
   else if(m.type==='new-techref') inner = techRefModalHTML(null);
   else if(m.type==='edit-techref') inner = techRefModalHTML(m.entry);
   else if(m.type==='techref-detail') inner = techRefDetailModalHTML(m.entry);
+  else if(m.type==='plan-picker') inner = planPickerModalHTML();
   else if(m.type==='support-chat') return `<div class="modal-overlay" data-action="overlay-close"><div class="modal support-chat-modal" onclick="event.stopPropagation()">${renderSupportChatModal()}</div></div>`;
   return `<div class="modal-overlay" data-action="overlay-close"><div class="modal" onclick="event.stopPropagation()">${inner}</div></div>`;
 }
