@@ -45,12 +45,15 @@ jobs:
 
       # Runs against an isolated test-only Supabase project (see
       # tests/README.md and build/build-test.js) — never the production
-      # backend the live shop uses. inventory-po-backup.test.js has a
-      # known, pre-existing timing flake against that live backend
-      # (confirmed many times to be environmental, not a real regression:
-      # it always passes clean on an isolated rerun). One retry absorbs
-      # that without masking an actual, consistent failure.
-      - run: npm test || npm test
+      # backend the live shop uses. tests/run-all.js already retries any
+      # individual failing file once (a known, pre-existing timing flake in
+      # inventory-po-backup.test.js against that live backend has been
+      # confirmed many times to be environmental, not a real regression --
+      # it always passes clean on an isolated rerun) and takes a shared
+      # distributed lock (tests/lock.js) so this run and a concurrent local
+      # `npm test` don't race on the same backend. No need to retry the
+      # whole suite again out here on top of that.
+      - run: npm test
 
   deploy-pages:
     needs: check

@@ -50,6 +50,29 @@ To point at yet another Supabase project (e.g. everyone runs their own),
 edit the `SUPABASE_URL`/`SUPABASE_ANON_KEY` in `build/build-test.js` and run
 `backend/schema.sql` there once via its SQL Editor.
 
+## Shared-backend coordination
+
+Every runner (CI or a developer's own machine) still hits the SAME test
+project and the SAME `sync-test-mr4x4@mailinator.com` account -- there's no
+per-run isolation within that account. Two runs landing at once (a local
+`npm test` while CI is also running, or two CI runs racing before the
+`concurrency` group in `ci.yml` catches them) cause spurious failures that
+look like real regressions but aren't: RLS 403s, unexpected record counts,
+timing flakes.
+
+`tests/run-all.js` handles this two ways:
+- **A shared lock** (`tests/lock.js` + `tests/lock-schema.sql`) — every run
+  acquires a mutex on the test project before starting and releases it when
+  done, so a local run and a CI run queue instead of colliding. Run
+  `tests/lock-schema.sql` once in the test project's own SQL Editor to set
+  this up; until then, `npm test` just logs that it's skipping the lock and
+  runs unlocked exactly like before, so this is optional, not a hard
+  requirement.
+- **Per-file retry** — if a single test file fails, only that file re-runs,
+  not the whole suite. Cheaper and more targeted than blindly re-running
+  everything, and doesn't add extra load to the shared backend from tests
+  that already passed.
+
 ## What's covered
 
 | File | Covers |
