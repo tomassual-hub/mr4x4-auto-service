@@ -315,7 +315,7 @@ function renderTopbar(){
         ${db.branches.map(b=>`<option value="${b.id}" ${state.currentBranch===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}
       </select>` : ''}
       ${(()=>{ const unread = supportUnreadCount(); return `
-      <button class="btn-icon" data-action="open-support-chat" title="${en?'Support':'Sokongan'}" style="position:relative;">
+      <button class="btn-icon topbar-chat" data-action="open-support-chat" title="${en?'Support':'Sokongan'}" style="position:relative;">
         ${ICONS.chat}
         ${unread>0 ? `<span class="notif-badge">${unread}</span>` : ''}
       </button>`; })()}

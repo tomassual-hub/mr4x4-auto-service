@@ -284,6 +284,10 @@ body::before{
      render-core.js) -- hidden rather than not-rendered so no other view's
      topbar layout has to account for their absence. */
   .main[data-hero-notif="1"] .topbar-notif{display:none;}
+  /* Chat is still reachable via the floating mobile-help-bubble on this
+     same page -- no need for a second entry point once the topbar itself
+     is collapsed away (see .topbar rule below). */
+  .main[data-hero-notif="1"] .topbar-chat{display:none;}
   .main[data-hero-notif="1"] .topbar-title-dashboard{display:none;}
   /* Collapses the whole topbar strip to nothing so the hero below starts
      right at the very top of the screen, matching a reference app's home
@@ -315,7 +319,11 @@ body::before{
     display:flex;gap:7px;position:fixed;left:12px;right:12px;
     bottom:calc(22px + env(safe-area-inset-bottom));z-index:45;
     background:linear-gradient(180deg, var(--glass-highlight), transparent 30%), var(--glass-sidebar);
-    border:1px solid var(--glass-border);border-radius:24px;
+    border:1px solid var(--glass-border);
+    /* A value bigger than half the bar's own height clamps to a true
+       stadium/pill shape (fully rounded ends) regardless of exact height,
+       rather than just softened rectangle corners. */
+    border-radius:999px;
     backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));
     box-shadow:0 10px 30px var(--shadow), inset 0 1px 0 var(--glass-highlight);
     padding:8px;
