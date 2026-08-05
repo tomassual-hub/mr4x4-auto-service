@@ -403,9 +403,10 @@ function renderKioskScreen(){
         <div class="tab-btn ${tab==='status'?'active':''}" data-kiosktab="status">${en?'Job Status':'Status Kerja'}</div>
         <div class="tab-btn ${tab==='history'?'active':''}" data-kiosktab="history">${en?'Service History':'Sejarah Servis'}</div>
         <div class="tab-btn ${tab==='book'?'active':''}" data-kiosktab="book">${en?'Book Service':'Tempah Servis'}</div>
+        <div class="tab-btn ${tab==='account'?'active':''}" data-kiosktab="account">${en?'My Account':'Akaun Saya'}</div>
       </div>
       <div class="panel">
-        ${tab==='status' ? kioskStatusTabHTML() : tab==='history' ? kioskHistoryTabHTML() : kioskBookingTabHTML()}
+        ${tab==='status' ? kioskStatusTabHTML() : tab==='history' ? kioskHistoryTabHTML() : tab==='book' ? kioskBookingTabHTML() : kioskAccountTabHTML()}
         <div style="text-align:center;margin-top:18px;">
           <span class="clickable" data-action="close-kiosk" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">← ${en?'Back to Staff Log In':'Kembali ke Log Masuk Staf'}</span>
         </div>
@@ -503,6 +504,130 @@ function kioskBookingTabHTML(){
   `;
 }
 
+// An account is entirely optional -- every other tab above already works
+// with no login at all. This just lets a repeat customer see everything
+// (vehicles, jobs, quotations, invoices, appointments) in one dashboard
+// instead of needing a fresh shared link every time. See
+// src/customer-portal.js for the separate customer-auth-session logic.
+function kioskAccountTabHTML(){
+  const en = state.language==='en';
+  if(!state.custPortalChecked){
+    return `<p style="text-align:center;color:var(--text-muted);padding:20px 0;">${en?'Checking…':'Sedang semak…'}</p>`;
+  }
+  const errBlock = state.custPortalError ? `<div style="font-size:12px;color:var(--danger);margin-bottom:10px;">${esc(state.custPortalError)}</div>` : '';
+  const noticeBlock = state.custPortalNotice ? `<div style="font-size:12px;color:var(--success);margin-bottom:10px;">${esc(state.custPortalNotice)}</div>` : '';
+  const mode = state.custPortalMode;
+
+  if(mode==='dashboard'){
+    const data = state.custPortalData;
+    const statusLabel = en
+      ? {waiting:'Waiting', progress:'In Progress', done:'Ready', delivered:'Delivered', scheduled:'Scheduled', cancelled:'Cancelled'}
+      : {waiting:'Menunggu', progress:'Dalam Proses', done:'Siap', delivered:'Dihantar', scheduled:'Dijadualkan', cancelled:'Dibatalkan'};
+    const quoteStatusLabel = en
+      ? {draft:'Draft', sent:'Awaiting your response', accepted:'Approved', rejected:'Rejected', converted:'Converted', expired:'Expired'}
+      : {draft:'Draf', sent:'Menunggu respons anda', accepted:'Diluluskan', rejected:'Ditolak', converted:'Ditukar', expired:'Tamat Tempoh'};
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-size:13.5px;font-weight:700;">${en?'Hi':'Hai'}, ${esc((state.custPortalProfile&&state.custPortalProfile.name)||'')}</div>
+        <button class="btn-icon" data-action="cust-portal-logout" title="${en?'Log out':'Log keluar'}">${ICONS.logout||''}</button>
+      </div>
+      ${data==='loading' || !data ? `<p style="text-align:center;color:var(--text-muted);">${en?'Loading…':'Memuatkan…'}</p>` : `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin-bottom:6px;">${en?'Vehicles':'Kenderaan'}</div>
+        ${data.vehicles.length===0 ? `<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${en?'None on file.':'Tiada rekod.'}</div>` : data.vehicles.map(v=>`
+          <div style="padding:7px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:5px;font-size:12.5px;">${esc(v.plate)} ${v.model?'· '+esc(v.model):''}</div>
+        `).join('')}
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin:14px 0 6px;">${en?'Quotations':'Sebut Harga'}</div>
+        ${data.quotations.length===0 ? `<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${en?'None yet.':'Belum ada.'}</div>` : data.quotations.map(q=>`
+          <div style="padding:8px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:5px;">
+            <div style="display:flex;justify-content:space-between;gap:8px;">
+              <div style="font-size:12.5px;font-family:'IBM Plex Mono',monospace;">${esc(q.quoteNo)}</div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--accent);">${fmtRM(q.total)}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${quoteStatusLabel[q.status]||q.status}</div>
+            ${q.status==='sent' ? `<div style="display:flex;gap:6px;margin-top:6px;">
+              <button class="btn btn-outline btn-sm" style="flex:1;justify-content:center;" data-action="cust-portal-reject-quote" data-id="${q.id}">${en?'Reject':'Tolak'}</button>
+              <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center;" data-action="cust-portal-approve-quote" data-id="${q.id}">${en?'Approve':'Luluskan'}</button>
+            </div>` : ''}
+          </div>
+        `).join('')}
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin:14px 0 6px;">${en?'Jobs':'Kerja'}</div>
+        ${data.jobs.length===0 ? `<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${en?'None yet.':'Belum ada.'}</div>` : data.jobs.map(j=>`
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:5px;">
+            <div style="font-size:12.5px;">${esc(j.description||j.jobNo)}</div>
+            <span class="pill pill-${j.status==='waiting'?'wait':j.status}">${statusLabel[j.status]||j.status}</span>
+          </div>
+        `).join('')}
+
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin:14px 0 6px;">${en?'Invoices':'Invois'}</div>
+        ${data.invoices.length===0 ? `<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;">${en?'None yet.':'Belum ada.'}</div>` : data.invoices.map(i=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:5px;">
+            <div style="font-size:12.5px;font-family:'IBM Plex Mono',monospace;">${esc(i.invoiceNo)}</div>
+            <div style="font-size:12.5px;font-weight:700;color:var(--accent);">${fmtRM(i.total)}</div>
+            <button class="btn-icon" data-action="cust-portal-view-invoice" data-id="${i.id}" title="${en?'View / Print':'Lihat / Cetak'}">${ICONS.printer}</button>
+          </div>
+        `).join('')}
+
+        ${data.appointments.length>0 ? `
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin:14px 0 6px;">${en?'Appointments':'Janji Temu'}</div>
+        ${data.appointments.map(a=>`
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:var(--panel-alt);border-radius:6px;margin-bottom:5px;">
+            <div style="font-size:12.5px;">${esc(a.date)} · ${esc(a.time)}</div>
+            <span class="pill pill-${a.status==='done'?'done':a.status==='cancelled'?'low':'wait'}">${statusLabel[a.status]||a.status}</span>
+          </div>
+        `).join('')}` : ''}
+      `}
+    `;
+  }
+
+  if(mode==='link'){
+    return `
+      ${errBlock}
+      <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?"One more step — enter your phone number so we can find your existing records (or create a new profile).":'Satu langkah lagi — masukkan no. telefon anda supaya kami dapat cari rekod sedia ada (atau cipta profil baharu).'}</p>
+      <div class="field"><label>${en?'Your Name':'Nama Anda'}</label><input id="cp-name" placeholder="${en?'Full name':'Nama penuh'}" value="${esc(state.custPortalName||'')}"></div>
+      <div class="field"><label>${en?'Phone No.':'No. Telefon'}</label><input id="cp-phone" type="tel" placeholder="012-3456789" value="${esc(state.custPortalPhone||'')}"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="cust-portal-link" ${state.custPortalBusy?'disabled':''}>${state.custPortalBusy?(en?'Saving…':'Menyimpan…'):(en?'Continue':'Teruskan')}</button>
+    `;
+  }
+
+  if(mode==='forgot'){
+    return `
+      ${errBlock}${noticeBlock}
+      <div class="field"><label>${en?'Email':'E-mel'}</label><input id="cp-email" type="email" placeholder="nama@contoh.com" value="${esc(state.custPortalEmail||'')}"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="cust-portal-forgot" ${state.custPortalBusy?'disabled':''}>${en?'Send Reset Link':'Hantar Pautan Reset'}</button>
+      <div style="text-align:center;margin-top:14px;">
+        <span class="clickable" data-action="cust-portal-mode-login" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">${en?'Back to log in':'Kembali ke log masuk'}</span>
+      </div>
+    `;
+  }
+
+  if(mode==='signup'){
+    return `
+      ${errBlock}${noticeBlock}
+      <div class="field"><label>${en?'Email':'E-mel'}</label><input id="cp-email" type="email" placeholder="nama@contoh.com" value="${esc(state.custPortalEmail||'')}"></div>
+      <div class="field"><label>${en?'Password':'Kata Laluan'}</label><input id="cp-password" type="password" placeholder="${en?'At least 6 characters':'Sekurang-kurangnya 6 aksara'}"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="cust-portal-signup" ${state.custPortalBusy?'disabled':''}>${state.custPortalBusy?(en?'Creating…':'Mencipta…'):(en?'Create Account':'Daftar Akaun')}</button>
+      <div style="text-align:center;margin-top:14px;">
+        <span class="clickable" data-action="cust-portal-mode-login" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">${en?'Already have an account? Log in':'Sudah ada akaun? Log masuk'}</span>
+      </div>
+    `;
+  }
+
+  // default: login
+  return `
+    <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?"Optional — see all your service history, quotations and invoices in one place. Not registered? Every other tab above still works without an account.":'Pilihan — lihat semua sejarah servis, sebut harga dan invois anda di satu tempat. Belum daftar? Tab lain di atas tetap berfungsi tanpa akaun.'}</p>
+    ${errBlock}${noticeBlock}
+    <div class="field"><label>${en?'Email':'E-mel'}</label><input id="cp-email" type="email" placeholder="nama@contoh.com" value="${esc(state.custPortalEmail||'')}"></div>
+    <div class="field"><label>${en?'Password':'Kata Laluan'}</label><input id="cp-password" type="password" placeholder="••••••••"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="cust-portal-login" ${state.custPortalBusy?'disabled':''}>${state.custPortalBusy?(en?'Logging in…':'Sedang log masuk…'):(en?'Log In':'Log Masuk')}</button>
+    <div style="text-align:center;margin-top:14px;display:flex;flex-direction:column;gap:6px;">
+      <span class="clickable" data-action="cust-portal-mode-forgot" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">${en?'Forgot password?':'Lupa kata laluan?'}</span>
+      <span class="clickable" data-action="cust-portal-mode-signup" style="font-size:12px;color:var(--text-muted);text-decoration:underline;">${en?'New here? Create an account':'Baharu di sini? Daftar akaun'}</span>
+    </div>
+  `;
+}
+
 function renderKioskFeedback(job){
   const en = state.language==='en';
   if(job.rating){
@@ -528,6 +653,11 @@ function attachKioskHandlers(){
     state.kioskMode=false; state.kioskTab='status'; state.kioskQuery=''; state.kioskResult=null; state.kioskRatingValue=0;
     state.historyPlate=''; state.historyPhone=''; state.historyResult=null;
     state.bookName=''; state.bookPhone=''; state.bookPlate=''; state.bookDate=''; state.bookTime=''; state.bookNotes=''; state.bookSubmitted=false;
+    // Not a logout -- the customer-portal session (if any) is persisted
+    // separately and should still be there next time. Just re-check it
+    // fresh (clears any stale error/notice from this visit) rather than
+    // trusting whatever custPortalMode was left on.
+    state.custPortalChecked = false; state.custPortalError = ''; state.custPortalNotice = '';
     render();
   });
   bindAllAction('toggle-lang', ()=>{
@@ -539,6 +669,9 @@ function attachKioskHandlers(){
     state.kioskTab = el.dataset.kiosktab;
     render();
   }));
+  if(state.kioskTab==='account' && !state.custPortalChecked){
+    checkCustPortalSession();
+  }
   const doKioskCheck = async ()=>{
     const q = (document.getElementById('kiosk-input')||{}).value?.trim() || '';
     state.kioskQuery = q;
@@ -644,6 +777,35 @@ function attachKioskHandlers(){
       render();
     }
   });
+
+  // ---- my account tab (optional customer-portal login) ----
+  const captureCustPortalFields = ()=>{
+    const email = (document.getElementById('cp-email')||{}).value?.trim();
+    const password = (document.getElementById('cp-password')||{}).value;
+    const name = (document.getElementById('cp-name')||{}).value?.trim();
+    const phone = (document.getElementById('cp-phone')||{}).value?.trim();
+    if(email!==undefined) state.custPortalEmail = email;
+    if(password!==undefined) state.custPortalPassword = password;
+    if(name!==undefined) state.custPortalName = name;
+    if(phone!==undefined) state.custPortalPhone = phone;
+  };
+  const setCustPortalMode = (mode)=>{
+    captureCustPortalFields();
+    state.custPortalMode = mode;
+    state.custPortalError = ''; state.custPortalNotice = '';
+    render();
+  };
+  bindAction('cust-portal-mode-login', ()=>setCustPortalMode('login'));
+  bindAction('cust-portal-mode-signup', ()=>setCustPortalMode('signup'));
+  bindAction('cust-portal-mode-forgot', ()=>setCustPortalMode('forgot'));
+  bindAction('cust-portal-login', ()=>{ captureCustPortalFields(); custPortalLogin(); });
+  bindAction('cust-portal-signup', ()=>{ captureCustPortalFields(); custPortalSignup(); });
+  bindAction('cust-portal-forgot', ()=>{ captureCustPortalFields(); custPortalForgotPassword(); });
+  bindAction('cust-portal-link', ()=>{ captureCustPortalFields(); custPortalLinkAccount(); });
+  bindAction('cust-portal-logout', custPortalLogout);
+  bindAllAction('cust-portal-approve-quote', el=>custPortalRespondQuotation(el.dataset.id, true));
+  bindAllAction('cust-portal-reject-quote', el=>custPortalRespondQuotation(el.dataset.id, false));
+  bindAllAction('cust-portal-view-invoice', el=>custPortalViewInvoice(el.dataset.id));
 }
 
 /* ---------- ONBOARDING TOUR (first-time users) ---------- */

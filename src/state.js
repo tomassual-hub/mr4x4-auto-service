@@ -106,6 +106,22 @@ let state = {
   bookNotes: '',
   bookBusy: false,
   bookSubmitted: false,
+  // ---- optional customer-portal login (see src/customer-portal.js) --
+  // an account is never required, every kiosk_* flow above still works
+  // anonymously; this just lets a repeat customer see everything in one
+  // place. Uses a SEPARATE Supabase Auth session (own localStorage key)
+  // from the staff session, so the two are never confused client-side.
+  custPortalChecked: false, // has the "already logged in?" session check run yet this page load
+  custPortalMode: /** @type {'login'|'signup'|'forgot'|'link'|'dashboard'} */ ('login'),
+  custPortalEmail: '',
+  custPortalPassword: '',
+  custPortalPhone: '',
+  custPortalName: '',
+  custPortalBusy: false,
+  custPortalError: '',
+  custPortalNotice: '',
+  custPortalProfile: /** @type {{id:string,name:string,phone:string}|null} */ (null),
+  custPortalData: /** @type {any} */ (null), // 'loading' | the get_my_customer_data() object
 };
 
 function setState(patch){ Object.assign(state, patch); render(); }

@@ -211,3 +211,226 @@ function attachInvoiceViewHandlers(){
     }
   });
 }
+
+/* ============================= CUSTOMER PORTAL LOGIN (optional account) =============================
+   Everything above this point works with NO account at all. This is the
+   opt-in layer on top: a customer can register/log in to see all their
+   vehicles/jobs/quotations/invoices/appointments in one dashboard instead
+   of needing a fresh shared link every time (see the "Account" tab in
+   src/login-kiosk.js's kiosk screen).
+
+   Uses a SECOND, independent Supabase Auth client (own localStorage key)
+   rather than the app's main `supabaseClient` -- that client's session
+   drives the STAFF login flow in initApp()/handleAuthenticated() (see
+   sync-engine.js), which assumes every session belongs to staff and does a
+   full loadRemoteDB() the moment one exists. Sharing a session would mean
+   a customer's login either gets rejected as "no staff record found"
+   AFTER already pulling the whole shop database over the wire (RLS grants
+   every authenticated session read access unless explicitly excluded --
+   see is_customer() in backend/schema.sql), or worse, some future change
+   accidentally treats a customer as staff. A separate client sidesteps all
+   of that: this session is never seen by the staff login code at all. */
+let customerAuthClient = null;
+function getCustomerAuthClient(){
+  if(!customerAuthClient){
+    customerAuthClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { storageKey: 'sb-customer-portal-auth' }
+    });
+  }
+  return customerAuthClient;
+}
+
+// Called once when the "Account" tab is first opened -- checks for an
+// already-active customer session (returning visitor) and, if found, loads
+// straight into the dashboard instead of showing the login form.
+async function checkCustPortalSession(){
+  state.custPortalChecked = true;
+  try{
+    const { data:{ session } } = await getCustomerAuthClient().auth.getSession();
+    if(session){
+      await loadCustPortalProfile();
+    }
+  }catch(e){ /* no session / offline -- falls through to the login form */ }
+  render();
+}
+
+async function loadCustPortalProfile(){
+  const { data, error } = await getCustomerAuthClient().rpc('get_my_customer_profile');
+  if(error){ reportError(error, 'Muatkan profil pelanggan gagal'); return; }
+  if(data){
+    state.custPortalProfile = data;
+    state.custPortalMode = 'dashboard';
+    loadCustPortalData();
+  } else {
+    // Logged in, but not linked to a customer record yet.
+    state.custPortalMode = 'link';
+  }
+}
+
+async function loadCustPortalData(){
+  state.custPortalData = 'loading';
+  render();
+  try{
+    const { data, error } = await getCustomerAuthClient().rpc('get_my_customer_data');
+    if(error) throw error;
+    state.custPortalData = data;
+  }catch(e){
+    reportError(e, 'Muatkan data pelanggan gagal');
+    state.custPortalData = null;
+  }
+  render();
+}
+
+async function custPortalSignup(){
+  const en = state.language==='en';
+  const email = state.custPortalEmail.trim();
+  const password = state.custPortalPassword;
+  if(!email || !password){
+    state.custPortalError = en ? 'Enter your email and password.' : 'Masukkan e-mel dan kata laluan.';
+    render();
+    return;
+  }
+  if(password.length<6){
+    state.custPortalError = en ? 'Password must be at least 6 characters.' : 'Kata laluan mesti sekurang-kurangnya 6 aksara.';
+    render();
+    return;
+  }
+  state.custPortalError = ''; state.custPortalNotice = ''; state.custPortalBusy = true;
+  render();
+  const { data, error } = await getCustomerAuthClient().auth.signUp({ email, password });
+  state.custPortalBusy = false;
+  if(error){
+    state.custPortalError = error.message || (en ? 'Could not create account.' : 'Gagal mencipta akaun.');
+    render();
+    return;
+  }
+  if(data.session){
+    state.custPortalMode = 'link';
+  } else {
+    state.custPortalMode = 'login';
+    state.custPortalNotice = en ? 'Account created — check your email to confirm, then log in.' : 'Akaun dicipta — semak e-mel anda untuk sahkan, kemudian log masuk.';
+  }
+  render();
+}
+
+async function custPortalLogin(){
+  const en = state.language==='en';
+  const email = state.custPortalEmail.trim();
+  const password = state.custPortalPassword;
+  if(!email || !password){
+    state.custPortalError = en ? 'Enter your email and password.' : 'Masukkan e-mel dan kata laluan.';
+    render();
+    return;
+  }
+  state.custPortalError = ''; state.custPortalBusy = true;
+  render();
+  const { error } = await getCustomerAuthClient().auth.signInWithPassword({ email, password });
+  if(error){
+    state.custPortalBusy = false;
+    state.custPortalError = en ? 'Incorrect email or password.' : 'E-mel atau kata laluan salah.';
+    render();
+    return;
+  }
+  await loadCustPortalProfile();
+  state.custPortalBusy = false;
+  render();
+}
+
+async function custPortalForgotPassword(){
+  const en = state.language==='en';
+  const email = state.custPortalEmail.trim();
+  if(!email){
+    state.custPortalError = en ? 'Enter your email.' : 'Masukkan e-mel anda.';
+    render();
+    return;
+  }
+  state.custPortalError = ''; state.custPortalNotice = ''; state.custPortalBusy = true;
+  render();
+  const { error } = await getCustomerAuthClient().auth.resetPasswordForEmail(email);
+  state.custPortalBusy = false;
+  if(error){
+    state.custPortalError = error.message || (en ? 'Could not send reset email.' : 'Gagal menghantar e-mel reset.');
+    render();
+    return;
+  }
+  state.custPortalNotice = en ? 'If that email has an account, a reset link has been sent.' : 'Jika e-mel itu ada akaun, pautan reset telah dihantar.';
+  render();
+}
+
+async function custPortalLinkAccount(){
+  const en = state.language==='en';
+  const name = state.custPortalName.trim();
+  const phone = state.custPortalPhone.trim();
+  if(!phone){
+    state.custPortalError = en ? 'Enter your phone number.' : 'Masukkan no. telefon anda.';
+    render();
+    return;
+  }
+  state.custPortalError = ''; state.custPortalBusy = true;
+  render();
+  try{
+    const { data, error } = await getCustomerAuthClient().rpc('link_customer_account', { p_phone: phone, p_name: name || null });
+    if(error) throw error;
+    state.custPortalBusy = false;
+    if(!data || !data.success){
+      const reasons = {
+        staff_account: en ? 'This email belongs to a staff account and can\'t also be used here.' : 'E-mel ini milik akaun staf dan tidak boleh digunakan di sini juga.',
+        invalid_phone: en ? 'Enter a valid phone number.' : 'Masukkan no. telefon yang sah.',
+      };
+      state.custPortalError = (data && reasons[data.reason]) || (en ? 'Could not link your account.' : 'Gagal pautkan akaun anda.');
+      render();
+      return;
+    }
+    state.custPortalProfile = { id: data.customerId, name: data.name || name, phone };
+    state.custPortalMode = 'dashboard';
+    render();
+    loadCustPortalData();
+  }catch(e){
+    state.custPortalBusy = false;
+    reportError(e, 'Pautkan akaun pelanggan gagal');
+    state.custPortalError = en ? 'Could not link your account. Try again.' : 'Gagal pautkan akaun. Cuba lagi.';
+    render();
+  }
+}
+
+async function custPortalLogout(){
+  try{ await getCustomerAuthClient().auth.signOut(); }catch(e){ /* best-effort */ }
+  state.custPortalMode = 'login';
+  state.custPortalProfile = null;
+  state.custPortalData = null;
+  state.custPortalEmail = ''; state.custPortalPassword = ''; state.custPortalPhone = ''; state.custPortalName = '';
+  render();
+}
+
+async function custPortalRespondQuotation(quoteId, approved){
+  const en = state.language==='en';
+  try{
+    const { data: ok, error } = await getCustomerAuthClient().rpc('kiosk_respond_quotation', { p_quote_id: quoteId, p_approved: approved });
+    if(error) throw error;
+    if(ok){
+      showToast(approved ? (en?'Quotation approved.':'Sebut harga diluluskan.') : (en?'Quotation rejected.':'Sebut harga ditolak.'));
+      loadCustPortalData();
+    } else {
+      showToast(en ? 'This quotation can no longer be responded to.' : 'Sebut harga ini tidak boleh dijawab lagi.');
+    }
+  }catch(e){
+    reportError(e, 'Hantar respons sebut harga gagal');
+    showToast(en ? 'Could not send your response. Try again.' : 'Gagal hantar respons. Cuba lagi.');
+  }
+}
+
+async function custPortalViewInvoice(invoiceId){
+  const en = state.language==='en';
+  try{
+    const { data, error } = await getCustomerAuthClient().rpc('kiosk_get_invoice', { p_invoice_id: invoiceId });
+    if(error) throw error;
+    if(!data){
+      showToast(en ? 'Could not open this invoice.' : 'Gagal buka invois ini.');
+      return;
+    }
+    printKioskInvoice(data);
+  }catch(e){
+    reportError(e, 'Buka invois pelanggan gagal');
+    showToast(en ? 'Could not open this invoice. Try again.' : 'Gagal buka invois ini. Cuba lagi.');
+  }
+}

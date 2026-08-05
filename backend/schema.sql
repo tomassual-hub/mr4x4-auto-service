@@ -105,11 +105,42 @@ revoke execute on function next_counter(text) from public;
 revoke execute on function next_counter(text) from anon;
 grant execute on function next_counter(text) to authenticated;
 
+-- customers.user_id: links an optional customer-portal login (see
+-- src/customer-portal.js) to its customer record, mirroring staff.user_id
+-- above. Nullable/unique -- most customers never register at all, and
+-- still get served entirely through the anonymous token-gated kiosk_*
+-- flows (share links, plate+phone lookup) with no account needed.
+alter table customers add column if not exists user_id uuid unique references auth.users(id) on delete set null;
+
+-- is_customer(): true if the calling session belongs to a registered
+-- customer-portal account. THIS MUST EXIST BEFORE the blanket policy loop
+-- below, and that loop MUST exclude it -- otherwise a customer who
+-- registers an account would inherit the same blanket "any authenticated
+-- session" access as staff, meaning a customer could read every OTHER
+-- customer's data, every invoice, every staff record, just by calling the
+-- REST API directly with their own valid session token. security definer
+-- so evaluating it doesn't itself get blocked by customers' own RLS
+-- (avoids a circular policy-vs-function dependency).
+create or replace function is_customer()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists(select 1 from customers where user_id = auth.uid());
+$$;
+revoke execute on function is_customer() from public;
+revoke execute on function is_customer() from anon;
+grant execute on function is_customer() to authenticated;
+
 -- Row Level Security: this is a single-shop app (not multi-tenant SaaS),
 -- so the trust model is simply "logged in with real staff credentials =
 -- full access", matching how the current local version already works
 -- (any valid PIN sees everything). Tighten later with role-based policies
 -- if you ever need e.g. mechanics blocked from certain reports.
+--
+-- "not is_customer()" on every table here is load-bearing, not decorative
+-- -- see the comment on is_customer() above.
 do $$
 declare
   t text;
@@ -124,7 +155,7 @@ begin
     execute format('alter table %I enable row level security;', t);
     execute format('drop policy if exists "staff full access" on %I;', t);
     execute format(
-      'create policy "staff full access" on %I for all to authenticated using (true) with check (true);',
+      'create policy "staff full access" on %I for all to authenticated using (not is_customer()) with check (not is_customer());',
       t
     );
   end loop;
@@ -993,6 +1024,287 @@ begin
     where i.id = p_invoice_id;
 
   if not found or rec.token is null or rec.token <> p_token then
+    return null;
+  end if;
+
+  select data into shop from shop_meta where id = 'settings';
+
+  return jsonb_build_object(
+    'invoiceNo', rec.invoice_no, 'items', rec.items, 'subtotal', rec.subtotal,
+    'discount', rec.discount, 'taxRate', rec.tax_rate, 'tax', rec.tax, 'total', rec.total,
+    'payment', rec.payment, 'createdAt', rec.created_at,
+    'customerName', rec.customer_name, 'plate', rec.plate, 'model', rec.model,
+    'shopName', shop->>'shopName', 'shopAddress', shop->>'shopAddress', 'shopPhone', shop->>'shopPhone'
+  );
+end;
+$$;
+revoke execute on function kiosk_get_invoice(text, text) from public;
+grant execute on function kiosk_get_invoice(text, text) to anon;
+grant execute on function kiosk_get_invoice(text, text) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Optional customer-portal login (see src/customer-portal.js) -- an
+-- account is never required (every kiosk_* flow above still works
+-- anonymously), it just lets a repeat customer see everything -- vehicles,
+-- jobs, quotations, invoices, appointments -- in one place instead of
+-- needing a fresh shared link every time. Uses a SEPARATE Supabase Auth
+-- client/session in the browser (different localStorage key -- see
+-- getCustomerAuthClient() in src/customer-portal.js) so a customer session
+-- is never confused with a staff session client-side, on top of is_customer()
+-- keeping them apart server-side.
+-- ---------------------------------------------------------------------
+
+-- link_customer_account(): called once right after a customer-portal
+-- signup/login that isn't linked to a customer record yet. Tries to claim
+-- an existing customer row by matching phone number first (so someone the
+-- shop already has on file doesn't end up with a duplicate record), and
+-- only creates a brand-new one if nothing matches.
+create or replace function link_customer_account(p_phone text, p_name text default null)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  existing record;
+  norm_phone text := regexp_replace(coalesce(p_phone,''), '\D', '', 'g');
+  new_id text;
+begin
+  if auth.uid() is null then
+    return jsonb_build_object('success', false, 'reason', 'not_authenticated');
+  end if;
+  -- A staff account must never also become a customer account -- the
+  -- blanket "staff full access" policy above excludes anyone is_customer()
+  -- is true for, so a staff member accidentally linking themselves here
+  -- would immediately lock themselves out of their own staff access.
+  if exists (select 1 from staff where user_id = auth.uid()) then
+    return jsonb_build_object('success', false, 'reason', 'staff_account');
+  end if;
+  if norm_phone = '' then
+    return jsonb_build_object('success', false, 'reason', 'invalid_phone');
+  end if;
+
+  select * into existing from customers where user_id = auth.uid();
+  if found then
+    return jsonb_build_object('success', true, 'customerId', existing.id, 'name', existing.data->>'name');
+  end if;
+
+  select * into existing from customers
+    where regexp_replace(coalesce(data->>'phone',''), '\D', '', 'g') = norm_phone
+      and user_id is null
+    limit 1;
+  if found then
+    update customers set user_id = auth.uid() where id = existing.id;
+    return jsonb_build_object('success', true, 'customerId', existing.id, 'name', existing.data->>'name');
+  end if;
+
+  new_id := gen_random_uuid()::text;
+  insert into customers (id, user_id, data, updated_at)
+  values (
+    new_id, auth.uid(),
+    jsonb_build_object('name', coalesce(nullif(trim(p_name),''), 'Pelanggan'), 'phone', p_phone, 'visits', 0, 'loyaltyPoints', 0),
+    now()
+  );
+  return jsonb_build_object('success', true, 'customerId', new_id, 'name', p_name);
+end;
+$$;
+revoke execute on function link_customer_account(text, text) from public;
+revoke execute on function link_customer_account(text, text) from anon;
+grant execute on function link_customer_account(text, text) to authenticated;
+
+-- get_my_customer_profile(): null if this session hasn't linked a
+-- customer record yet (client shows the phone-linking step), otherwise
+-- the minimal identity used to greet them on the dashboard.
+create or replace function get_my_customer_profile()
+returns jsonb
+language sql
+security definer
+stable
+as $$
+  select jsonb_build_object('id', id, 'name', data->>'name', 'phone', data->>'phone')
+  from customers where user_id = auth.uid();
+$$;
+revoke execute on function get_my_customer_profile() from public;
+revoke execute on function get_my_customer_profile() from anon;
+grant execute on function get_my_customer_profile() to authenticated;
+
+-- get_my_customer_data(): the whole dashboard in one call -- same
+-- minimal-surface principle as every other kiosk_* function, just scoped
+-- by auth.uid() instead of a share token. Returns null if not linked yet.
+create or replace function get_my_customer_data()
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  my_id text;
+begin
+  select id into my_id from customers where user_id = auth.uid();
+  if my_id is null then return null; end if;
+
+  return jsonb_build_object(
+    'customerId', my_id,
+    'vehicles', (
+      select coalesce(jsonb_agg(jsonb_build_object('id', v.id, 'plate', v.data->>'plate', 'model', v.data->>'model')), '[]'::jsonb)
+      from vehicles v where v.data->>'customerId' = my_id
+    ),
+    'jobs', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'jobNo', j.data->>'jobNo', 'status', j.data->>'status',
+        'description', j.data->>'description', 'createdAt', (j.data->>'createdAt')::bigint
+      ) order by (j.data->>'createdAt')::bigint desc), '[]'::jsonb)
+      from jobs j where j.data->>'customerId' = my_id
+    ),
+    'quotations', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'id', q.id, 'quoteNo', q.data->>'quoteNo', 'status', q.data->>'status',
+        'total', (q.data->>'total')::numeric, 'createdAt', (q.data->>'createdAt')::bigint
+      ) order by (q.data->>'createdAt')::bigint desc), '[]'::jsonb)
+      from quotations q where q.data->>'customerId' = my_id
+    ),
+    'invoices', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'id', i.id, 'invoiceNo', i.data->>'invoiceNo',
+        'total', (i.data->>'total')::numeric, 'createdAt', (i.data->>'createdAt')::bigint
+      ) order by (i.data->>'createdAt')::bigint desc), '[]'::jsonb)
+      from invoices i where i.data->>'customerId' = my_id
+    ),
+    'appointments', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'date', a.data->>'date', 'time', a.data->>'time',
+        'status', a.data->>'status', 'notes', a.data->>'notes'
+      ) order by a.data->>'date' desc), '[]'::jsonb)
+      from appointments a where a.data->>'customerId' = my_id
+    )
+  );
+end;
+$$;
+revoke execute on function get_my_customer_data() from public;
+revoke execute on function get_my_customer_data() from anon;
+grant execute on function get_my_customer_data() to authenticated;
+
+-- Extend the three existing share-link RPCs to also authorize a logged-in
+-- customer-portal session that owns the record -- no token needed, since
+-- ownership is proven by auth.uid() instead. Anonymous share links keep
+-- working exactly as before (p_token still checked first); this is a
+-- second, additional way in, not a replacement.
+create or replace function kiosk_get_quotation(p_quote_id text, p_token text default null)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  rec record;
+  my_cust_id text;
+begin
+  select q.data->>'quoteNo' as quote_no, q.data->>'status' as status,
+         q.data->>'quoteToken' as token, q.data->>'customerId' as customer_id, q.data->'items' as items,
+         (q.data->>'subtotal')::numeric as subtotal, (q.data->>'discount')::numeric as discount,
+         (q.data->>'taxRate')::numeric as tax_rate, (q.data->>'tax')::numeric as tax,
+         (q.data->>'total')::numeric as total, (q.data->>'createdAt')::bigint as created_at,
+         c.data->>'name' as customer_name, v.data->>'plate' as plate, v.data->>'model' as model
+    into rec
+    from quotations q
+    left join customers c on c.id = q.data->>'customerId'
+    left join vehicles v on v.id = q.data->>'vehicleId'
+    where q.id = p_quote_id;
+
+  if not found then return null; end if;
+
+  if is_customer() then
+    select id into my_cust_id from customers where user_id = auth.uid();
+  end if;
+
+  if not (
+    (p_token is not null and rec.token is not null and rec.token = p_token)
+    or (my_cust_id is not null and rec.customer_id = my_cust_id)
+  ) then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'quoteNo', rec.quote_no, 'status', rec.status, 'items', rec.items,
+    'subtotal', rec.subtotal, 'discount', rec.discount, 'taxRate', rec.tax_rate,
+    'tax', rec.tax, 'total', rec.total, 'createdAt', rec.created_at,
+    'customerName', rec.customer_name, 'plate', rec.plate, 'model', rec.model
+  );
+end;
+$$;
+revoke execute on function kiosk_get_quotation(text, text) from public;
+grant execute on function kiosk_get_quotation(text, text) to anon;
+grant execute on function kiosk_get_quotation(text, text) to authenticated;
+
+drop function if exists kiosk_respond_quotation(text, text, boolean);
+create or replace function kiosk_respond_quotation(p_quote_id text, p_approved boolean, p_token text default null)
+returns boolean
+language plpgsql
+security definer
+as $$
+declare
+  cur jsonb;
+  my_cust_id text;
+begin
+  select data into cur from quotations where id = p_quote_id;
+  if not found then return false; end if;
+
+  if is_customer() then
+    select id into my_cust_id from customers where user_id = auth.uid();
+  end if;
+
+  if not (
+    (p_token is not null and (cur->>'quoteToken') is not null and (cur->>'quoteToken') = p_token)
+    or (my_cust_id is not null and (cur->>'customerId') = my_cust_id)
+  ) then
+    return false;
+  end if;
+  if (cur->>'status') <> 'sent' then return false; end if;
+
+  update quotations
+    set data = data || jsonb_build_object('status', case when p_approved then 'accepted' else 'rejected' end),
+        updated_at = now()
+    where id = p_quote_id;
+  return true;
+end;
+$$;
+revoke execute on function kiosk_respond_quotation(text, boolean, text) from public;
+grant execute on function kiosk_respond_quotation(text, boolean, text) to anon;
+grant execute on function kiosk_respond_quotation(text, boolean, text) to authenticated;
+
+create or replace function kiosk_get_invoice(p_invoice_id text, p_token text default null)
+returns jsonb
+language plpgsql
+security definer
+stable
+as $$
+declare
+  rec record;
+  shop jsonb;
+  my_cust_id text;
+begin
+  select i.data->>'invoiceNo' as invoice_no, i.data->>'invoiceToken' as token,
+         i.data->>'customerId' as customer_id,
+         i.data->'items' as items, (i.data->>'subtotal')::numeric as subtotal,
+         (i.data->>'discount')::numeric as discount, (i.data->>'taxRate')::numeric as tax_rate,
+         (i.data->>'tax')::numeric as tax, (i.data->>'total')::numeric as total,
+         i.data->>'payment' as payment, (i.data->>'createdAt')::bigint as created_at,
+         c.data->>'name' as customer_name, v.data->>'plate' as plate, v.data->>'model' as model
+    into rec
+    from invoices i
+    left join customers c on c.id = i.data->>'customerId'
+    left join vehicles v on v.id = i.data->>'vehicleId'
+    where i.id = p_invoice_id;
+
+  if not found then return null; end if;
+
+  if is_customer() then
+    select id into my_cust_id from customers where user_id = auth.uid();
+  end if;
+
+  if not (
+    (p_token is not null and rec.token is not null and rec.token = p_token)
+    or (my_cust_id is not null and rec.customer_id = my_cust_id)
+  ) then
     return null;
   end if;
 

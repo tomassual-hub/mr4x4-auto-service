@@ -434,6 +434,17 @@ interface AppState {
   invoiceToken?: string | null;
   invoiceResult?: any;
   invoiceResultLoading?: boolean;
+  custPortalChecked?: boolean;
+  custPortalMode?: 'login' | 'signup' | 'forgot' | 'link' | 'dashboard';
+  custPortalEmail?: string;
+  custPortalPassword?: string;
+  custPortalPhone?: string;
+  custPortalName?: string;
+  custPortalBusy?: boolean;
+  custPortalError?: string;
+  custPortalNotice?: string;
+  custPortalProfile?: { id: string; name: string; phone: string } | null;
+  custPortalData?: any;
   attendanceMode?: boolean;
   attendanceStaffId?: string | null;
   attendanceToken?: string | null;
@@ -465,6 +476,8 @@ declare const LOGO_DATA_URI: string;
 declare const SERVISPRO_LOGO_DATA_URI: string;
 declare const WORKSHOP_ILLUSTRATION_DATA_URI: string;
 declare const supabaseClient: any;
+declare const SUPABASE_URL: string;
+declare const SUPABASE_ANON_KEY: string;
 // The Supabase CDN script (loaded in the HTML shell) attaches its factory
 // here as window.supabase -- used a second time in license.js to build a
 // separate client pointed at the central licensing project, distinct from
@@ -618,6 +631,18 @@ declare function renderInvoiceView(): string;
 declare function loadInvoiceForCustomer(): Promise<void>;
 declare function printKioskInvoice(inv: any): void;
 declare function attachInvoiceViewHandlers(): void;
+declare function kioskAccountTabHTML(): string;
+declare function getCustomerAuthClient(): any;
+declare function checkCustPortalSession(): Promise<void>;
+declare function loadCustPortalProfile(): Promise<void>;
+declare function loadCustPortalData(): Promise<void>;
+declare function custPortalSignup(): Promise<void>;
+declare function custPortalLogin(): Promise<void>;
+declare function custPortalForgotPassword(): Promise<void>;
+declare function custPortalLinkAccount(): Promise<void>;
+declare function custPortalLogout(): Promise<void>;
+declare function custPortalRespondQuotation(quoteId: string, approved: boolean): Promise<void>;
+declare function custPortalViewInvoice(invoiceId: string): Promise<void>;
 declare function renderDisplayBoard(): string;
 declare function loadDisplayBoardJobs(): Promise<void>;
 declare function attachDisplayBoardHandlers(): void;
