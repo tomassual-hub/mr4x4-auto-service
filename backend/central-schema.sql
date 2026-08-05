@@ -40,6 +40,49 @@ alter table licenses enable row level security;
 -- never read or touch anyone else's.
 revoke all on licenses from anon, authenticated;
 
+-- Credit balance + referral code -- added after pricing was finalized
+-- (RM0.00 free / RM50.00 pro). `alter table ... add column if not exists`
+-- rather than putting these in the `create table` above, so re-running this
+-- whole file against the already-live production project (see header
+-- comment) upgrades the existing table in place instead of no-op'ing.
+alter table licenses add column if not exists credit_balance numeric not null default 0;
+alter table licenses add column if not exists referral_code text unique;
+alter table licenses add column if not exists referred_by text references licenses(id);
+
+-- Short, human-shareable code -- deliberately NOT the license key itself
+-- (that's a long bearer secret, see src/license.js -- sharing it would let
+-- someone else's app impersonate this shop's license). 6 base-36 chars is
+-- ~31 bits, plenty at the scale of "shops referring other shops"; the
+-- unique constraint above plus the retry loop in assign_referral_code()
+-- handle the rare collision rather than assuming one away.
+create or replace function generate_referral_code()
+returns text
+language sql
+as $$
+  select upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+$$;
+
+create or replace function assign_referral_code(p_license_key text)
+returns text
+language plpgsql
+as $$
+declare
+  code text;
+  attempt int := 0;
+begin
+  loop
+    code := generate_referral_code();
+    begin
+      update licenses set referral_code = code where id = p_license_key;
+      return code;
+    exception when unique_violation then
+      attempt := attempt + 1;
+      if attempt > 5 then raise; end if;
+    end;
+  end loop;
+end;
+$$;
+
 -- check_license(): called on every login (see src/license.js). Self-
 -- registers a brand new license key on its first-ever call (defaults to
 -- the free plan) -- there's no separate "sign up" step before a shop can
@@ -61,18 +104,108 @@ begin
     update licenses set shop_name = p_shop_name, updated_at = now() where id = p_license_key returning * into rec;
   end if;
 
+  -- Every license gets a referral code eventually -- assigned lazily here
+  -- rather than only at insert time, so rows created before this feature
+  -- shipped (i.e. this app's own live production shop) still get one on
+  -- their next login instead of being stuck with referral_code = null.
+  if rec.referral_code is null then
+    rec.referral_code := assign_referral_code(rec.id);
+  end if;
+
   -- Auto-expire past due dates here rather than needing a separate cron
   -- job -- every caller always gets a truthful status.
   if rec.expires_at is not null and rec.expires_at < now() and rec.status = 'active' then
     update licenses set status = 'expired', updated_at = now() where id = p_license_key returning * into rec;
   end if;
 
-  return jsonb_build_object('plan', rec.plan, 'status', rec.status, 'expiresAt', rec.expires_at);
+  return jsonb_build_object('plan', rec.plan, 'status', rec.status, 'expiresAt', rec.expires_at, 'creditBalance', rec.credit_balance, 'referralCode', rec.referral_code);
 end;
 $$;
 revoke execute on function check_license(text, text) from public;
 grant execute on function check_license(text, text) to anon;
 grant execute on function check_license(text, text) to authenticated;
+
+-- redeem_referral_code(): called once, the first time a shop enters
+-- someone else's referral code (see src/license.js). Rewards the REFERRER,
+-- not the redeemer -- matches the "credit = bring in another shop, get
+-- credit" mechanic decided for this feature. A license can only redeem one
+-- referral code ever (guarded by referred_by), so this can't be looped for
+-- infinite credit by repeatedly redeeming.
+create or replace function redeem_referral_code(p_license_key text, p_referral_code text)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  caller record;
+  referrer record;
+  reward numeric := 10; -- RM10 per successful referral
+begin
+  select * into caller from licenses where id = p_license_key;
+  if not found then
+    return jsonb_build_object('success', false, 'reason', 'unknown_license');
+  end if;
+  if caller.referred_by is not null then
+    return jsonb_build_object('success', false, 'reason', 'already_redeemed');
+  end if;
+
+  select * into referrer from licenses where referral_code = upper(trim(p_referral_code));
+  if not found then
+    return jsonb_build_object('success', false, 'reason', 'invalid_code');
+  end if;
+  if referrer.id = p_license_key then
+    return jsonb_build_object('success', false, 'reason', 'self_referral');
+  end if;
+
+  update licenses set referred_by = referrer.id, updated_at = now() where id = p_license_key;
+  update licenses set credit_balance = credit_balance + reward, updated_at = now() where id = referrer.id;
+
+  return jsonb_build_object('success', true, 'reward', reward);
+end;
+$$;
+revoke execute on function redeem_referral_code(text, text) from public;
+grant execute on function redeem_referral_code(text, text) to anon;
+grant execute on function redeem_referral_code(text, text) to authenticated;
+
+-- redeem_credit_for_upgrade(): spends REAL earned credit (from
+-- redeem_referral_code above) to upgrade a plan -- unlike simulate_upgrade()
+-- below, this isn't test-mode-gated, since it's backed by credit the shop
+-- actually earned by referring another shop, not a payment bypass.
+create or replace function redeem_credit_for_upgrade(p_license_key text, p_plan text)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  rec record;
+  price numeric;
+begin
+  -- Keep in sync with PLAN_PRICE_MYR in src/license.js.
+  price := case p_plan when 'pro' then 50 when 'free' then 0 else null end;
+  if price is null then
+    return jsonb_build_object('success', false, 'reason', 'unknown_plan');
+  end if;
+
+  select * into rec from licenses where id = p_license_key;
+  if not found then
+    return jsonb_build_object('success', false, 'reason', 'unknown_license');
+  end if;
+  if rec.credit_balance < price then
+    return jsonb_build_object('success', false, 'reason', 'insufficient_credit');
+  end if;
+
+  update licenses
+    set plan = p_plan, status = 'active', expires_at = now() + interval '30 days',
+        credit_balance = credit_balance - price, updated_at = now()
+    where id = p_license_key
+    returning * into rec;
+
+  return jsonb_build_object('success', true, 'plan', rec.plan, 'status', rec.status, 'expiresAt', rec.expires_at, 'creditBalance', rec.credit_balance);
+end;
+$$;
+revoke execute on function redeem_credit_for_upgrade(text, text) from public;
+grant execute on function redeem_credit_for_upgrade(text, text) to anon;
+grant execute on function redeem_credit_for_upgrade(text, text) to authenticated;
 
 -- license_config: a single-row kill switch for simulate_upgrade() below.
 -- Anyone who has the (publicly embedded, by design) anon key can already

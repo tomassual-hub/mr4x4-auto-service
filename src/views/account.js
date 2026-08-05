@@ -18,6 +18,14 @@
    src/license.js/backend/central-schema.sql -- see that file's own
    comments for why "real" still means no actual payment happens yet.
 
+   Credit Balance / Referral Code are ALSO now real (no longer the "coming
+   soon" preview described below for historical context) -- backed by
+   licenses.credit_balance/referral_code and the redeem_referral_code/
+   redeem_credit_for_upgrade RPCs in central-schema.sql. Referring another
+   shop credits the REFERRER (not the shop that redeems a code), and credit
+   can be spent to upgrade a plan for real, independent of the test-mode
+   simulate_upgrade() button -- see src/license.js for both flows.
+
    Also deliberately does NOT add lock icons to Staff/Appointments/Payroll
    below -- those are real, fully working ServisPro features (just
    role-gated the same way the rest of the app already gates them via
@@ -31,7 +39,9 @@ function viewAccount(){
   const shop = db.settings;
   const manage = canManage();
   const year = new Date().getFullYear();
-  const referralCode = referralCodeStub();
+  const licenseLoaded = !!(state.license && state.license.live);
+  const referralCode = (state.license && state.license.referralCode) || null;
+  const creditBalance = (state.license && state.license.creditBalance) || 0;
 
   // Curated settings/management rows for this page -- not a repeat of the
   // full getNavItems() list (that's already one tap away via the "More"
@@ -72,13 +82,13 @@ function viewAccount(){
     </div>
   </div>
 
-  <div class="panel account-credit-bar clickable" data-action="account-coming-soon">
+  <div class="panel account-credit-bar clickable" data-action="open-plan-picker">
     ${ICONS.wallet}
     <div style="flex:1;min-width:0;">
       <div class="account-credit-label">${en?'Credit Balance':'Baki Kredit'}</div>
-      <div class="account-credit-tag">${en?'Coming soon':'Akan datang'}</div>
+      <div class="account-credit-tag">${en?'Usable toward your subscription':'Boleh guna untuk langganan'}</div>
     </div>
-    <div class="account-credit-value">0</div>
+    <div class="account-credit-value">RM${creditBalance.toFixed(2)}</div>
   </div>
 
   <div class="account-teaser-row">
@@ -97,12 +107,17 @@ function viewAccount(){
   <div class="panel">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <h2 style="margin:0;">${en?'Referral Code':'Kod Rujukan'}</h2>
-      <span class="tag">${en?'Coming soon':'Akan datang'}</span>
+      <span class="sub" style="font-size:12px;">${en?'RM10 credit per shop referred':'RM10 kredit setiap bengkel dirujuk'}</span>
     </div>
+    ${referralCode ? `
     <div class="account-referral-box">
       <code>${esc(referralCode)}</code>
       <button class="btn-icon" data-action="copy-referral-code" data-code="${esc(referralCode)}" title="${en?'Copy':'Salin'}">${ICONS.copy}</button>
       <button class="btn-icon" data-action="share-referral-code" data-code="${esc(referralCode)}" title="${en?'Share':'Kongsi'}">${ICONS.share}</button>
+    </div>` : `<div class="sub">${licenseLoaded ? '' : (en?'Loading…':'Memuatkan…')}</div>`}
+    <div class="account-referral-redeem">
+      <input type="text" id="referral-redeem-input" maxlength="6" placeholder="${en?'Got a code? Enter it here':'Ada kod? Masukkan di sini'}" style="text-transform:uppercase;" />
+      <button class="btn btn-outline btn-sm" data-action="redeem-referral-code">${en?'Apply':'Guna'}</button>
     </div>
   </div>
 
@@ -143,14 +158,4 @@ function viewAccount(){
 
   <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:64px;" data-action="logout">${ICONS.logout} ${en?'Log Out':'Log Keluar'}</button>
   `;
-}
-
-// Deterministic per-staff placeholder code (not a real referral program yet
-// -- see the comment at the top of this file) so it stays stable across
-// renders/sessions instead of re-randomizing every time this page opens.
-function referralCodeStub(){
-  const seed = (state.currentStaff && state.currentStaff.id) || 'servispro';
-  let hash = 0;
-  for(let i=0;i<seed.length;i++){ hash = ((hash<<5)-hash + seed.charCodeAt(i))|0; }
-  return Math.abs(hash).toString(36).toUpperCase().slice(0,6).padEnd(6,'0');
 }

@@ -36,19 +36,24 @@ const LICENSE_CACHE_MAX_AGE_MS = 7*24*60*60*1000; // stale cache still wins over
 
 // Placeholder tiers/pricing -- nobody has actually decided what ServisPro's
 // paid plan costs or includes yet (see the conversation this shipped in).
-// 'reports' deliberately listed on BOTH plans right now -- see this file's
-// header comment for why free must stay fully-featured until there's a
-// real decision to restrict something. Move 'reports' off of free (or add
-// other feature keys) once that decision actually gets made; nothing else
-// needs to change shape.
+// Prices ARE decided (RM0.00 / RM50.00) -- but 'reports' is still
+// deliberately listed on BOTH plans, not moved off free yet: there's no
+// real way to pay for Pro until ToyyibPay is wired up (simulate_upgrade is
+// still test-mode-only). Actually enforcing this gate before that exists
+// would just permanently lock every installation -- including this app's
+// own live production shop the moment its license key first registers --
+// out of a feature they already have, with no way to legitimately unlock
+// it. Move 'reports' off of free (or add other feature keys) once
+// ToyyibPay billing is real; nothing else needs to change shape.
 const PLAN_FEATURES = {
   free: ['core', 'reports'],
   pro: ['core', 'reports'],
 };
 const PLAN_LABELS = {
-  free: { ms:'Percuma', en:'Free', price: 'RM0' },
-  pro: { ms:'Pro', en:'Pro', price: 'RM49/bulan' },
+  free: { ms:'Percuma', en:'Free', price: 'RM0.00' },
+  pro: { ms:'Pro', en:'Pro', price: 'RM50.00/bulan' },
 };
+const PLAN_PRICE_MYR = { free: 0, pro: 50 }; // numeric form, used by redeem_credit_for_upgrade
 
 let licenseClient = null;
 function getLicenseClient(){
@@ -95,7 +100,7 @@ function cacheLicense(license){
 async function checkLicenseStatus(){
   const client = getLicenseClient();
   if(!client){
-    state.license = { plan:'free', status:'active', expiresAt:null, checkedAt:Date.now(), live:false };
+    state.license = { plan:'free', status:'active', expiresAt:null, creditBalance:0, referralCode:null, checkedAt:Date.now(), live:false };
     render();
     return;
   }
@@ -103,14 +108,74 @@ async function checkLicenseStatus(){
     const key = getOrCreateLicenseKey();
     const { data, error } = await client.rpc('check_license', { p_license_key:key, p_shop_name:db.settings.shopName||null });
     if(error) throw error;
-    state.license = { plan:data.plan, status:data.status, expiresAt:data.expiresAt, checkedAt:Date.now(), live:true };
+    state.license = { plan:data.plan, status:data.status, expiresAt:data.expiresAt, creditBalance:data.creditBalance||0, referralCode:data.referralCode||null, checkedAt:Date.now(), live:true };
     cacheLicense(state.license);
   }catch(e){
     reportError(e, 'Gagal semak status langganan');
     const cached = loadCachedLicense();
-    state.license = cached || { plan:'free', status:'active', expiresAt:null, checkedAt:Date.now(), live:false };
+    state.license = cached || { plan:'free', status:'active', expiresAt:null, creditBalance:0, referralCode:null, checkedAt:Date.now(), live:false };
   }
   render();
+}
+
+// Spends real earned credit (from a successful redeemReferralCode() call
+// somewhere else, by someone this shop referred) to upgrade a plan --
+// unlike upgradePlanTestMode(), this is NOT gated on license_config.test_mode
+// server-side (see redeem_credit_for_upgrade in central-schema.sql), since
+// it's backed by credit actually earned, not a payment bypass.
+async function redeemCreditForUpgrade(plan){
+  const client = getLicenseClient();
+  const en = state.language==='en';
+  if(!client) return;
+  try{
+    const key = getOrCreateLicenseKey();
+    const { data, error } = await client.rpc('redeem_credit_for_upgrade', { p_license_key:key, p_plan:plan });
+    if(error) throw error;
+    if(!data || !data.success){
+      const reason = data && data.reason;
+      const msg = reason==='insufficient_credit'
+        ? (en ? 'Not enough credit for this plan yet.' : 'Baki kredit tidak mencukupi untuk pelan ini lagi.')
+        : (en ? 'Could not redeem credit — try again.' : 'Gagal guna kredit — cuba lagi.');
+      showToast(msg);
+      return;
+    }
+    state.license = { ...state.license, plan:data.plan, status:data.status, expiresAt:data.expiresAt, creditBalance:data.creditBalance, checkedAt:Date.now(), live:true };
+    cacheLicense(state.license);
+    showToast(en ? `Upgraded to ${PLAN_LABELS[plan] ? PLAN_LABELS[plan].en : plan} using credit.` : `Dinaik taraf ke ${PLAN_LABELS[plan] ? PLAN_LABELS[plan].ms : plan} menggunakan kredit.`);
+    render();
+  }catch(e){
+    reportError(e, 'Gagal guna kredit');
+    showToast(en ? 'Could not redeem credit — try again.' : 'Gagal guna kredit — cuba lagi.');
+  }
+}
+
+// Redeems someone else's referral code -- rewards THEM (the referrer), not
+// this shop (matches the mechanic confirmed for this feature: "bring in
+// another shop, the referrer gets credited"). Can only succeed once ever
+// per license (see referred_by check in central-schema.sql).
+async function redeemReferralCode(code){
+  const client = getLicenseClient();
+  const en = state.language==='en';
+  if(!client || !code || !code.trim()) return;
+  try{
+    const key = getOrCreateLicenseKey();
+    const { data, error } = await client.rpc('redeem_referral_code', { p_license_key:key, p_referral_code:code.trim() });
+    if(error) throw error;
+    if(!data || !data.success){
+      const reasons = {
+        already_redeemed: en ? 'You\'ve already redeemed a referral code before.' : 'Anda sudah pernah guna kod rujukan sebelum ini.',
+        invalid_code: en ? 'That referral code doesn\'t exist.' : 'Kod rujukan itu tidak wujud.',
+        self_referral: en ? 'You can\'t redeem your own referral code.' : 'Anda tidak boleh guna kod rujukan sendiri.',
+      };
+      showToast((data && reasons[data.reason]) || (en ? 'Could not redeem this code.' : 'Gagal guna kod ini.'));
+      return;
+    }
+    showToast(en ? 'Referral code applied! The referrer has been credited.' : 'Kod rujukan digunakan! Perujuk telah dikreditkan.');
+    render();
+  }catch(e){
+    reportError(e, 'Gagal guna kod rujukan');
+    showToast(en ? 'Could not redeem this code — try again.' : 'Gagal guna kod ini — cuba lagi.');
+  }
 }
 
 // TEST MODE ONLY -- see simulate_upgrade()'s own comment in
@@ -134,7 +199,9 @@ async function upgradePlanTestMode(plan){
       showToast(en ? 'Test-mode upgrades are turned off — real billing isn\'t wired up yet.' : 'Naik taraf mod ujian telah dimatikan — bayaran sebenar belum disediakan lagi.');
       return;
     }
-    state.license = { plan:data.plan, status:data.status, expiresAt:data.expiresAt, checkedAt:Date.now(), live:true };
+    const prevCredit = (state.license && state.license.creditBalance) || 0;
+    const prevReferral = (state.license && state.license.referralCode) || null;
+    state.license = { plan:data.plan, status:data.status, expiresAt:data.expiresAt, creditBalance:prevCredit, referralCode:prevReferral, checkedAt:Date.now(), live:true };
     cacheLicense(state.license);
     showToast(en ? `Upgraded to ${PLAN_LABELS[plan] ? PLAN_LABELS[plan].en : plan} (test mode -- no real payment made).` : `Dinaik taraf ke ${PLAN_LABELS[plan] ? PLAN_LABELS[plan].ms : plan} (mod ujian -- tiada bayaran sebenar).`);
     render();
@@ -166,13 +233,20 @@ function planPickerModalHTML(){
   const en = state.language==='en';
   const plan = currentPlan();
   const testMode = !getLicenseClient();
+  const credit = (state.license && state.license.creditBalance) || 0;
   return `
   <h2>${ICONS.star} ${en?'Subscription':'Langganan'}</h2>
   ${testMode ? `<div class="conflict-warning">${en?'Test mode — central licensing service not connected yet, everything runs on the free plan.':'Mod ujian — perkhidmatan langganan pusat belum disambung, semua berjalan pada pelan percuma.'}</div>` : ''}
+  ${!testMode ? `<div class="account-credit-bar" style="margin-bottom:12px;">
+    <span>${en?'Credit balance':'Baki kredit'}</span>
+    <strong>RM${credit.toFixed(2)}</strong>
+  </div>` : ''}
   <div style="display:flex;flex-direction:column;gap:12px;">
     ${Object.keys(PLAN_LABELS).map(key=>{
       const label = PLAN_LABELS[key];
       const isCurrent = plan===key;
+      const price = PLAN_PRICE_MYR[key]||0;
+      const canUseCredit = !testMode && !isCurrent && price>0 && credit>=price;
       return `
       <div class="panel" style="${isCurrent?'border-color:var(--accent);':''}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -180,7 +254,10 @@ function planPickerModalHTML(){
           ${isCurrent ? `<span class="tag">${en?'Current plan':'Pelan semasa'}</span>` : ''}
         </div>
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">${label.price}</div>
-        ${!isCurrent ? `<button class="btn btn-primary btn-sm" data-action="upgrade-plan-test" data-plan="${key}">${en?'Switch (test mode)':'Tukar (mod ujian)'}</button>` : ''}
+        ${!isCurrent ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" data-action="upgrade-plan-test" data-plan="${key}">${en?'Switch (test mode)':'Tukar (mod ujian)'}</button>
+          ${canUseCredit ? `<button class="btn btn-outline btn-sm" data-action="redeem-credit-upgrade" data-plan="${key}">${en?`Use credit (RM${price.toFixed(2)})`:`Guna kredit (RM${price.toFixed(2)})`}</button>` : ''}
+        </div>` : ''}
       </div>`;
     }).join('')}
   </div>

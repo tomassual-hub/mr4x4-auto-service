@@ -412,7 +412,7 @@ interface AppState {
   boardJobs?: any[] | null;
   dashTargetPeriod?: 'weekly' | 'monthly';
   supportChatThreadId?: string | null;
-  license?: { plan: string; status: string; expiresAt: string | null; checkedAt: number; live: boolean } | null;
+  license?: { plan: string; status: string; expiresAt: string | null; creditBalance: number; referralCode: string | null; checkedAt: number; live: boolean } | null;
   [key: string]: any; // state accumulates ad-hoc UI flags; keep this escape hatch rather than chasing every one
 }
 
@@ -465,8 +465,11 @@ declare function canSeeRevenue(): boolean;
 declare function isOwnerLevel(role: string | undefined): boolean;
 declare const PLAN_FEATURES: { [plan: string]: string[] };
 declare const PLAN_LABELS: { [plan: string]: { ms: string; en: string; price: string } };
+declare const PLAN_PRICE_MYR: { [plan: string]: number };
 declare function checkLicenseStatus(): Promise<void>;
 declare function upgradePlanTestMode(plan: string): Promise<void>;
+declare function redeemCreditForUpgrade(plan: string): Promise<void>;
+declare function redeemReferralCode(code: string): Promise<void>;
 declare function currentPlan(): string;
 declare function hasFeature(key: string): boolean;
 declare function getOrCreateLicenseKey(): string;
@@ -547,7 +550,6 @@ declare function supportMessagesForThread(threadStaffId: string): SupportMessage
 declare function supportThreadsForManager(): { staffId: string; staffName: string; lastMessage: string; lastAt: number; unreadCount: number }[];
 declare function supportUnreadCount(): number;
 declare function markSupportThreadRead(threadStaffId: string | null): void;
-declare function referralCodeStub(): string;
 declare function renderNotifBell(extraClass?: string): string;
 declare function renderTopbar(): string;
 declare function renderSyncErrorBanner(): string;

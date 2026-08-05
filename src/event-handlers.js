@@ -429,8 +429,15 @@ function attachHandlers(){
   }
   bindAllAction('open-plan-picker', ()=>setState({modal:{type:'plan-picker'}}));
   bindAllAction('upgrade-plan-test', el=>upgradePlanTestMode(el.dataset.plan));
-  bindAllAction('account-coming-soon', ()=>{
-    showToast(state.language==='en' ? 'This feature is coming soon.' : 'Ciri ini akan datang tidak lama lagi.');
+  bindAllAction('redeem-credit-upgrade', el=>redeemCreditForUpgrade(el.dataset.plan));
+  bindAllAction('redeem-referral-code', ()=>{
+    const input = /** @type {HTMLInputElement} */ (document.getElementById('referral-redeem-input'));
+    const code = input ? input.value : '';
+    if(!code || !code.trim()){
+      showToast(state.language==='en' ? 'Enter a referral code first.' : 'Masukkan kod rujukan dahulu.');
+      return;
+    }
+    redeemReferralCode(code);
   });
   bindAllAction('copy-referral-code', async (el)=>{
     const code = el.dataset.code || '';
