@@ -1,16 +1,27 @@
--- ServisPro Central Licensing Service — a SEPARATE Supabase project from
--- any individual shop's own database (see backend/schema.sql + SETUP.md).
--- Every ServisPro installation is otherwise single-tenant: each shop runs
--- its own isolated Supabase project with full access to its own data. If
--- subscription status lived in that SAME project, a shop could just edit
--- their own row to unlock paid features, which defeats the point of real
--- enforcement. This project is the one thing shops DON'T get dashboard
--- access to — only the developer does. Run this once in a NEW Supabase
--- project's SQL Editor (Dashboard → SQL Editor → New query → Run), not in
--- any shop's existing project.
+-- ServisPro Central Licensing Service — lives in the developer's own
+-- Supabase project, not any individual shop's. Every ServisPro
+-- installation is otherwise single-tenant: each shop runs its own
+-- isolated Supabase project with full access to its own data. If
+-- subscription status lived in THAT project, a shop could just edit their
+-- own row to unlock paid features, which defeats the point of real
+-- enforcement.
 --
--- After running this, put the new project's URL + anon key into
--- LICENSE_SUPABASE_URL / LICENSE_SUPABASE_ANON_KEY in src/license.js.
+-- Currently co-located in this shop's own PRODUCTION project (free-tier
+-- project limit reached when trying to spin up a dedicated third one) --
+-- still safe: `revoke all ... from anon, authenticated` below means even
+-- this shop's own staff, despite having full access to every other table
+-- in this same project, cannot read/write the licenses table directly at
+-- all, only through the two narrow RPCs further down. If a fully separate
+-- project is ever created later (paid plan, or freeing up a slot), this
+-- file can just be re-run there unchanged and LICENSE_SUPABASE_URL/
+-- ANON_KEY in src/license.js repointed -- nothing here assumes which
+-- project it lives in.
+--
+-- Run in Supabase Dashboard → SQL Editor → New query → Run. After running,
+-- put this project's URL + anon key into LICENSE_SUPABASE_URL /
+-- LICENSE_SUPABASE_ANON_KEY in src/license.js (same values already used
+-- for SUPABASE_URL/SUPABASE_ANON_KEY in build/build.js, since it's the
+-- same project).
 
 create table if not exists licenses (
   id text primary key, -- the license key itself -- generated client-side (see src/license.js) the first time a shop's app checks in, not assigned here

@@ -4,32 +4,45 @@
    database, since a shop with dashboard access to its own project could
    otherwise just edit its own row to unlock paid features.
 
-   TEST MODE right now: LICENSE_SUPABASE_URL/ANON_KEY are unset because that
-   central project doesn't exist yet, and upgradePlanTestMode() calls
-   simulate_upgrade() (no real payment, see that function's own comment in
-   central-schema.sql) rather than a real ToyyibPay checkout. Until the
-   central project exists, getLicenseClient() returns null and every shop
-   is simply treated as the free plan with every feature gate open -- this
-   never locks a real shop out of their own data over infrastructure that
-   isn't live yet.
+   The central project IS live (LICENSE_SUPABASE_URL/KEY below are real),
+   and upgradePlanTestMode() calls simulate_upgrade() (no real payment, see
+   that function's own comment in central-schema.sql) rather than a real
+   ToyyibPay checkout -- so the mechanism is real, but nothing has actually
+   been decided about ServisPro pricing/tiers yet. That's why
+   PLAN_FEATURES.free below still includes every real feature (including
+   'reports'): the free plan every existing license defaults to must keep
+   working exactly like before this shipped. Learned the hard way --
+   shipped an earlier version gating 'reports' out of free, which silently
+   locked this app's own live production shop (and the shared CI test
+   account) out of Reports the moment the central project went live, since
+   nobody had upgraded anything anywhere. Add a real gate to
+   PLAN_FEATURES.free only once there's an actual, deliberate decision to
+   restrict it -- not as a demo.
 
-   Fails open on a network error too, using the last successful check
-   cached in localStorage (see loadCachedLicense/cacheLicense) rather than
-   the live result -- a shop with a paid plan shouldn't lose access just
-   because this one extra network call timed out.
+   Also fails open if the central project is ever unreachable/misconfigured
+   in the future, using the last successful check cached in localStorage
+   (see loadCachedLicense/cacheLicense) rather than the live result -- a
+   shop with a paid plan shouldn't lose access just because one network
+   call timed out.
 */
-const LICENSE_SUPABASE_URL = ''; // TODO: fill in once the central project (backend/central-schema.sql) exists
-const LICENSE_SUPABASE_ANON_KEY = ''; // TODO: same
+// Same project as this shop's own SUPABASE_URL/ANON_KEY (see build/build.js)
+// -- backend/central-schema.sql's licenses table is co-located there (free-
+// tier project limit reached when trying to spin up a dedicated one; see
+// that file's own header comment for why this is still safe).
+const LICENSE_SUPABASE_URL = 'https://knvevgtoigcteqdinyvk.supabase.co';
+const LICENSE_SUPABASE_ANON_KEY = 'sb_publishable_GjJArokMq7UFun92T3UagA_E0I7IJOr';
 const LICENSE_CACHE_KEY = 'bk_license-cache';
 const LICENSE_CACHE_MAX_AGE_MS = 7*24*60*60*1000; // stale cache still wins over "assume free" for a week of no connectivity
 
 // Placeholder tiers/pricing -- nobody has actually decided what ServisPro's
 // paid plan costs or includes yet (see the conversation this shipped in).
-// Gates exactly one real feature (Reports) as a demonstration of the
-// mechanism; change PLAN_FEATURES/PLAN_LABELS freely, nothing else needs
-// to change shape.
+// 'reports' deliberately listed on BOTH plans right now -- see this file's
+// header comment for why free must stay fully-featured until there's a
+// real decision to restrict something. Move 'reports' off of free (or add
+// other feature keys) once that decision actually gets made; nothing else
+// needs to change shape.
 const PLAN_FEATURES = {
-  free: ['core'],
+  free: ['core', 'reports'],
   pro: ['core', 'reports'],
 };
 const PLAN_LABELS = {
