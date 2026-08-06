@@ -434,6 +434,7 @@ function attachHandlers(){
   });
   bindAllAction('open-plan-picker', ()=>setState({modal:{type:'plan-picker'}}));
   bindAllAction('upgrade-plan-test', el=>upgradePlanTestMode(el.dataset.plan));
+  bindAllAction('upgrade-plan-real', el=>upgradePlanReal(el.dataset.plan));
   bindAllAction('redeem-credit-upgrade', el=>redeemCreditForUpgrade(el.dataset.plan));
   bindAllAction('redeem-referral-code', ()=>{
     const input = /** @type {HTMLInputElement} */ (document.getElementById('referral-redeem-input'));
@@ -1612,7 +1613,15 @@ function attachHandlers(){
     queueSave();
     const url = `${location.origin}${location.pathname}?invoice=${encodeURIComponent(inv.id)}&token=${encodeURIComponent(inv.invoiceToken)}`;
     const cust = getCustomer(inv.customerId);
-    const waText = encodeURIComponent(`${en?"Here's your receipt":'Ini resit anda'} (${inv.invoiceNo}) — ${fmtRM(inv.total)}: ${url}`);
+    // A brief mention of the optional customer-portal account -- the
+    // receipt is the most natural "job just finished" touchpoint, and
+    // usually the last message a given customer gets for this visit, so
+    // it's the one place this is worth mentioning rather than repeating it
+    // on every single share (inspection report, quotation) for the same job.
+    const portalNote = en
+      ? ' Tip: tap "My Account" on that page to register and see all your past services, quotations and receipts in one place.'
+      : ' Tip: tekan "Akaun Saya" di halaman itu untuk daftar dan lihat semua sejarah servis, sebut harga dan resit anda di satu tempat.';
+    const waText = encodeURIComponent(`${en?"Here's your receipt":'Ini resit anda'} (${inv.invoiceNo}) — ${fmtRM(inv.total)}: ${url}${portalNote}`);
     if(cust && cust.phone){
       window.open(`https://wa.me/${normalizePhone(cust.phone)}?text=${waText}`, '_blank');
     } else if(navigator.clipboard){

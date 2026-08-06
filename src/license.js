@@ -211,6 +211,43 @@ async function upgradePlanTestMode(plan){
   }
 }
 
+// Real payment path -- see supabase/functions/create-toyyibpay-bill (that
+// function's header comment explains this is built from ToyyibPay's
+// documented API but NOT yet verified against a real account). Redirects
+// the browser to ToyyibPay's own payment page; the license only actually
+// updates later, from ToyyibPay's webhook confirming payment (see
+// supabase/functions/toyyibpay-webhook), never from this call directly --
+// this call only ever STARTS a bill.
+async function upgradePlanReal(plan){
+  const client = getLicenseClient();
+  const en = state.language==='en';
+  if(!client) return;
+  try{
+    const key = getOrCreateLicenseKey();
+    const { data, error } = await client.functions.invoke('create-toyyibpay-bill', {
+      body: { licenseKey:key, plan, shopName: db.settings.shopName||null }
+    });
+    if(error) throw error;
+    if(!data || data.error==='not_configured'){
+      showToast(en ? 'Real payment isn\'t connected yet — use the test-mode button below, or ask the developer to finish ToyyibPay setup.' : 'Bayaran sebenar belum disambung — guna butang mod ujian di bawah, atau minta pembangun siapkan persediaan ToyyibPay.');
+      return;
+    }
+    if(!data.paymentUrl){
+      showToast(en ? 'Real payment isn\'t connected yet — use the test-mode button below.' : 'Bayaran sebenar belum disambung — guna butang mod ujian di bawah.');
+      return;
+    }
+    location.href = data.paymentUrl;
+  }catch(e){
+    // Covers every other failure the same way, including the Edge
+    // Function not being deployed at all yet (a 404, not the
+    // {error:'not_configured'} response above) -- from the shop's side,
+    // any failure at this stage means the same thing: real payment isn't
+    // ready yet, not a bug to report or a reason to alarm them.
+    reportError(e, 'Gagal mulakan bayaran ToyyibPay');
+    showToast(en ? 'Real payment isn\'t connected yet — use the test-mode button below.' : 'Bayaran sebenar belum disambung — guna butang mod ujian di bawah.');
+  }
+}
+
 function currentPlan(){
   return (state.license && state.license.plan) || 'free';
 }
@@ -255,7 +292,8 @@ function planPickerModalHTML(){
         </div>
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">${label.price}</div>
         ${!isCurrent ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary btn-sm" data-action="upgrade-plan-test" data-plan="${key}">${en?'Switch (test mode)':'Tukar (mod ujian)'}</button>
+          ${!testMode && price>0 ? `<button class="btn btn-primary btn-sm" data-action="upgrade-plan-real" data-plan="${key}">${en?`Pay with ToyyibPay (RM${price.toFixed(2)})`:`Bayar dengan ToyyibPay (RM${price.toFixed(2)})`}</button>` : ''}
+          <button class="btn btn-outline btn-sm" data-action="upgrade-plan-test" data-plan="${key}">${en?'Switch (test mode)':'Tukar (mod ujian)'}</button>
           ${canUseCredit ? `<button class="btn btn-outline btn-sm" data-action="redeem-credit-upgrade" data-plan="${key}">${en?`Use credit (RM${price.toFixed(2)})`:`Guna kredit (RM${price.toFixed(2)})`}</button>` : ''}
         </div>` : ''}
       </div>`;

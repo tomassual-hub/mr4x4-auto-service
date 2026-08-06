@@ -519,6 +519,7 @@ declare const PLAN_LABELS: { [plan: string]: { ms: string; en: string; price: st
 declare const PLAN_PRICE_MYR: { [plan: string]: number };
 declare function checkLicenseStatus(): Promise<void>;
 declare function upgradePlanTestMode(plan: string): Promise<void>;
+declare function upgradePlanReal(plan: string): Promise<void>;
 declare function redeemCreditForUpgrade(plan: string): Promise<void>;
 declare function redeemReferralCode(code: string): Promise<void>;
 declare function currentPlan(): string;
