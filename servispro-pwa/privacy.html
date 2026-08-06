@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dasar Privasi — ServisPro</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:720px;margin:0 auto;padding:32px 20px 80px;line-height:1.6;color:#1a1a1a;background:#fff;}
+  h1{font-size:24px;margin-bottom:4px;}
+  .sub{color:#666;font-size:13px;margin-bottom:32px;}
+  h2{font-size:17px;margin-top:32px;border-top:1px solid #eee;padding-top:24px;}
+  p,li{font-size:14.5px;}
+  ul{padding-left:22px;}
+  a{color:#2563eb;}
+  .contact{background:#f5f5f5;border-radius:8px;padding:16px;margin-top:8px;}
+</style>
+</head>
+<body>
+  <h1>Dasar Privasi ServisPro</h1>
+  <div class="sub">Kemas kini terakhir: 6 Ogos 2026</div>
+
+  <p>ServisPro ("Aplikasi") ialah perisian pengurusan bengkel kenderaan. Dasar ini menerangkan
+  data apa yang dikumpul, sebab ia dikumpul, dan bagaimana ia disimpan — untuk kedua-dua jenis
+  pengguna Aplikasi: <strong>staf bengkel</strong> yang log masuk untuk mengurus operasi, dan
+  <strong>pelanggan bengkel</strong> yang secara pilihan (tidak wajib) mendaftar akaun untuk
+  melihat sejarah servis mereka sendiri.</p>
+
+  <h2>1. Data yang Dikumpul</h2>
+  <p><strong>Staf bengkel</strong> (perlu log masuk):</p>
+  <ul>
+    <li>Nama, alamat e-mel, dan peranan (cth. Admin, Mekanik) — dimasukkan oleh pentadbir bengkel</li>
+    <li>Rekod kehadiran (waktu clock-in/clock-out) jika ciri Kehadiran digunakan</li>
+    <li>Aktiviti dalam Aplikasi (log audit ringkas — cth. "Tambah Item", "Ubah Harga") untuk tujuan
+    jejak dalaman bengkel</li>
+  </ul>
+  <p><strong>Pelanggan bengkel</strong> (data dimasukkan oleh staf sebagai sebahagian rekod perkhidmatan,
+  ATAU secara langsung jika pelanggan mendaftar akaun pilihan):</p>
+  <ul>
+    <li>Nama dan nombor telefon</li>
+    <li>Butiran kenderaan (no. plat, model)</li>
+    <li>Sejarah kerja, sebut harga, invois, dan janji temu servis</li>
+    <li>Jika mendaftar akaun pilihan: alamat e-mel dan kata laluan (disulitkan, tidak pernah disimpan
+    sebagai teks biasa)</li>
+    <li>Gambar kenderaan yang dimuat naik oleh staf semasa pemeriksaan (jika berkenaan)</li>
+  </ul>
+  <p><strong>Data peranti</strong> (jika ciri notifikasi push diaktifkan):</p>
+  <ul>
+    <li>Kelayakan langganan push (push subscription) peranti — tiada maklumat peribadi terkandung di
+    dalamnya, hanya alamat teknikal untuk menghantar notifikasi</li>
+  </ul>
+
+  <h2>2. Bagaimana Data Digunakan</h2>
+  <p>Semata-mata untuk menjalankan fungsi bengkel: menjejak kerja/inventori/invois, menghantar
+  notifikasi/pautan berkaitan servis (cth. laporan pemeriksaan, resit, status kad kerja) kepada
+  pelanggan yang berkenaan, dan membolehkan staf bengkel mengurus operasi harian. Data tidak
+  digunakan untuk pengiklanan, dan tidak dijual kepada mana-mana pihak ketiga.</p>
+
+  <h2>3. Perkongsian Data</h2>
+  <p>Data disimpan pada infrastruktur <a href="https://supabase.com" target="_blank" rel="noopener">Supabase</a>
+  (pangkalan data Postgres terurus), yang bertindak sebagai pemproses data bagi pihak bengkel.
+  Data tidak dikongsi dengan mana-mana pihak ketiga lain untuk tujuan pemasaran atau jualan.
+  Setiap bengkel yang menggunakan Aplikasi ini mempunyai pangkalan data sendiri yang berasingan —
+  data satu bengkel tidak boleh diakses oleh bengkel lain.</p>
+
+  <h2>4. Keselamatan</h2>
+  <p>Akses dikawal melalui Row Level Security (RLS) di peringkat pangkalan data — akaun pelanggan
+  (jika didaftarkan) hanya boleh melihat rekod milik mereka sendiri, tidak pernah rekod pelanggan
+  lain atau data pentadbiran staf. Kata laluan disulitkan menggunakan piawaian industri (bcrypt,
+  melalui Supabase Auth) dan tidak pernah kelihatan oleh sesiapa, termasuk pembangun Aplikasi.</p>
+
+  <h2>5. Hak Anda</h2>
+  <p>Pelanggan bengkel boleh memohon bengkel berkenaan untuk membetulkan atau memadam rekod mereka
+  pada bila-bila masa. Staf bengkel boleh menghubungi pentadbir bengkel masing-masing untuk
+  sebarang permintaan berkaitan data peribadi.</p>
+
+  <h2>6. Kanak-Kanak</h2>
+  <p>Aplikasi ini ditujukan untuk kegunaan perniagaan (bengkel servis kenderaan) dan tidak
+  direka atau ditujukan untuk kanak-kanak bawah umur 13 tahun.</p>
+
+  <h2>7. Perubahan Dasar</h2>
+  <p>Dasar ini mungkin dikemas kini dari semasa ke semasa. Sebarang perubahan akan disiarkan di
+  halaman ini dengan tarikh kemas kini terbaharu.</p>
+
+  <h2>8. Hubungi Kami</h2>
+  <div class="contact">
+    <p style="margin:0;">Sebarang pertanyaan mengenai dasar privasi ini, sila hubungi:<br>
+    <strong>[MASUKKAN E-MEL HUBUNGAN ANDA DI SINI]</strong></p>
+  </div>
+</body>
+</html>
