@@ -166,6 +166,17 @@ async function run(){
   r.checkTrue('invoice view screen shows the total', invoiceScreen.includes('RM 50.00'));
 
   // ================= customer-portal account: signup, link, dashboard, approve from dashboard =================
+  // Fixed, reused credentials -- NOT a fresh email per run. Supabase Auth
+  // users can't be deleted through the anon/authenticated client (needs a
+  // service-role key this test suite doesn't have), so a per-run unique
+  // email would leave two more orphaned accounts in the shared test
+  // project forever, on every single CI run. Try logging in first (the
+  // common case, reusing the account from a previous run); only fall back
+  // to signing up the very first time this ever runs against a given test
+  // project. Matches the same "one fixed, reused account" pattern as
+  // TEST_EMAIL/TEST_PASSWORD in helpers.js.
+  const emailA = 'cpt-fixed-customer-a@mailinator.com';
+  const passwordA = 'CptFixedPassA123!';
   await anonPage.goto(appUrl());
   await anonPage.evaluate(() => { state.language = 'en'; render(); }); // reset after the full page reload above
   await anonPage.waitForSelector('[data-action="open-kiosk"]', { timeout: 15000 });
@@ -173,13 +184,19 @@ async function run(){
   await anonPage.waitForTimeout(300);
   await clickInPage(anonPage, '[data-kiosktab="account"]');
   await anonPage.waitForTimeout(1000);
-  await clickInPage(anonPage, '[data-action="cust-portal-mode-signup"]');
-  await anonPage.waitForTimeout(200);
-  const emailA = `cpt-a-${Date.now()}@mailinator.com`;
   await anonPage.fill('#cp-email', emailA);
-  await anonPage.fill('#cp-password', 'CptTestPassA123!');
-  await clickInPage(anonPage, '[data-action="cust-portal-signup"]');
-  await anonPage.waitForFunction(() => state.custPortalMode === 'link', { timeout: 10000 }).catch(()=>{});
+  await anonPage.fill('#cp-password', passwordA);
+  await clickInPage(anonPage, '[data-action="cust-portal-login"]');
+  await anonPage.waitForFunction(() => state.custPortalMode !== 'login' || !!state.custPortalError, { timeout: 10000 }).catch(()=>{});
+  if(await anonPage.evaluate(() => !!state.custPortalError)){
+    // First run ever against this test project -- account doesn't exist yet.
+    await clickInPage(anonPage, '[data-action="cust-portal-mode-signup"]');
+    await anonPage.waitForTimeout(200);
+    await anonPage.fill('#cp-email', emailA);
+    await anonPage.fill('#cp-password', passwordA);
+    await clickInPage(anonPage, '[data-action="cust-portal-signup"]');
+    await anonPage.waitForFunction(() => state.custPortalMode === 'link', { timeout: 10000 }).catch(()=>{});
+  }
   await anonPage.fill('#cp-name', 'CPT Customer A');
   await anonPage.fill('#cp-phone', '0181112222');
   await clickInPage(anonPage, '[data-action="cust-portal-link"]');
@@ -190,6 +207,8 @@ async function run(){
   r.checkTrue('customer A dashboard shows their own invoice', dashboardA.includes('RM 50.00'));
 
   // ================= second, unrelated customer B -- must NOT see Customer A's data =================
+  const emailB = 'cpt-fixed-customer-b@mailinator.com';
+  const passwordB = 'CptFixedPassB123!';
   const custPageB = await browser.newPage({ viewport: { width: 420, height: 900 } });
   const errorsB = [];
   custPageB.on('pageerror', e => errorsB.push('pageerror: ' + e.message));
@@ -200,13 +219,18 @@ async function run(){
   await custPageB.waitForTimeout(300);
   await clickInPage(custPageB, '[data-kiosktab="account"]');
   await custPageB.waitForTimeout(1000);
-  await clickInPage(custPageB, '[data-action="cust-portal-mode-signup"]');
-  await custPageB.waitForTimeout(200);
-  const emailB = `cpt-b-${Date.now()}@mailinator.com`;
   await custPageB.fill('#cp-email', emailB);
-  await custPageB.fill('#cp-password', 'CptTestPassB123!');
-  await clickInPage(custPageB, '[data-action="cust-portal-signup"]');
-  await custPageB.waitForFunction(() => state.custPortalMode === 'link', { timeout: 10000 }).catch(()=>{});
+  await custPageB.fill('#cp-password', passwordB);
+  await clickInPage(custPageB, '[data-action="cust-portal-login"]');
+  await custPageB.waitForFunction(() => state.custPortalMode !== 'login' || !!state.custPortalError, { timeout: 10000 }).catch(()=>{});
+  if(await custPageB.evaluate(() => !!state.custPortalError)){
+    await clickInPage(custPageB, '[data-action="cust-portal-mode-signup"]');
+    await custPageB.waitForTimeout(200);
+    await custPageB.fill('#cp-email', emailB);
+    await custPageB.fill('#cp-password', passwordB);
+    await clickInPage(custPageB, '[data-action="cust-portal-signup"]');
+    await custPageB.waitForFunction(() => state.custPortalMode === 'link', { timeout: 10000 }).catch(()=>{});
+  }
   await custPageB.fill('#cp-name', 'CPT Customer B');
   await custPageB.fill('#cp-phone', '0199997777'); // different phone -- no relation to Customer A
   await clickInPage(custPageB, '[data-action="cust-portal-link"]');
