@@ -89,6 +89,16 @@ as $$
 declare
   new_val int;
 begin
+  -- is_customer() is defined further down this file, but plpgsql only
+  -- resolves calls at first execution (not at CREATE time), so this
+  -- forward reference is safe -- by the time anything actually calls
+  -- next_counter(), the whole file has already run. Without this guard a
+  -- registered customer-portal account (a valid `authenticated` session,
+  -- same as staff) could call this RPC directly and burn through
+  -- job/invoice/PO numbers.
+  if is_customer() then
+    raise exception 'not permitted';
+  end if;
   insert into counters(name, value) values (counter_name, 1)
   on conflict (name) do update set value = counters.value + 1
   returning value into new_val;
@@ -210,14 +220,18 @@ revoke execute on function is_manager() from public;
 revoke execute on function is_manager() from anon;
 grant execute on function is_manager() to authenticated;
 
--- staff: everyone can read the roster (needed to assign mechanics to jobs),
--- but only Admin/Kerani can add/edit/remove staff records directly.
+-- staff: everyone (every STAFF member) can read the roster (needed to
+-- assign mechanics to jobs), but only Admin/Kerani can add/edit/remove
+-- staff records directly. This predates is_customer() (see above) and
+-- was never revisited when that landed -- "using (true)" let any
+-- registered customer-portal account read the full staff roster
+-- including attendance tokens via a direct API call. Excluded here.
 drop policy if exists "staff full access" on staff;
 drop policy if exists "staff select" on staff;
 drop policy if exists "staff admin insert" on staff;
 drop policy if exists "staff admin update" on staff;
 drop policy if exists "staff admin delete" on staff;
-create policy "staff select" on staff for select to authenticated using (true);
+create policy "staff select" on staff for select to authenticated using (not is_customer());
 create policy "staff admin insert" on staff for insert to authenticated with check (is_manager());
 create policy "staff admin update" on staff for update to authenticated using (is_manager()) with check (is_manager());
 create policy "staff admin delete" on staff for delete to authenticated using (is_manager());
@@ -250,14 +264,17 @@ drop trigger if exists staff_validate_role on staff;
 create trigger staff_validate_role before insert or update on staff
   for each row execute function validate_staff_role_write();
 
--- shop_meta (settings): everyone reads it (shop name/tax rate/payment QR
--- show up on invoices for all staff), only Admin/Kerani can change it.
+-- shop_meta (settings): every STAFF member reads it (shop name/tax rate/
+-- payment QR show up on invoices for all staff), only Admin/Kerani can
+-- change it. Same pre-is_customer() gap as staff select above --
+-- db.settings.licenseKey lives in here, so "using (true)" let any
+-- registered customer-portal account read it via a direct API call.
 drop policy if exists "staff full access" on shop_meta;
 drop policy if exists "shop_meta select" on shop_meta;
 drop policy if exists "shop_meta admin insert" on shop_meta;
 drop policy if exists "shop_meta admin update" on shop_meta;
 drop policy if exists "shop_meta admin delete" on shop_meta;
-create policy "shop_meta select" on shop_meta for select to authenticated using (true);
+create policy "shop_meta select" on shop_meta for select to authenticated using (not is_customer());
 create policy "shop_meta admin insert" on shop_meta for insert to authenticated with check (is_manager());
 create policy "shop_meta admin update" on shop_meta for update to authenticated using (is_manager()) with check (is_manager());
 create policy "shop_meta admin delete" on shop_meta for delete to authenticated using (is_manager());
@@ -314,15 +331,19 @@ drop trigger if exists support_messages_validate on support_messages;
 create trigger support_messages_validate before insert or update on support_messages
   for each row execute function validate_support_message();
 
--- audit_log: append-only for everyone (it's an audit trail — nobody,
--- including Admins, should be able to edit or erase past entries via the
--- normal API). The app's local 300-entry cap is a display trim only and
--- no longer deletes from the cloud copy (see client-side change).
+-- audit_log: append-only for every STAFF member (it's an audit trail —
+-- nobody, including Admins, should be able to edit or erase past entries
+-- via the normal API). The app's local 300-entry cap is a display trim
+-- only and no longer deletes from the cloud copy (see client-side
+-- change). Same pre-is_customer() gap as staff/shop_meta select above --
+-- "using (true)" let any registered customer-portal account read the
+-- whole shop's activity log, and "with check (true)" let one forge
+-- arbitrary audit_log entries via a direct API call.
 drop policy if exists "staff full access" on audit_log;
 drop policy if exists "audit_log select" on audit_log;
 drop policy if exists "audit_log insert" on audit_log;
-create policy "audit_log select" on audit_log for select to authenticated using (true);
-create policy "audit_log insert" on audit_log for insert to authenticated with check (true);
+create policy "audit_log select" on audit_log for select to authenticated using (not is_customer());
+create policy "audit_log insert" on audit_log for insert to authenticated with check (not is_customer());
 
 -- backups: automatic periodic snapshots of the whole shop database (see
 -- src/sync-engine.js's maybeAutoBackup()), stored server-side so a recovery
@@ -480,6 +501,15 @@ declare
   rec staff%rowtype;
   new_id text;
 begin
+  -- Same pre-is_customer() gap as staff/shop_meta/audit_log above: without
+  -- this, a registered customer-portal account whose auth email happened
+  -- to match an unclaimed staff row's email could claim that staff
+  -- identity outright, and if `staff` is still empty could self-assign as
+  -- the shop's first Admin.
+  if is_customer() then
+    return null;
+  end if;
+
   my_email := lower(auth.jwt()->>'email');
 
   select * into rec from staff where user_id = auth.uid();
@@ -836,6 +866,17 @@ create trigger support_messages_notify after insert on support_messages
 -- inspectionToken is set on a job (staff already has full write access to
 -- quotations via the blanket policy above), so no separate RPC is needed
 -- just to generate/share the link, only to read/respond to it anonymously.
+--
+-- Dropped first every time: this file redefines kiosk_get_quotation a
+-- second time further down with a default added to p_token (to also allow
+-- a logged-in customer-portal session with no token at all -- see that
+-- section), and `create or replace function` can ADD a trailing default
+-- but errors ("cannot remove parameter defaults") if it ever has to go the
+-- other way -- which happens here on every re-run against a database that
+-- already has the later, defaulted version live, since this earlier
+-- definition runs first and has no default. Dropping first sidesteps that
+-- direction entirely regardless of which version is currently live.
+drop function if exists kiosk_get_quotation(text, text);
 create or replace function kiosk_get_quotation(p_quote_id text, p_token text)
 returns jsonb
 language plpgsql
@@ -1022,6 +1063,13 @@ grant execute on function kiosk_request_appointment(text, text, text, text, text
 -- token-gated pattern as kiosk_get_quotation above. Includes basic shop
 -- letterhead fields (shop_meta) since this page has no other way to reach
 -- them -- unlike the staff-side print, which already has db.settings loaded.
+--
+-- Dropped first every time, same reason as kiosk_get_quotation above: this
+-- file redefines kiosk_get_invoice a second time further down with a
+-- default added to p_token, and re-running against a database that
+-- already has that later version live would otherwise fail here with
+-- "cannot remove parameter defaults".
+drop function if exists kiosk_get_invoice(text, text);
 create or replace function kiosk_get_invoice(p_invoice_id text, p_token text)
 returns jsonb
 language plpgsql
@@ -1080,7 +1128,18 @@ grant execute on function kiosk_get_invoice(text, text) to authenticated;
 -- an existing customer row by matching phone number first (so someone the
 -- shop already has on file doesn't end up with a duplicate record), and
 -- only creates a brand-new one if nothing matches.
-create or replace function link_customer_account(p_phone text, p_name text default null)
+--
+-- Matching on phone ALONE used to be enough to claim an existing customer
+-- row -- but a phone number is not a secret (it's on every invoice/receipt
+-- and shared over WhatsApp), so anyone who knew a real customer's phone
+-- number could sign up first and hijack that customer's entire history,
+-- including approving/rejecting their pending quotations. Now requires the
+-- SAME two-factor bar as kiosk_vehicle_history() above (plate + phone
+-- together) before linking to an existing row. No plate, or no match: a
+-- fresh profile is created instead (safe default -- same as a genuinely
+-- new customer registering), never a silent hijack.
+drop function if exists link_customer_account(text, text);
+create or replace function link_customer_account(p_phone text, p_name text default null, p_plate text default null)
 returns jsonb
 language plpgsql
 security definer
@@ -1088,7 +1147,9 @@ as $$
 declare
   existing record;
   norm_phone text := regexp_replace(coalesce(p_phone,''), '\D', '', 'g');
+  norm_plate text := replace(lower(coalesce(p_plate,'')), ' ', '');
   safe_name text := left(trim(coalesce(p_name,'')), 100);
+  final_name text;
   new_id text;
 begin
   if auth.uid() is null then
@@ -1110,15 +1171,21 @@ begin
     return jsonb_build_object('success', true, 'customerId', existing.id, 'name', existing.data->>'name');
   end if;
 
-  select * into existing from customers
-    where regexp_replace(coalesce(data->>'phone',''), '\D', '', 'g') = norm_phone
-      and user_id is null
-    limit 1;
-  if found then
-    update customers set user_id = auth.uid() where id = existing.id;
-    return jsonb_build_object('success', true, 'customerId', existing.id, 'name', existing.data->>'name');
+  if norm_plate <> '' then
+    select c.* into existing
+      from customers c
+      join vehicles v on v.data->>'customerId' = c.id
+      where regexp_replace(coalesce(c.data->>'phone',''), '\D', '', 'g') = norm_phone
+        and c.user_id is null
+        and replace(lower(v.data->>'plate'), ' ', '') = norm_plate
+      limit 1;
+    if found then
+      update customers set user_id = auth.uid() where id = existing.id;
+      return jsonb_build_object('success', true, 'customerId', existing.id, 'name', existing.data->>'name');
+    end if;
   end if;
 
+  final_name := coalesce(nullif(safe_name,''), 'Pelanggan');
   new_id := gen_random_uuid()::text;
   -- 'id' embedded in the data blob too -- see the matching comment on the
   -- leads insert in kiosk_request_appointment() above for why this matters
@@ -1126,15 +1193,15 @@ begin
   insert into customers (id, user_id, data, updated_at)
   values (
     new_id, auth.uid(),
-    jsonb_build_object('id', new_id, 'name', coalesce(nullif(safe_name,''), 'Pelanggan'), 'phone', left(trim(p_phone), 30), 'visits', 0, 'loyaltyPoints', 0),
+    jsonb_build_object('id', new_id, 'name', final_name, 'phone', left(trim(p_phone), 30), 'visits', 0, 'loyaltyPoints', 0),
     now()
   );
-  return jsonb_build_object('success', true, 'customerId', new_id, 'name', p_name);
+  return jsonb_build_object('success', true, 'customerId', new_id, 'name', final_name);
 end;
 $$;
-revoke execute on function link_customer_account(text, text) from public;
-revoke execute on function link_customer_account(text, text) from anon;
-grant execute on function link_customer_account(text, text) to authenticated;
+revoke execute on function link_customer_account(text, text, text) from public;
+revoke execute on function link_customer_account(text, text, text) from anon;
+grant execute on function link_customer_account(text, text, text) to authenticated;
 
 -- get_my_customer_profile(): null if this session hasn't linked a
 -- customer record yet (client shows the phone-linking step), otherwise

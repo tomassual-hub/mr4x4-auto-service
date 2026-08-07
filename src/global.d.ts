@@ -441,6 +441,7 @@ interface AppState {
   custPortalPassword?: string;
   custPortalPhone?: string;
   custPortalName?: string;
+  custPortalPlate?: string;
   custPortalBusy?: boolean;
   custPortalError?: string;
   custPortalNotice?: string;

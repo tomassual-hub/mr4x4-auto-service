@@ -587,6 +587,8 @@ function kioskAccountTabHTML(){
       <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?"One more step — enter your phone number so we can find your existing records (or create a new profile).":'Satu langkah lagi — masukkan no. telefon anda supaya kami dapat cari rekod sedia ada (atau cipta profil baharu).'}</p>
       <div class="field"><label>${en?'Your Name':'Nama Anda'}</label><input id="cp-name" placeholder="${en?'Full name':'Nama penuh'}" value="${esc(state.custPortalName||'')}"></div>
       <div class="field"><label>${en?'Phone No.':'No. Telefon'}</label><input id="cp-phone" type="tel" placeholder="012-3456789" value="${esc(state.custPortalPhone||'')}"></div>
+      <div class="field"><label>${en?'Vehicle Plate No. (optional)':'No. Plat Kenderaan (pilihan)'}</label><input id="cp-plate" placeholder="${en?'e.g. WXY1234':'cth. WXY1234'}" value="${esc(state.custPortalPlate||'')}"></div>
+      <p style="font-size:11.5px;color:var(--text-muted);margin-top:-6px;">${en?"If your vehicle is already registered with us, enter its plate number to automatically link your existing service history.":'Jika kenderaan anda sudah didaftarkan dengan kami, masukkan no. plat untuk pautkan sejarah servis sedia ada secara automatik.'}</p>
       <button class="btn btn-primary" style="width:100%;justify-content:center;" data-action="cust-portal-link" ${state.custPortalBusy?'disabled':''}>${state.custPortalBusy?(en?'Saving…':'Menyimpan…'):(en?'Continue':'Teruskan')}</button>
     `;
   }
@@ -784,10 +786,12 @@ function attachKioskHandlers(){
     const password = (document.getElementById('cp-password')||{}).value;
     const name = (document.getElementById('cp-name')||{}).value?.trim();
     const phone = (document.getElementById('cp-phone')||{}).value?.trim();
+    const plate = (document.getElementById('cp-plate')||{}).value?.trim();
     if(email!==undefined) state.custPortalEmail = email;
     if(password!==undefined) state.custPortalPassword = password;
     if(name!==undefined) state.custPortalName = name;
     if(phone!==undefined) state.custPortalPhone = phone;
+    if(plate!==undefined) state.custPortalPlate = plate;
   };
   const setCustPortalMode = (mode)=>{
     captureCustPortalFields();

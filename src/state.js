@@ -118,6 +118,7 @@ let state = {
   custPortalPassword: '',
   custPortalPhone: '',
   custPortalName: '',
+  custPortalPlate: '',
   custPortalBusy: false,
   custPortalError: '',
   custPortalNotice: '',

@@ -199,6 +199,12 @@ async function run(){
   }
   await anonPage.fill('#cp-name', 'CPT Customer A');
   await anonPage.fill('#cp-phone', '0181112222');
+  // Phone alone is no longer enough to link to Customer A's EXISTING
+  // record (see link_customer_account in backend/schema.sql) -- a plate
+  // registered to that same phone number must also be provided, otherwise
+  // this just creates a brand-new, unrelated profile instead of finding
+  // the one set up in the earlier "setup" section above.
+  await anonPage.fill('#cp-plate', 'CPT 0001');
   await clickInPage(anonPage, '[data-action="cust-portal-link"]');
   await anonPage.waitForFunction(() => state.custPortalMode === 'dashboard', { timeout: 10000 }).catch(()=>{});
   await anonPage.waitForFunction(() => state.custPortalData && state.custPortalData !== 'loading', { timeout: 10000 }).catch(()=>{});

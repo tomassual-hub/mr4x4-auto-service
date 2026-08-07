@@ -361,6 +361,7 @@ async function custPortalLinkAccount(){
   const en = state.language==='en';
   const name = state.custPortalName.trim();
   const phone = state.custPortalPhone.trim();
+  const plate = (state.custPortalPlate||'').trim();
   if(!phone){
     state.custPortalError = en ? 'Enter your phone number.' : 'Masukkan no. telefon anda.';
     render();
@@ -369,7 +370,7 @@ async function custPortalLinkAccount(){
   state.custPortalError = ''; state.custPortalBusy = true;
   render();
   try{
-    const { data, error } = await getCustomerAuthClient().rpc('link_customer_account', { p_phone: phone, p_name: name || null });
+    const { data, error } = await getCustomerAuthClient().rpc('link_customer_account', { p_phone: phone, p_name: name || null, p_plate: plate || null });
     if(error) throw error;
     state.custPortalBusy = false;
     if(!data || !data.success){
