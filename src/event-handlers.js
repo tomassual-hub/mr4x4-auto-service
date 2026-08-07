@@ -370,7 +370,14 @@ function attachHandlers(){
     supabaseClient.auth.signOut();
     unsubscribeRealtime();
     db = defaultDB();
-    clearFaceId(); // explicit logout = don't remember this device; re-offered on next login
+    // Face ID enrollment deliberately survives logout -- it only ever gates
+    // an EXISTING persisted session on THIS device (see the header comment
+    // in face-id.js), and signOut() above already destroys that session, so
+    // there's nothing left for a stale enrollment to grant access to. Was
+    // previously cleared here on every logout, forcing re-enrollment on
+    // every fresh login even on the same personal phone; explicit removal
+    // stays available via the "Turn Off" button in Face ID settings
+    // (remove-faceid below), which is the actual deliberate opt-out.
     setState({currentStaff:null, view:'dashboard', authMode:'login', mfaChallenge:null});
   });
 
