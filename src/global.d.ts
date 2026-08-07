@@ -196,6 +196,7 @@ interface Appointment {
   notes?: string;
   status: 'scheduled' | 'done' | 'cancelled';
   createdAt?: number;
+  reminderSent?: boolean; // set once the dashboard's "Reminders Due" WhatsApp link is clicked -- see viewDashboard()
 }
 
 interface ContractItem { name: string; qty: number; price: number; }

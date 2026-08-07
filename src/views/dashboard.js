@@ -140,6 +140,33 @@ function viewDashboard(){
   })()}
   ${(()=>{
     const en = state.language==='en';
+    // Tomorrow's confirmed appointments that haven't had a reminder sent
+    // yet -- same "surface it, one tap to act" pattern as the overdue-by-
+    // mileage panel below (no unattended auto-send is possible through
+    // wa.me links either), applied to the more time-sensitive H-1
+    // appointment reminder instead of relying on staff remembering to open
+    // Appointments and check manually every day.
+    const tomorrowStr = localDateStr(new Date(Date.now()+24*60*60*1000));
+    const dueReminders = db.appointments
+      .filter(a=>a.status==='scheduled' && a.date===tomorrowStr && !a.reminderSent)
+      .sort((a,b)=>a.time.localeCompare(b.time));
+    if(dueReminders.length===0) return '';
+    return `
+    <div class="panel" style="margin-top:20px;">
+      <h2>${ICONS.calendar} ${en?'Reminders Due (Tomorrow)':'Peringatan Diperlukan (Esok)'} <span class="tag">${dueReminders.length}</span></h2>
+      ${dueReminders.map(a=>{
+        const c = getCustomer(a.customerId); const v = getVehicle(a.vehicleId);
+        const waText = encodeURIComponent(`Salam ${c?c.name:''}, ini peringatan tempahan servis kenderaan ${v?v.plate:''} esok (${a.date}) jam ${a.time} di ${db.settings.shopName}. Sila hubungi kami jika perlu tukar masa. Terima kasih!`);
+        const waHref = c && c.phone ? `https://wa.me/${normalizePhone(c.phone)}?text=${waText}` : null;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px;">
+          <span>${a.time} ${c?'· '+esc(c.name):''} ${v?'· '+esc(v.plate):''}</span>
+          ${waHref ? `<a class="btn btn-outline btn-sm" href="${waHref}" target="_blank" rel="noopener" data-action="mark-reminder-sent" data-id="${a.id}">${ICONS.whatsapp} ${en?'Remind':'Ingatkan'}</a>` : `<span class="btn-icon" data-action="mark-reminder-sent" data-id="${a.id}" title="${en?'Mark as reminded (no phone on file)':'Tanda sudah diingatkan (tiada no. telefon)'}">${ICONS.done}</span>`}
+        </div>`;
+      }).join('')}
+    </div>`;
+  })()}
+  ${(()=>{
+    const en = state.language==='en';
     // Overdue-by-mileage vehicles, previously only visible one-by-one by
     // opening each vehicle's own detail modal — nothing surfaced them
     // proactively for outreach. True unattended auto-send isn't possible

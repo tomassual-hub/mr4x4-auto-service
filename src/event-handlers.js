@@ -976,6 +976,12 @@ function attachHandlers(){
     const a = db.appointments.find(x=>x.id===el.dataset.id);
     a.status='cancelled'; queueSave(); render(); showToast(tt('Tempahan dibatalkan.'));
   });
+  bindAllAction('mark-reminder-sent', el=>{
+    const a = db.appointments.find(x=>x.id===el.dataset.id);
+    if(!a) return;
+    a.reminderSent = true;
+    queueSave(); render();
+  });
   bindAllAction('delete-appointment', el=>{
     askConfirm(tt('Padam tempahan ini?'), ()=>{
       db.appointments = db.appointments.filter(a=>a.id!==el.dataset.id);
