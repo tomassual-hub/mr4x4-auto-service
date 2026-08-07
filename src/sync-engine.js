@@ -130,6 +130,34 @@ async function fetchRecentAuditLog(){
   return data || [];
 }
 
+// attendance grows unbounded too -- a punch per staff per clock-in/out,
+// forever -- but unlike audit_log, a flat row-count cap would silently
+// break computeAttendanceSummary()'s "previous month" navigation (see
+// attendance.js/attendanceSummaryModalHTML, which lets a staff member page
+// back with no lower bound): a few hundred rows is only a couple of weeks
+// once you're counting every staff member's twice-daily punches at a shop
+// with several staff, so a count-based cap like audit_log's would make
+// last month (or even last week) silently look empty. Time-windowed
+// instead -- 12 months covers a full year of month-by-month navigation and
+// typical payroll-reference lookback, while still bounding how much a
+// shop's cloud history can bloat this fetch after years of use. Older
+// punches aren't deleted server-side, only left unfetched here.
+const ATTENDANCE_FETCH_WINDOW_MS = 366 * 24 * 60 * 60 * 1000; // ~12 months, leap-year-safe
+async function fetchRecentAttendance(){
+  const cutoff = Date.now() - ATTENDANCE_FETCH_WINDOW_MS;
+  const rows = [];
+  let from = 0;
+  for(;;){
+    const { data, error } = await supabaseClient.from('attendance').select('id,data')
+      .gte('data->ts', cutoff).range(from, from + REMOTE_PAGE_SIZE - 1);
+    if(error) throw error;
+    rows.push(...(data||[]));
+    if(!data || data.length < REMOTE_PAGE_SIZE) break;
+    from += REMOTE_PAGE_SIZE;
+  }
+  return rows;
+}
+
 async function loadRemoteDB(){
   const d = defaultDB();
   const tableEntries = Object.entries(TABLE_MAP);
@@ -140,7 +168,7 @@ async function loadRemoteDB(){
   // large enough to need it.
   const [tableResults, staffRows, metaRes, counterRows] = await Promise.all([
     Promise.all(tableEntries.map(([key, table]) =>
-      (table==='audit_log' ? fetchRecentAuditLog() : fetchAllRows(table, 'id,data'))
+      (table==='audit_log' ? fetchRecentAuditLog() : table==='attendance' ? fetchRecentAttendance() : fetchAllRows(table, 'id,data'))
         .then(data => ({ key, table, data, error: /** @type {any} */ (null) }))
         .catch(error => ({ key, table, data: /** @type {any[]} */ ([]), error }))
     )),
