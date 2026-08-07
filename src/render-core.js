@@ -65,6 +65,30 @@ function closeActiveModalViaEscape(){
   }
   if(state.modal){ setState({modal:null}); }
 }
+
+// goBack(): shared by the Escape key (see keydown listener in main.js) and
+// the swipe-left gesture (attachSwipeBack() in main.js) -- same priority
+// order either way: dismiss whatever's on top (confirm dialog / onboarding
+// / modal, reusing closeActiveModalViaEscape's own ordering), then the
+// public kiosk overlay (reusing its own full reset via the existing
+// close-kiosk action rather than duplicating that reset list here), and
+// only once nothing is "on top" does it actually navigate to the previous
+// view. Directly mutates state.view (bypassing setState) so going back
+// doesn't itself get pushed onto viewHistory -- walking back twice should
+// keep going further back, not just toggle between the last two views.
+function goBack(){
+  if(isModalBlocking()){ closeActiveModalViaEscape(); return; }
+  if(state.kioskMode){
+    const closeBtn = /** @type {HTMLElement} */ (document.querySelector('[data-action="close-kiosk"]'));
+    if(closeBtn) closeBtn.click();
+    return;
+  }
+  const prevView = viewHistory.pop();
+  if(prevView && prevView!==state.view){
+    state.view = prevView;
+    render();
+  }
+}
 function manageModalFocus(){
   const isOpen = isModalBlocking();
   if(isOpen && !modalWasOpen){

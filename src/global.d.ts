@@ -471,6 +471,7 @@ interface AppState {
 declare let db: DB;
 declare let state: AppState;
 declare let lastSynced: any;
+declare const viewHistory: string[];
 declare const TABLE_MAP: Record<string, string>;
 declare const REVERSE_TABLE_MAP: Record<string, string>;
 declare const ICONS: Record<string, string>;
@@ -544,6 +545,7 @@ declare function render(): void;
 declare function isModalBlocking(): boolean;
 declare function getFocusableInModal(): Element[];
 declare function closeActiveModalViaEscape(): void;
+declare function goBack(): void;
 declare function manageModalFocus(): void;
 declare function setState(patch: Partial<AppState>): void;
 declare function maybeRerender(): void;

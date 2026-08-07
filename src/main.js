@@ -125,5 +125,57 @@ document.addEventListener('keyup', (e)=>{
   if(e.key===' ' && isCustomInteractiveElement(active)){ e.preventDefault(); active.click(); }
 });
 
+/* ============================= SWIPE-LEFT TO GO BACK ============================= */
+// Started as an edge-only (start at the left edge, drag right) gesture like
+// a phone's native back swipe -- reverted after real-device testing showed
+// it doesn't fire at all: Android's own system gesture-navigation (and iOS
+// Safari's own edge-swipe history gesture) intercepts touches starting right
+// at the screen edge before this app's own touchstart listener ever sees
+// them, especially once installed as a PWA/TWA. There's no web API to opt
+// out of that OS-level interception, so edge-anchoring is a dead end here.
+//
+// This version detects a leftward swipe starting ANYWHERE, which sidesteps
+// the OS edge-gesture entirely -- but that reopens the original problem an
+// edge-only design was meant to avoid: this app has wide tables (reports,
+// POS cart, inventory) that scroll horizontally on narrow screens, and a
+// generic leftward drag is indistinguishable from someone scrolling one of
+// those. Handled by walking up from the touch's start element and skipping
+// the whole gesture if it began inside something that's ACTUALLY
+// horizontally scrollable (scrollWidth > clientWidth), rather than trying
+// to guess from the motion alone.
+function startedInHorizontallyScrollable(el){
+  let node = el;
+  while(node && node!==document.body){
+    if(node.scrollWidth > node.clientWidth){
+      const style = getComputedStyle(node);
+      if(style.overflowX==='auto' || style.overflowX==='scroll') return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
+}
+(function attachSwipeBack(){
+  const MIN_DISTANCE_PX = 70;   // how far left it must travel to count as deliberate
+  const MAX_DURATION_MS = 600;  // slow drags don't count -- only a real flick
+  let startX = 0, startY = 0, startT = 0, tracking = false;
+  document.addEventListener('touchstart', (e)=>{
+    if(e.touches.length!==1){ tracking = false; return; }
+    const t = e.touches[0];
+    tracking = !startedInHorizontallyScrollable(/** @type {HTMLElement} */ (t.target));
+    if(tracking){ startX = t.clientX; startY = t.clientY; startT = Date.now(); }
+  }, {passive:true});
+  document.addEventListener('touchend', (e)=>{
+    if(!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    if(!t) return;
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    const dt = Date.now() - startT;
+    if(dx < -MIN_DISTANCE_PX && Math.abs(dx) > Math.abs(dy)*1.5 && dt < MAX_DURATION_MS) goBack();
+  }, {passive:true});
+  document.addEventListener('touchcancel', ()=>{ tracking = false; }, {passive:true});
+})();
+
 /* ============================= INIT ============================= */
 initApp();

@@ -126,7 +126,22 @@ let state = {
   custPortalData: /** @type {any} */ (null), // 'loading' | the get_my_customer_data() object
 };
 
-function setState(patch){ Object.assign(state, patch); render(); }
+// viewHistory: backs the swipe-left "back" gesture (see attachSwipeBack()
+// in main.js) -- a plain module-level array, not part of `state` itself,
+// since it doesn't drive any rendering on its own and doesn't need to
+// survive a page reload. Every view CHANGE (not every setState call) pushes
+// the view being left, so swiping back walks through actual navigation
+// history rather than just toggling between two views. Capped so a long
+// session browsing many views doesn't grow this unboundedly.
+const viewHistory = [];
+function setState(patch){
+  if(patch.view!==undefined && patch.view!==state.view){
+    viewHistory.push(state.view);
+    if(viewHistory.length>30) viewHistory.shift();
+  }
+  Object.assign(state, patch);
+  render();
+}
 function showToast(msg, undoFn){
   // Patches its own dedicated #toast-root node directly instead of going
   // through render() — render() replaces #root's entire innerHTML in one
