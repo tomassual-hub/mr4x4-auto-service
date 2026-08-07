@@ -377,11 +377,21 @@ function getNotifications(){
   const has2fa = (state.mfaFactors||[]).some(f=>f.status==='verified');
   if(state.mfaFactors!==null && !has2fa){
     const en = state.language==='en';
+    // Same soft nudge for everyone, but marked urgent for Admin/Pemilik --
+    // an Admin account is the single highest-value target in this app (full
+    // revenue, staff, and settings access; see canSeeRevenue()), so a
+    // phished or credential-stuffed Admin password does far more damage
+    // than any other role's. Still just a nudge, never blocking -- forcing
+    // 2FA outright risks locking an owner out entirely if they lose their
+    // authenticator with no admin-of-the-admin to unlock them.
+    const isOwner = isOwnerLevel(state.currentStaff && state.currentStaff.role);
     out.push({
       tag: '2FA',
       label: en?'2FA not set up':'2FA belum disediakan',
-      sub: en?'Add an extra layer of security to your account.':'Tambah satu lapisan keselamatan pada akaun anda.',
-      view:'mfa-settings', urgent:false
+      sub: isOwner
+        ? (en?'Your account has full revenue and staff access — set up 2FA to protect it.':'Akaun anda ada akses penuh kepada hasil dan staf — sediakan 2FA untuk lindunginya.')
+        : (en?'Add an extra layer of security to your account.':'Tambah satu lapisan keselamatan pada akaun anda.'),
+      view:'mfa-settings', urgent: isOwner
     });
   }
   return out;
