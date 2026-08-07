@@ -11,6 +11,11 @@ function initErrorMonitoring(){
   const script = document.createElement('script');
   script.src = 'https://browser.sentry-cdn.com/8.42.0/bundle.min.js';
   script.crossOrigin = 'anonymous';
+  // Pinned to an exact version (see the src above), so unlike a floating
+  // tag this hash won't go stale out from under itself -- bumping the
+  // version needs a freshly computed hash for the new file's exact bytes,
+  // same reasoning as the Supabase CDN tag in build/_shell-pieces.json.
+  script.integrity = 'sha384-mnCU8xfJtutEToQVAp8cVl1c5MsLJHnf0uLTs2w7gf115tH/bz7Nwd+LgjiBgW5P';
   script.onload = () => {
     if(typeof Sentry === 'undefined') return;
     Sentry.init({
