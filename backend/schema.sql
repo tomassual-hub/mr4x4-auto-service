@@ -963,6 +963,12 @@ grant execute on function kiosk_vehicle_history(text, text) to authenticated;
 -- details, and only then create a real confirmed Appointment. Writing
 -- straight into `appointments` would mean an unverified public submission
 -- shows up looking exactly like a staff-confirmed booking.
+-- Length caps below are truncation, not rejection -- a customer pasting
+-- something too long gets a shorter lead instead of a confusing failure.
+-- This is a basic defense-in-depth measure against someone flooding the
+-- Leads table with oversized junk via this public, unauthenticated form --
+-- NOT rate limiting (out of scope, would need infrastructure this app
+-- doesn't have), just a sanity cap on any single submission's size.
 create or replace function kiosk_request_appointment(p_name text, p_phone text, p_plate text, p_date text, p_time text, p_notes text)
 returns boolean
 language plpgsql
@@ -970,22 +976,37 @@ security definer
 as $$
 declare
   notes text;
+  new_id text := gen_random_uuid()::text;
+  safe_name text := left(trim(coalesce(p_name,'')), 100);
+  safe_phone text := left(trim(coalesce(p_phone,'')), 30);
+  safe_plate text := left(trim(coalesce(p_plate,'')), 20);
+  safe_date text := left(trim(coalesce(p_date,'')), 20);
+  safe_time text := left(trim(coalesce(p_time,'')), 20);
+  safe_notes text := left(trim(coalesce(p_notes,'')), 1000);
 begin
-  if coalesce(trim(p_name), '') = '' or coalesce(trim(p_phone), '') = '' then
+  if safe_name = '' or safe_phone = '' then
     return false;
   end if;
   notes := format('Kenderaan: %s%sTarikh/masa diminta: %s %s%s',
-    coalesce(nullif(trim(p_plate), ''), '-'), chr(10),
-    coalesce(nullif(trim(p_date), ''), '-'), coalesce(nullif(trim(p_time), ''), ''), chr(10));
-  if coalesce(trim(p_notes), '') <> '' then
-    notes := notes || chr(10) || trim(p_notes);
+    coalesce(nullif(safe_plate, ''), '-'), chr(10),
+    coalesce(nullif(safe_date, ''), '-'), safe_time, chr(10));
+  if safe_notes <> '' then
+    notes := notes || chr(10) || safe_notes;
   end if;
 
+  -- 'id' is embedded inside the data blob itself too, not just the id
+  -- column -- every OTHER record in this app is created client-side as one
+  -- object (id included) that becomes the whole `data` payload, so realtime
+  -- sync (handleRemoteChange in sync-engine.js) expects a record's own id
+  -- to be recoverable from data alone. Skipping this once already caused a
+  -- real bug: a staff session with realtime open at the moment a Lead
+  -- landed here got id:undefined merged locally, which the next save cycle
+  -- tried to upsert back and got rejected by the not-null constraint.
   insert into leads (id, data, updated_at)
   values (
-    gen_random_uuid()::text,
+    new_id,
     jsonb_build_object(
-      'name', trim(p_name), 'phone', trim(p_phone), 'source', 'Tempahan Dalam Talian',
+      'id', new_id, 'name', safe_name, 'phone', safe_phone, 'source', 'Tempahan Dalam Talian',
       'notes', notes, 'status', 'new', 'createdAt', (extract(epoch from now())*1000)::bigint
     ),
     now()
@@ -1067,6 +1088,7 @@ as $$
 declare
   existing record;
   norm_phone text := regexp_replace(coalesce(p_phone,''), '\D', '', 'g');
+  safe_name text := left(trim(coalesce(p_name,'')), 100);
   new_id text;
 begin
   if auth.uid() is null then
@@ -1098,10 +1120,13 @@ begin
   end if;
 
   new_id := gen_random_uuid()::text;
+  -- 'id' embedded in the data blob too -- see the matching comment on the
+  -- leads insert in kiosk_request_appointment() above for why this matters
+  -- (realtime sync on any other open staff session).
   insert into customers (id, user_id, data, updated_at)
   values (
     new_id, auth.uid(),
-    jsonb_build_object('name', coalesce(nullif(trim(p_name),''), 'Pelanggan'), 'phone', p_phone, 'visits', 0, 'loyaltyPoints', 0),
+    jsonb_build_object('id', new_id, 'name', coalesce(nullif(safe_name,''), 'Pelanggan'), 'phone', left(trim(p_phone), 30), 'visits', 0, 'loyaltyPoints', 0),
     now()
   );
   return jsonb_build_object('success', true, 'customerId', new_id, 'name', p_name);

@@ -171,7 +171,10 @@ async function loadRemoteDB(){
       }
       throw r.error;
     }
-    d[r.key] = (r.data||[]).map(row=>row.data);
+    // Same reasoning as the id:payload.new.id spread in handleRemoteChange
+    // below -- never trust a row's own `data` JSONB to self-describe its
+    // id, always take it from the row's real id column instead.
+    d[r.key] = (r.data||[]).map(row=>({...row.data, id:row.id}));
   }
   d.staff = staffRows.map(r=>({...r.data, id:r.id, userId:r.user_id}));
   if(metaRes.data && metaRes.data.data) Object.assign(d.settings, metaRes.data.data);
@@ -319,7 +322,20 @@ function handleRemoteChange(table, payload){
     if(idx>-1) arr.splice(idx,1);
     if(lastSynced && lastSynced[key]) lastSynced[key].delete(id);
   } else {
-    const rec = key==='staff' ? {...payload.new.data, id:payload.new.id, userId:payload.new.user_id} : payload.new.data;
+    // Always spread id back in explicitly, never trust payload.new.data to
+    // self-describe it -- true for every record a STAFF client creates
+    // (db.x.push({id:uid(), ...}) means the whole object, id included,
+    // becomes the `data` JSONB blob, so it was already redundantly present
+    // there too), but NOT true for a row a security-definer RPC inserts
+    // directly in SQL via jsonb_build_object(...) without also putting
+    // 'id' inside that object (e.g. kiosk_request_appointment's Lead,
+    // link_customer_account's new Customer -- see backend/schema.sql).
+    // Missing this meant any OTHER staff session with realtime open at the
+    // moment one of those rows was inserted got a record with id:undefined
+    // merged into its local array, which the next save cycle then tried to
+    // upsert back with a null id and got rejected by the not-null
+    // constraint on that column.
+    const rec = key==='staff' ? {...payload.new.data, id:payload.new.id, userId:payload.new.user_id} : {...payload.new.data, id:payload.new.id};
     const wasExisting = idx>-1;
     // Merge into the existing object instead of swapping in a new one —
     // any open edit modal is holding a direct reference to this exact
