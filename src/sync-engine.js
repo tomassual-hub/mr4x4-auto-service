@@ -184,6 +184,20 @@ async function loadRemoteDB(){
 
 async function syncListTable(key, table, appendOnly){
   const prevMap = (lastSynced && lastSynced[key]) || new Map();
+  // Defensive guard, learned from a real incident: a record somehow
+  // missing its own id (a client-side bug, or a security-definer RPC that
+  // didn't embed 'id' inside its data blob -- see loadRemoteDB/
+  // handleRemoteChange) can never be synced, since there's no id to
+  // upsert against, and silently kept failing this table's ENTIRE save
+  // cycle forever otherwise (runSaveCycle retries on any error). Drop it
+  // locally instead -- it was never actually persisted under this id
+  // anyway -- and warn loudly so a future bug like this is visible
+  // immediately instead of surfacing as unexplained sync failures.
+  const badRecords = (db[key]||[]).filter(r=>!r.id);
+  if(badRecords.length){
+    reportError(new Error(`${badRecords.length} record(s) in db.${key} have no id`), `Rekod tanpa id dijumpai dalam ${key} -- dibuang secara tempatan supaya tidak menyekat sync`);
+    db[key] = (db[key]||[]).filter(r=>r.id);
+  }
   const curArr = db[key] || [];
   const curMap = new Map();
   const upserts = [];
@@ -550,7 +564,7 @@ async function handleAuthenticated(session){
     identifyStaffForErrorMonitoring(staffMember);
     if(!state.currentBranch) state.currentBranch = 'all';
     subscribeRealtime();
-    checkOnboarding();
+    checkOnboarding(); // also checks whats-new for an existing (non-first-time) staff member -- see its own comment
     cacheOfflineSnapshot(session.user.id, staffMember, db);
     maybeAutoBackup(); // fire-and-forget — never delay login on this
     checkLicenseStatus(); // fire-and-forget — same reasoning, see license.js
