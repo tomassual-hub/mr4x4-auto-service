@@ -12,10 +12,26 @@ function viewCustomers(){
 
 function customersTabHTML(){
   const q = (state.customerSearch||'').toLowerCase();
+  // Grouping vehicles/jobs by customerId ONCE here (O(vehicles)+O(jobs))
+  // instead of calling getVehiclesFor()/filtering db.jobs per customer
+  // (O(vehicles)/O(jobs) EACH) turns what used to be an O(customers ×
+  // vehicles) search -- searching every keystroke across a shop's whole
+  // customer list, unlike the row list below which is already capped to
+  // customersShowCount -- into O(customers + vehicles). Only matters once a
+  // shop has built up a real customer/vehicle count, but at that point it's
+  // the difference between an instant search and a visibly laggy one.
+  const vehiclesByCustomer = new Map();
+  for(const v of db.vehicles){
+    if(!vehiclesByCustomer.has(v.customerId)) vehiclesByCustomer.set(v.customerId, []);
+    vehiclesByCustomer.get(v.customerId).push(v);
+  }
+  const jobCountByCustomer = new Map();
+  for(const j of db.jobs) jobCountByCustomer.set(j.customerId, (jobCountByCustomer.get(j.customerId)||0)+1);
+
   let customers = db.customers;
   if(q){
     customers = customers.filter(c=>{
-      const vs = getVehiclesFor(c.id);
+      const vs = vehiclesByCustomer.get(c.id) || [];
       return c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || vs.some(v=>v.plate.toLowerCase().includes(q));
     });
   }
@@ -30,8 +46,8 @@ function customersTabHTML(){
   ${shownCustomers.length===0 ? emptyState(tt('Tiada pelanggan sepadan.')) : `
   <div class="grid grid-3">
     ${shownCustomers.map(c=>{
-      const vs = getVehiclesFor(c.id);
-      const jobCount = db.jobs.filter(j=>j.customerId===c.id).length;
+      const vs = vehiclesByCustomer.get(c.id) || [];
+      const jobCount = jobCountByCustomer.get(c.id) || 0;
       return `
       <div class="panel">
         <h2 style="flex-wrap:wrap;">
