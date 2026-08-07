@@ -22,6 +22,15 @@ function viewDashboard(){
 
   return `
   <div class="dashboard-view">
+  ${state.showWhatsNew ? `
+  <div class="panel" style="margin-bottom:16px;display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-color:var(--accent);">
+    <div style="color:var(--accent);flex-shrink:0;">${ICONS.chat}</div>
+    <div style="flex:1;min-width:0;font-size:12.5px;">
+      <strong>${en?'New: customers can now help themselves':'Baharu: pelanggan kini boleh layan diri'}</strong>
+      <div style="color:var(--text-muted);margin-top:2px;">${en?'Approve quotations, check full service history, book appointments, and download receipts — all from a shared link. See the Kiosk screen from the login page.':'Luluskan sebut harga, semak sejarah servis penuh, tempah janji temu, dan muat turun resit — semua dari pautan dikongsi. Lihat skrin Kiosk dari halaman log masuk.'}</div>
+    </div>
+    <button class="btn-icon" data-action="dismiss-whats-new" title="${en?'Dismiss':'Tutup'}" style="flex-shrink:0;">${ICONS.x}</button>
+  </div>` : ''}
   ${isAdmin ? `
   <div class="panel dash-hero" style="margin-bottom:22px;">
     ${renderNotifBell('hero-notif')}

@@ -13,6 +13,8 @@ function getOnboardingSteps(){
       desc: en?"Print a staff member's personal QR code for clock in/out — no login needed. The same idea powers a shareable, sign-off-able inspection report link for customers, and a waiting-area Display Board showing live job status.":'Cetak kod QR peribadi staf untuk clock in/out — tiada log masuk diperlukan. Idea sama untuk pautan laporan pemeriksaan yang boleh dikongsi & ditandatangan pelanggan, serta Papan Paparan kawasan menunggu yang tunjuk status kerja secara langsung.'},
     {icon:ICONS.book, title: en?'Tech Reference':'Rujukan Teknikal',
       desc: en?"Build your own reference library per vehicle make/model — service schedules, oil types, torque specs, diagrams, and more. Nothing is pre-loaded; it's your team's own notes, kept organized.":'Bina perpustakaan rujukan anda sendiri ikut jenama/model kenderaan — jadual servis, jenis minyak, spesifikasi tork, gambar rajah dan banyak lagi. Tiada apa dipra-muat; ia nota pasukan anda sendiri, tersusun rapi.'},
+    {icon:ICONS.chat, title: en?'Customers Can Help Themselves Too':'Pelanggan Boleh Layan Diri Juga',
+      desc: en?"Beyond checking job status, customers can now approve quotations, view their full service history, book an appointment, and download receipts — all from a shared link, no account needed. They can also optionally register to see everything in one place.":'Selain semak status kerja, pelanggan kini boleh luluskan sebut harga, lihat sejarah servis penuh, tempah janji temu, dan muat turun resit — semua dari pautan dikongsi, tiada akaun diperlukan. Mereka juga boleh pilih untuk daftar akaun bagi lihat semua di satu tempat.'},
     {icon:ICONS.settings, title: en?"You're All Set!":'Anda Sudah Bersedia!',
       desc: en?'Visit Settings anytime to adjust tax, loyalty discounts, set monthly sales/unit targets (shown on the Dashboard), or turn on Simple Mode to hide the more advanced features for a cleaner everyday view.':'Lawati Tetapan bila-bila masa untuk laras cukai, diskaun setia, tetapkan sasaran jualan/unit bulanan (dipaparkan di Papan Pemuka), atau hidupkan Mod Ringkas untuk sorok ciri lanjutan bagi paparan harian lebih ringkas.'},
   ];
@@ -22,6 +24,11 @@ function finishOnboarding(){
   state.showOnboarding = false;
   render();
   try{ window.storage.set('onboarding-seen', '1', false); }catch(e){}
+  // The full tour just shown already covers what's-new content (see the
+  // "Customers Can Help Themselves Too" step) -- mark it seen too so a
+  // brand-new staff member never gets the separate banner redundantly
+  // right after finishing the tour that already told them the same thing.
+  try{ window.storage.set(WHATS_NEW_KEY, '1', false); }catch(e){}
 }
 
 async function checkOnboarding(){
@@ -32,7 +39,31 @@ async function checkOnboarding(){
     state.showOnboarding = true;
     state.onboardingStep = 0;
     render();
+    return;
   }
+  checkWhatsNew();
+}
+
+// Bump this string (any change works) whenever a "what's new" banner is
+// worth surfacing to staff who already finished onboarding before that
+// content existed -- their storage key won't match the new one, so they
+// see it exactly once. Existing/brand-new-tour staff who already saw it
+// (via finishOnboarding above, or a previous dismissal of this same key)
+// never see it again.
+const WHATS_NEW_KEY = 'whatsnew-2026-08-customer-portal-seen';
+async function checkWhatsNew(){
+  try{
+    await window.storage.get(WHATS_NEW_KEY, false);
+    // key exists -> already seen/dismissed, do nothing
+  }catch(e){
+    state.showWhatsNew = true;
+    render();
+  }
+}
+function dismissWhatsNew(){
+  state.showWhatsNew = false;
+  render();
+  try{ window.storage.set(WHATS_NEW_KEY, '1', false); }catch(e){}
 }
 
 function renderOnboarding(){

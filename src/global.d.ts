@@ -700,6 +700,8 @@ declare let pendingFaceIdSession: any;
 declare function getOnboardingSteps(): any[];
 declare function finishOnboarding(): void;
 declare function checkOnboarding(): Promise<void>;
+declare function checkWhatsNew(): Promise<void>;
+declare function dismissWhatsNew(): void;
 declare function initials(name: string): string;
 declare function focusEnd(id: string): void;
 declare function downloadCSV(filename: string, headers: string[], rows: any[][]): void;

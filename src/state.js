@@ -42,6 +42,7 @@ let state = {
   simpleMode: false,
   showOnboarding: false,
   onboardingStep: 0,
+  showWhatsNew: false,
   jobsShowCount: 30,
   customersShowCount: 30,
   autoBackupsList: /** @type {{id:string, created_at:string}[]|null} */ (null),

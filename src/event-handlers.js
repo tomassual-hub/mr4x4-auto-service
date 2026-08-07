@@ -364,6 +364,7 @@ function attachHandlers(){
     }
   });
   bindAction('onboarding-skip', ()=>{ finishOnboarding(); });
+  bindAction('dismiss-whats-new', ()=>{ dismissWhatsNew(); });
 
   bindAllAction('logout', ()=>{
     supabaseClient.auth.signOut();
