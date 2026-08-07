@@ -14,27 +14,42 @@
 // name it exactly `notify-support-message` -> paste this file's contents.
 //
 // SECRETS (Dashboard -> Edge Functions -> Manage secrets, or
-// `supabase secrets set NAME=value`) -- set these three before the first
+// `supabase secrets set NAME=value`) -- set these four before the first
 // real send:
-//   VAPID_PUBLIC_KEY   -- same value as PUSH_VAPID_PUBLIC_KEY in
-//                         src/push-notifications.js
-//   VAPID_PRIVATE_KEY  -- the matching private half (see the header comment
-//                         on push_subscriptions in backend/schema.sql for
-//                         where both came from -- `npx web-push
-//                         generate-vapid-keys`). NEVER put this one in
-//                         client-side code.
-//   VAPID_SUBJECT      -- a mailto: or https: URL identifying the sender,
-//                         required by the Web Push spec, e.g.
-//                         mailto:you@example.com
+//   VAPID_PUBLIC_KEY     -- same value as PUSH_VAPID_PUBLIC_KEY in
+//                           src/push-notifications.js
+//   VAPID_PRIVATE_KEY    -- the matching private half (see the header
+//                           comment on push_subscriptions in
+//                           backend/schema.sql for where both came from --
+//                           `npx web-push generate-vapid-keys`). NEVER put
+//                           this one in client-side code.
+//   VAPID_SUBJECT        -- a mailto: or https: URL identifying the sender,
+//                           required by the Web Push spec, e.g.
+//                           mailto:you@example.com
+//   EDGE_FUNCTION_SECRET  -- a long random string (e.g. `openssl rand -hex
+//                           32`), the SAME value stored in
+//                           edge_function_config.edge_function_secret (see
+//                           backend/schema.sql). Proves a call actually came
+//                           from this project's own trigger -- the
+//                           Authorization header on that call only ever
+//                           carries the anon key, which is intentionally
+//                           PUBLIC (embedded in the client app) and proves
+//                           nothing about the caller on its own. Without
+//                           this check, anyone who knew the anon key and
+//                           this function's URL could POST straight to it
+//                           with a made-up senderName/message and push a
+//                           spoofed notification to a real staff member's
+//                           phone.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided automatically by
 // the Edge Functions runtime for every function -- nothing to set for those.
 //
-// After deploying, point the trigger at this function's URL (SQL Editor,
-// once):
-//   alter database postgres set app.settings.edge_function_url =
-//     'https://<project-ref>.functions.supabase.co/notify-support-message';
-//   alter database postgres set app.settings.edge_function_anon_key =
-//     '<this project's anon key>';
+// After deploying, point the trigger at this function (SQL Editor, once --
+// see the matching comment on edge_function_config in backend/schema.sql):
+//   update edge_function_config set
+//     edge_function_url = 'https://<project-ref>.functions.supabase.co/notify-support-message',
+//     edge_function_anon_key = '<this project's anon key>',
+//     edge_function_secret = '<the SAME value set as EDGE_FUNCTION_SECRET above>'
+//   where id = 'singleton';
 // (<project-ref> is the subdomain in your Supabase project URL, e.g.
 // knvevgtoigcteqdinyvk for https://knvevgtoigcteqdinyvk.supabase.co.)
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -43,6 +58,7 @@ import webpush from "npm:web-push@3.6.7";
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") ?? "";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") ?? "";
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "";
+const EDGE_FUNCTION_SECRET = Deno.env.get("EDGE_FUNCTION_SECRET") ?? "";
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_SUBJECT) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 }
@@ -60,6 +76,16 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: "VAPID secrets not configured yet" }),
       { status: 200 }, // 200, not 500 -- the trigger's http_post is fire-and-forget and ignores the response either way, but a clear 200 keeps this out of any error-rate alerting until secrets are actually set.
     );
+  }
+  // Reject anything that doesn't carry the shared secret this project's own
+  // trigger sends (see the header comment above) -- 200, not 401/403, so a
+  // scanning attacker learns nothing from the response about whether the
+  // secret check or something else is what failed.
+  if (
+    !EDGE_FUNCTION_SECRET ||
+    req.headers.get("x-webhook-secret") !== EDGE_FUNCTION_SECRET
+  ) {
+    return new Response(JSON.stringify({ sent: 0 }), { status: 200 });
   }
 
   try {

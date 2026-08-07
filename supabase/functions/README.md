@@ -33,20 +33,24 @@ NAME=value`):
 | `VAPID_PUBLIC_KEY` | Same value as `PUSH_VAPID_PUBLIC_KEY` in `src/push-notifications.js` |
 | `VAPID_PRIVATE_KEY` | The matching private half from `npx web-push generate-vapid-keys` — **never** put this in client-side code |
 | `VAPID_SUBJECT` | A `mailto:` or `https:` URL identifying the sender, e.g. `mailto:you@example.com` — required by the Web Push spec |
+| `EDGE_FUNCTION_SECRET` | A long random string (e.g. `openssl rand -hex 32`) — must match `edge_function_config.edge_function_secret` below exactly. Proves a call really came from this project's own trigger; the anon key alone doesn't (it's intentionally public) |
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically to
 every Edge Function — nothing to set for those.
 
 ### Point the trigger at it
 
-Once deployed, run this once in the SQL Editor (fill in the real values).
-Note this is a table update, not `alter database ... set` -- that needs
-superuser, which the SQL Editor's role doesn't have on a managed Supabase
-project (`edge_function_config` exists specifically to avoid needing it):
+Once deployed, run this once in the SQL Editor (fill in the real values —
+`edge_function_secret` must be the SAME string as `EDGE_FUNCTION_SECRET`
+above). Note this is a table update, not `alter database ... set` -- that
+needs superuser, which the SQL Editor's role doesn't have on a managed
+Supabase project (`edge_function_config` exists specifically to avoid
+needing it):
 ```sql
 update edge_function_config set
   edge_function_url = 'https://<project-ref>.functions.supabase.co/notify-support-message',
-  edge_function_anon_key = '<this project''s anon key>'
+  edge_function_anon_key = '<this project''s anon key>',
+  edge_function_secret = '<the same random string as EDGE_FUNCTION_SECRET>'
 where id = 'singleton';
 ```
 `<project-ref>` is the subdomain in the project's URL (e.g.

@@ -810,12 +810,31 @@ alter table edge_function_config enable row level security;
 revoke all on edge_function_config from anon, authenticated;
 insert into edge_function_config (id) values ('singleton') on conflict (id) do nothing;
 
+-- edge_function_secret: a second, separate value from edge_function_anon_key
+-- above. The anon key is only there to satisfy Supabase's own platform-level
+-- "does this request carry a valid key" gate in front of every Edge
+-- Function -- it's intentionally PUBLIC (embedded in the client app), so it
+-- proves nothing about who's actually calling. Without a real secret, this
+-- notify-support-message trigger's own function body did no verification of
+-- its own AT ALL, meaning anyone who knew the (public) anon key and this
+-- project's Edge Function URL (predictable from the project ref) could POST
+-- straight to it with a made-up senderName/message and push a spoofed
+-- notification straight to a real staff member's phone -- a phishing/
+-- social-engineering vector through a channel the app implicitly trusts.
+-- Generated once below and sent as its own header, checked in the function
+-- body itself (see supabase/functions/notify-support-message/index.ts).
+alter table edge_function_config add column if not exists edge_function_secret text;
+
 -- Set once per project (see supabase/functions/README.md) via:
 --   update edge_function_config set
 --     edge_function_url = 'https://<project-ref>.functions.supabase.co/notify-support-message',
---     edge_function_anon_key = '<anon key>'
+--     edge_function_anon_key = '<anon key>',
+--     edge_function_secret = '<a long random string -- e.g. from `openssl rand -hex 32`>'
 --   where id = 'singleton';
--- Until that's run, this trigger silently no-ops (both columns null)
+-- (also set the SAME edge_function_secret value as this Edge Function's own
+-- EDGE_FUNCTION_SECRET secret in Dashboard -> Edge Functions -> Manage
+-- secrets, so the function has something to check the header against.)
+-- Until the url/anon key are set, this trigger silently no-ops (both null)
 -- rather than breaking support chat.
 create extension if not exists pg_net with schema extensions;
 
@@ -827,13 +846,19 @@ as $$
 declare
   fn_url text;
   fn_key text;
+  fn_secret text;
 begin
-  select edge_function_url, edge_function_anon_key into fn_url, fn_key
+  select edge_function_url, edge_function_anon_key, edge_function_secret
+    into fn_url, fn_key, fn_secret
     from edge_function_config where id = 'singleton';
   if fn_url is not null and fn_key is not null then
     perform net.http_post(
       url := fn_url,
-      headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || fn_key),
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || fn_key,
+        'X-Webhook-Secret', coalesce(fn_secret, '')
+      ),
       body := jsonb_build_object(
         'id', new.id,
         'threadStaffId', new.data->>'threadStaffId',
