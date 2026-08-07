@@ -34,22 +34,33 @@ Deno.serve(async (req) => {
     const status = form.get("status"); // "1" = success, "2" = pending, "3" = fail, per docs
     const billcode = form.get("billcode");
     const licenseKey = form.get("order_id"); // this is billExternalReferenceNo echoed back
+    // See create-toyyibpay-bill: a per-bill secret embedded in the callback
+    // URL itself, never returned to the client. licenseKey and billcode are
+    // both already visible to the paying shop's own browser (the create-bill
+    // response), so matching on those two alone would let anyone POST
+    // straight to this public URL and self-upgrade for free without paying
+    // -- this is the actual proof the call came from ToyyibPay's own server.
+    const verify = new URL(req.url).searchParams.get("verify");
 
     if (!licenseKey) {
       return new Response("missing order_id", { status: 400 });
     }
 
     // Only ever act on OUR OWN pending bill for this license -- the
-    // billcode match stops a payment notification for a DIFFERENT bill
-    // (or a replayed/forged callback with a guessed order_id) from
-    // upgrading a license it doesn't actually belong to.
+    // billcode + webhook-secret match stops a payment notification for a
+    // DIFFERENT bill (or a replayed/forged callback with a guessed
+    // order_id) from upgrading a license it doesn't actually belong to.
     const { data: license } = await supabase
       .from("licenses")
-      .select("id, toyyibpay_bill_code")
+      .select("id, toyyibpay_bill_code, toyyibpay_webhook_secret")
       .eq("id", licenseKey)
       .maybeSingle();
 
-    if (!license || license.toyyibpay_bill_code !== billcode) {
+    if (
+      !license || license.toyyibpay_bill_code !== billcode ||
+      !license.toyyibpay_webhook_secret ||
+      license.toyyibpay_webhook_secret !== verify
+    ) {
       return new Response("bill mismatch", { status: 200 }); // 200 so ToyyibPay doesn't endlessly retry a callback that will never match
     }
 

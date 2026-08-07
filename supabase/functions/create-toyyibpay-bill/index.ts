@@ -77,6 +77,15 @@ Deno.serve(async (req) => {
     // webhook (see toyyibpay-webhook) so we know which shop to upgrade
     // once ToyyibPay confirms payment -- this is the only link between the
     // bill and this specific license, so it must survive the round trip.
+    //
+    // webhookSecret is a second, server-only secret for the SAME purpose
+    // ToyyibPay's own signature would serve if it sent one: this app's own
+    // browser already learns licenseKey+billCode from THIS response, so
+    // trusting those two alone on the webhook side would let anyone just
+    // POST straight to the public webhook URL and self-upgrade for free.
+    // Never returned to the client -- only ever sent server-to-server, as
+    // part of the callback URL ToyyibPay itself POSTs back to.
+    const webhookSecret = crypto.randomUUID();
     const form = new URLSearchParams({
       userSecretKey: SECRET_KEY,
       categoryCode: CATEGORY_CODE,
@@ -87,7 +96,7 @@ Deno.serve(async (req) => {
       billAmount: String(Math.round(price * 100)), // ToyyibPay wants cents
       billReturnUrl: `${PUBLIC_APP_URL}?paid=1`,
       billCallbackUrl:
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/toyyibpay-webhook`,
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/toyyibpay-webhook?verify=${webhookSecret}`,
       billExternalReferenceNo: licenseKey,
       billTo: shopName || "Kedai ServisPro",
       billEmail: "no-reply@example.com", // ToyyibPay requires a value here even though this app doesn't collect shop email
@@ -115,12 +124,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Record the pending bill so the webhook has somewhere to write the
-    // eventual result even before payment completes -- also lets a shop
-    // retry/see "payment pending" instead of the licenses row just sitting
-    // unchanged with no trace a bill was ever created.
-    await supabase.from("licenses").update({ toyyibpay_bill_code: billCode })
-      .eq("id", licenseKey);
+    // Record the pending bill (+ its webhook secret) so the webhook has
+    // somewhere to write the eventual result even before payment completes
+    // -- also lets a shop retry/see "payment pending" instead of the
+    // licenses row just sitting unchanged with no trace a bill was ever
+    // created.
+    await supabase.from("licenses").update({
+      toyyibpay_bill_code: billCode,
+      toyyibpay_webhook_secret: webhookSecret,
+    }).eq("id", licenseKey);
 
     return new Response(
       JSON.stringify({ billCode, paymentUrl: `${BASE_URL}/${billCode}` }),

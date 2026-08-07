@@ -49,6 +49,18 @@ alter table licenses add column if not exists credit_balance numeric not null de
 alter table licenses add column if not exists referral_code text unique;
 alter table licenses add column if not exists referred_by text references licenses(id);
 
+-- toyyibpay_webhook_secret: a random per-bill value generated when a real
+-- ToyyibPay bill is created (see supabase/functions/create-toyyibpay-bill),
+-- embedded in that bill's callback URL as a query param and checked back
+-- against it in supabase/functions/toyyibpay-webhook. Without this, the
+-- webhook only trusted licenseKey+billcode to decide who to upgrade -- both
+-- of which the paying shop's own browser already sees in the create-bill
+-- response, so anyone could just POST straight to the public webhook URL
+-- with their own known licenseKey+billcode and upgrade to Pro for free
+-- without ever paying. Nullable -- only real ToyyibPay bills set it; the
+-- test-mode-only simulate_upgrade() below doesn't use this at all.
+alter table licenses add column if not exists toyyibpay_webhook_secret text;
+
 -- Short, human-shareable code -- deliberately NOT the license key itself
 -- (that's a long bearer secret, see src/license.js -- sharing it would let
 -- someone else's app impersonate this shop's license). 6 base-36 chars is
