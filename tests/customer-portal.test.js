@@ -23,7 +23,14 @@ async function run(){
     db.quotations = (db.quotations||[]).filter(q => !(q.items||[]).some(it=>(it.name||'').startsWith('CPT')));
     db.invoices = db.invoices.filter(inv => !(inv.items||[]).some(it=>(it.name||'').startsWith('CPT')));
     db.inventory = db.inventory.filter(i => i.sku !== 'CPT-PROBE');
-    db.customers = db.customers.filter(c => !c.name.startsWith('CPT'));
+    // The literal 'Hijack Attempt' name (no CPT prefix) is a one-time
+    // self-heal for a leftover row created by an earlier version of the
+    // hijack-attempt probe below, before it was renamed to 'CPT Hijack
+    // Attempt' -- that stray row had phone 0181112222, the same phone
+    // "customer A created" reuses, which made this test start failing on
+    // every run AFTER the one that created it (the app's own save-customer
+    // duplicate-phone confirm blocked the plain create).
+    db.customers = db.customers.filter(c => !c.name.startsWith('CPT') && c.name !== 'Hijack Attempt');
     db.vehicles = db.vehicles.filter(v => !v.plate.startsWith('CPT'));
     db.leads = (db.leads||[]).filter(l => !(l.name||'').startsWith('CPT'));
     queueSave();
@@ -212,6 +219,48 @@ async function run(){
   r.checkTrue('customer A dashboard greets them by name', dashboardA.includes('Hi, CPT Customer A'));
   r.checkTrue('customer A dashboard shows their own invoice', dashboardA.includes('RM 50.00'));
 
+  // ================= regression: staff/shop_meta/audit_log + staff-only RPCs must stay closed to a customer session =================
+  // A /code-review ultra pass found that these tables' policies and the
+  // next_counter/claim_staff_record RPCs predated is_customer() (see above)
+  // and were never revisited to exclude it -- "using (true)" let any
+  // registered customer-portal account read the full staff roster (incl.
+  // attendanceToken), the license key in shop_meta, and the whole
+  // audit_log, plus forge audit_log entries and call staff-only RPCs,
+  // directly via the REST API. Fixed in backend/schema.sql; this locks
+  // that fix in so it can't silently regress.
+  const directTableLeak = await anonPage.evaluate(async () => {
+    const client = getCustomerAuthClient();
+    const [staffRes, shopMetaRes, auditRes] = await Promise.all([
+      client.from('staff').select('*'),
+      client.from('shop_meta').select('*'),
+      client.from('audit_log').select('*'),
+    ]);
+    return {
+      staffRows: (staffRes.data || []).length,
+      shopMetaRows: (shopMetaRes.data || []).length,
+      auditRows: (auditRes.data || []).length,
+    };
+  });
+  r.check('customer-portal session sees zero staff rows directly', directTableLeak.staffRows, 0);
+  r.check('customer-portal session sees zero shop_meta rows directly', directTableLeak.shopMetaRows, 0);
+  r.check('customer-portal session sees zero audit_log rows directly', directTableLeak.auditRows, 0);
+
+  const auditForgeAttempt = await anonPage.evaluate(async () => {
+    const client = getCustomerAuthClient();
+    const { error } = await client.from('audit_log').insert({ id: 'cpt-forged-' + Date.now(), data: { action: 'forged by customer-portal test' } });
+    return { blocked: !!error };
+  });
+  r.checkTrue('customer-portal session cannot forge an audit_log entry', auditForgeAttempt.blocked);
+
+  const staffRpcBlocked = await anonPage.evaluate(async () => {
+    const client = getCustomerAuthClient();
+    const counterRes = await client.rpc('next_counter', { counter_name: 'cpt-probe' });
+    const claimRes = await client.rpc('claim_staff_record');
+    return { counterBlocked: !!counterRes.error, claimResult: claimRes.data };
+  });
+  r.checkTrue('customer-portal session cannot call next_counter()', staffRpcBlocked.counterBlocked);
+  r.check('customer-portal session gets null from claim_staff_record()', staffRpcBlocked.claimResult, null);
+
   // ================= second, unrelated customer B -- must NOT see Customer A's data =================
   const emailB = 'cpt-fixed-customer-b@mailinator.com';
   const passwordB = 'CptFixedPassB123!';
@@ -252,6 +301,42 @@ async function run(){
   }, quoteId);
   r.check('customer B cannot fetch customer A\'s quotation by id without a token', crossAccess, null);
 
+  // ================= regression: phone-only linking must not hijack Customer A's existing record =================
+  // A /code-review ultra pass found link_customer_account() would link to
+  // ANY existing unlinked customer row matching the given phone number
+  // alone -- and a phone number isn't a secret (it's on every invoice/
+  // receipt, shared over WhatsApp), so anyone who knew Customer A's phone
+  // could sign up first and hijack their whole history, including
+  // approving/rejecting pending quotations. Fixed to also require a
+  // matching vehicle plate; no plate (as here) must fall through to a
+  // brand-new profile instead of silently claiming Customer A's record.
+  // Dedicated fixed account (not A or B) -- must be a session that has
+  // never linked before, so this actually exercises the phone-matching
+  // path rather than short-circuiting on an already-linked profile.
+  const emailC = 'cpt-fixed-customer-c@mailinator.com';
+  const passwordC = 'CptFixedPassC123!';
+  const custPageC = await browser.newPage({ viewport: { width: 420, height: 900 } });
+  await custPageC.goto(appUrl());
+  const hijackAttempt = await custPageC.evaluate(async (creds) => {
+    const client = getCustomerAuthClient();
+    const { error: signInErr } = await client.auth.signInWithPassword({ email: creds.email, password: creds.password });
+    if (signInErr) {
+      const { error: signUpErr } = await client.auth.signUp({ email: creds.email, password: creds.password });
+      if (signUpErr) return { authError: signUpErr.message };
+    }
+    // 'CPT ...' name -- not just any name -- so the cleanup step at the top
+    // of this test's NEXT run actually removes this leftover profile. This
+    // call is expected to succeed (just not hijack Customer A), so it
+    // really does create a persistent row on the fixed, reused account.
+    const { data } = await client.rpc('link_customer_account', { p_phone: '0181112222', p_name: 'CPT Hijack Attempt' });
+    return { data };
+  }, { email: emailC, password: passwordC });
+  r.checkTrue(
+    'phone-only link attempt does not hijack customer A\'s record',
+    !!(hijackAttempt.data && hijackAttempt.data.success && hijackAttempt.data.customerId !== custAId)
+  );
+  await custPageC.close();
+
   // ================= staff account cannot register as a customer =================
   const { TEST_EMAIL, TEST_PASSWORD } = require('./helpers');
   const staffLinkResult = await custPageB.evaluate(async (creds) => {
@@ -271,7 +356,13 @@ async function run(){
   r.checkTrue('staff can still log in normally after a rejected customer-link attempt', await staffRecheckPage.evaluate(() => !!state.currentStaff));
   await staffRecheckPage.close();
 
-  r.checkEmpty('no console/page errors (customer A session)', anonErrors);
+  // The RLS/RPC-rejection regression checks above deliberately trigger a
+  // real 403 (audit_log insert blocked by RLS) and 400 (next_counter's
+  // `raise exception`) -- the browser logs failed network requests to the
+  // console regardless of the app handling them correctly, so those two
+  // are expected here and filtered out before the catch-all check below.
+  const anonErrorsFiltered = anonErrors.filter(e => !/Failed to load resource.*status of (403|400)/.test(e));
+  r.checkEmpty('no console/page errors (customer A session)', anonErrorsFiltered);
   r.checkEmpty('no console/page errors (customer B session)', errorsB);
 
   // ---- cleanup ----
@@ -279,7 +370,14 @@ async function run(){
     db.quotations = (db.quotations||[]).filter(q => !(q.items||[]).some(it=>(it.name||'').startsWith('CPT')));
     db.invoices = db.invoices.filter(inv => !(inv.items||[]).some(it=>(it.name||'').startsWith('CPT')));
     db.inventory = db.inventory.filter(i => i.sku !== 'CPT-PROBE');
-    db.customers = db.customers.filter(c => !c.name.startsWith('CPT'));
+    // The literal 'Hijack Attempt' name (no CPT prefix) is a one-time
+    // self-heal for a leftover row created by an earlier version of the
+    // hijack-attempt probe below, before it was renamed to 'CPT Hijack
+    // Attempt' -- that stray row had phone 0181112222, the same phone
+    // "customer A created" reuses, which made this test start failing on
+    // every run AFTER the one that created it (the app's own save-customer
+    // duplicate-phone confirm blocked the plain create).
+    db.customers = db.customers.filter(c => !c.name.startsWith('CPT') && c.name !== 'Hijack Attempt');
     db.vehicles = db.vehicles.filter(v => !v.plate.startsWith('CPT'));
     db.leads = (db.leads||[]).filter(l => !(l.name||'').startsWith('CPT'));
     queueSave();

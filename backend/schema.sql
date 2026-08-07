@@ -942,25 +942,92 @@ revoke execute on function kiosk_respond_quotation(text, text, boolean) from pub
 grant execute on function kiosk_respond_quotation(text, text, boolean) to anon;
 grant execute on function kiosk_respond_quotation(text, text, boolean) to authenticated;
 
+-- rate_limit_attempts / rate_limit_check(): a lightweight, in-database
+-- abuse guard for the anonymous RPCs below that gate on something a
+-- scripted client could try to brute-force (a phone number against a
+-- known plate, a plate against a known phone) -- these run as the
+-- Postgres 'anon' role with no other authentication, so nothing else
+-- stops rapid repeated guessing. This app has no WAF/edge rate limiter,
+-- so this is a Postgres-only alternative: not a defense against a large
+-- distributed botnet, but enough to make casual/scripted brute-forcing
+-- impractically slow. Revoked from anon/authenticated/public entirely --
+-- it's only ever meant to be called FROM another security definer
+-- function below (which then runs as this function's owner, same as how
+-- is_customer() above is itself revoked from anon yet still callable from
+-- inside e.g. kiosk_get_quotation) -- if it were directly callable, an
+-- attacker could grief a real customer's own bucket (e.g. spam-call it
+-- with someone else's real plate) to lock out their legitimate use.
+create table if not exists rate_limit_attempts (
+  bucket text not null,
+  identifier text not null,
+  attempted_at timestamptz not null default now()
+);
+create index if not exists rate_limit_attempts_lookup on rate_limit_attempts (bucket, identifier, attempted_at);
+alter table rate_limit_attempts enable row level security;
+revoke all on rate_limit_attempts from anon, authenticated;
+
+-- Records this attempt, then returns true if the caller is still within
+-- p_max_attempts over the trailing p_window_seconds, false if they should
+-- be refused. Callers that get refused should return the exact SAME
+-- response as a genuinely wrong guess (see usages below), never a
+-- distinct "rate limited" error -- otherwise the error itself tells an
+-- attacker when to back off vs. when they're just wrong yet.
+create or replace function rate_limit_check(p_bucket text, p_identifier text, p_max_attempts int, p_window_seconds int)
+returns boolean
+language plpgsql
+security definer
+as $$
+declare
+  recent_count int;
+begin
+  insert into rate_limit_attempts (bucket, identifier) values (p_bucket, p_identifier);
+  select count(*) into recent_count
+    from rate_limit_attempts
+    where bucket = p_bucket and identifier = p_identifier
+      and attempted_at > now() - (p_window_seconds || ' seconds')::interval;
+  -- Opportunistic cleanup (~1% of calls) instead of a separate cron job --
+  -- sweeps this bucket's own stale rows so the table doesn't grow
+  -- unbounded under real traffic.
+  if random() < 0.01 then
+    delete from rate_limit_attempts
+      where bucket = p_bucket and attempted_at < now() - (p_window_seconds || ' seconds')::interval;
+  end if;
+  return recent_count <= p_max_attempts;
+end;
+$$;
+revoke execute on function rate_limit_check(text, text, int, int) from public;
+revoke execute on function rate_limit_check(text, text, int, int) from anon;
+revoke execute on function rate_limit_check(text, text, int, int) from authenticated;
+
 -- kiosk_vehicle_history(): full service history for a vehicle, gated on
 -- BOTH the plate AND the phone number of the customer it's registered to
 -- (unlike kiosk_lookup_job, which only needs a job/plate number) -- a
 -- single job status is low-stakes to expose to anyone with the plate
 -- number (visible on the car itself), but a full history is more than a
--- stranger walking past the vehicle should be able to pull up.
+-- stranger walking past the vehicle should be able to pull up. Rate
+-- limited per plate (not phone) -- the plate is the "known" half an
+-- attacker would already have, so this is what actually throttles someone
+-- scripting through phone-number guesses against it. Generous enough
+-- (60/hour) to never bother a real repeat customer or this app's own test
+-- suite re-running a few times an hour, while still capping any scripted
+-- guessing loop at a small, impractical number.
 create or replace function kiosk_vehicle_history(p_plate text, p_phone text)
 returns jsonb
 language plpgsql
 security definer
-stable
 as $$
 declare
   veh record;
+  norm_plate text := replace(lower(coalesce(p_plate,'')), ' ', '');
 begin
+  if norm_plate = '' or not rate_limit_check('vehicle_history', norm_plate, 60, 3600) then
+    return null;
+  end if;
+
   select v.id, v.data->>'plate' as plate, v.data->>'model' as model, v.data->>'customerId' as customer_id
     into veh
     from vehicles v
-    where replace(lower(v.data->>'plate'), ' ', '') = replace(lower(p_plate), ' ', '')
+    where replace(lower(v.data->>'plate'), ' ', '') = norm_plate
     limit 1;
   if not found then return null; end if;
 
@@ -1026,6 +1093,14 @@ declare
   safe_notes text := left(trim(coalesce(p_notes,'')), 1000);
 begin
   if safe_name = '' or safe_phone = '' then
+    return false;
+  end if;
+  -- Anti-spam, not anti-brute-force here (there's nothing to guess in
+  -- this RPC) -- caps how many Leads a single phone number can flood this
+  -- public, unauthenticated form with. 20/hour is generous enough for a
+  -- genuine customer resubmitting a booking a few times, or this app's
+  -- own test suite re-running repeatedly.
+  if not rate_limit_check('request_appointment', safe_phone, 20, 3600) then
     return false;
   end if;
   notes := format('Kenderaan: %s%sTarikh/masa diminta: %s %s%s',
@@ -1169,6 +1244,18 @@ begin
   select * into existing from customers where user_id = auth.uid();
   if found then
     return jsonb_build_object('success', true, 'customerId', existing.id, 'name', existing.data->>'name');
+  end if;
+
+  -- Rate limited per phone, only for an unlinked session past this point --
+  -- the reverse direction of kiosk_vehicle_history's own guard above: this
+  -- is what would throttle someone scripting through plate guesses against
+  -- a phone number they already know, trying to get the phone+plate match
+  -- below to hit. Same generous 30/hour ceiling reasoning as that guard.
+  -- Placed after the already-linked check above so a returning, already-
+  -- linked session never spends a rate-limit slot just re-confirming its
+  -- own link -- nothing to guess there, auth.uid() isn't guessable.
+  if not rate_limit_check('link_customer_account', norm_phone, 30, 3600) then
+    return jsonb_build_object('success', false, 'reason', 'invalid_phone');
   end if;
 
   if norm_plate <> '' then
