@@ -288,7 +288,7 @@ body::before{
      character-width math) against 320/360/390px widths to land on a
      factor that fills most of the width without ever wrapping "ServisPro"
      onto two lines. */
-  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(56px, 23vw, 110px);line-height:.95;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
+  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(28px, 11.5vw, 55px);line-height:.95;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
   .dash-hero .stat-label{color:rgba(243,240,232,.72);}
   .dash-hero .stat-sub{color:rgba(243,240,232,.55);}
   /* Icons sit in their own row ABOVE the brand wordmark now, not overlaid
