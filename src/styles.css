@@ -227,6 +227,7 @@ body::before{
    viewport is active, since @media doesn't add specificity on its own --
    the exact bug class already hit once earlier this session. */
 .dash-hero-brand{display:none;}
+.dash-hero-icon-row{display:none;}
 .hero-notif{display:none;}
 .hero-chat{display:none;}
 
@@ -251,7 +252,7 @@ body::before{
      .stat-sub normally resolve to. */
   .dashboard-view{display:flex;flex-direction:column;}
   .dash-hero{
-    order:-3;text-align:left;position:relative;
+    order:-3;text-align:left;
     background:linear-gradient(135deg, #1c130a, #0d0906 65%, #030201);
     border-color:rgba(242,167,59,.28);
     /* Full-bleed: break out of .content's side padding so the banner runs
@@ -268,28 +269,42 @@ body::before{
      source order to beat the plain `.panel{border-radius:var(--r-lg)}`
      rule declared later in this file -- the exact "later same-specificity
      rule wins regardless of media query" trap already hit a few times this
-     session. */
-  .panel.dash-hero{border-radius:0;}
-  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:60px;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
+     session. Sticky lives here for the exact same reason -- the plain
+     `.dash-hero{...}` rule above lost this fight against `.panel`'s own
+     `position:relative` (equal specificity, .panel declared later in the
+     file, @media adds no specificity of its own to tip it) when tried
+     there first; confirmed via getComputedStyle in a live page that it was
+     silently resolving to relative instead of sticky. Same z-index as
+     .topbar below (they never actually compete -- .topbar collapses to 0
+     height whenever this hero is showing, see [data-hero-notif] further
+     down), so this becomes the page's sticky header in its place. */
+  .panel.dash-hero{border-radius:0;position:sticky;top:0;z-index:5;}
+  /* clamp() with a vw-based preferred size, not a fixed px guess -- this
+     media query alone covers everything from a ~320px small phone up to
+     an 880px tablet, and a fixed size that fits a 390px screen edge-to-
+     edge would either overflow/wrap on a narrower one or look small and
+     leave dead space on a wider one. Scales with the actual viewport
+     instead, capped top and bottom, verified empirically (not just by
+     character-width math) against 320/360/390px widths to land on a
+     factor that fills most of the width without ever wrapping "ServisPro"
+     onto two lines. */
+  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(56px, 23vw, 110px);line-height:.95;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
   .dash-hero .stat-label{color:rgba(243,240,232,.72);}
   .dash-hero .stat-sub{color:rgba(243,240,232,.55);}
-  /* Replaces the topbar's own bell on this page -- see [data-hero-notif] on
-     .main below, and the topbar-title-dashboard rule further down, which
-     together clear the topbar so this hero banner is the page's whole
-     "header" on mobile, the way the reference app's home screen has no
-     separate page-title bar above its own branded banner. The compound
-     `.dash-hero .hero-notif` selector isn't just scoping -- it also has to
-     out-specificity the plain `.notif-wrap{position:relative}` rule (same
-     element, both classes) declared later in this file, which would
-     otherwise win on source order and silently cancel this positioning. */
-  .dash-hero .hero-notif{display:block;position:absolute;top:16px;right:16px;}
+  /* Icons sit in their own row ABOVE the brand wordmark now, not overlaid
+     on top of it via position:absolute -- with the wordmark sized to fill
+     most of the panel's width (see .dash-hero-brand below), an absolute-
+     positioned icon in the top-right corner would sit right on top of the
+     text itself instead of beside it. A normal flex row reserves its own
+     space so the (much bigger) text below never has to share it.
+     Replaces the topbar's own bell/chat on this page -- see
+     [data-hero-notif] on .main below, and the topbar-title-dashboard rule
+     further down, which together clear the topbar so this hero banner is
+     the page's whole "header" on mobile. */
+  .dash-hero-icon-row{display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;}
+  .dash-hero .hero-notif{display:block;position:relative;}
   .hero-notif .btn-icon{background:rgba(255,255,255,.1);}
-  /* Same reasoning as .hero-notif above, positioned just to its left --
-     the floating mobile-ai-bubble used to cover chat access once the
-     topbar collapsed away below, but that bubble is a plain AI shortcut
-     now (see mobile-ai-bubble), so this hero copy is the only way to reach
-     support chat from this screen without it. */
-  .dash-hero .hero-chat{display:block;position:absolute;top:16px;right:56px;}
+  .dash-hero .hero-chat{display:block;position:relative;}
   .hero-chat .btn-icon{background:rgba(255,255,255,.1);}
   /* Topbar's own bell/chat/title are redundant once the hero above is
      showing its own copies (Admin dashboard only, see [data-hero-notif] in
