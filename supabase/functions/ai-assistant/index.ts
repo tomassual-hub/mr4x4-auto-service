@@ -32,6 +32,19 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
+// Supabase's gateway does NOT add CORS headers on its own -- without these,
+// the browser's preflight OPTIONS request for this cross-origin call (app
+// on github.io, function on supabase.co) gets no Access-Control-Allow-*
+// headers back, so the browser silently blocks the real request before it
+// ever reaches this function. The client then just sees a generic network
+// error. Every response below (including the OPTIONS preflight itself)
+// must carry these headers.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+const JSON_HEADERS = { ...CORS_HEADERS, "Content-Type": "application/json" };
+
 // Free-tier-eligible as of when this was written -- Google's model lineup
 // changes over time, so if this ever starts 404ing, check
 // https://ai.google.dev/gemini-api/docs/models for the current free-tier
@@ -81,9 +94,14 @@ async function callGemini(body: unknown): Promise<Response> {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
+
   if (!GEMINI_API_KEY) {
     return new Response(JSON.stringify({ error: "not_configured" }), {
       status: 200,
+      headers: JSON_HEADERS,
     });
   }
 
@@ -98,6 +116,7 @@ Deno.serve(async (req) => {
     if (!user) {
       return new Response(JSON.stringify({ error: "not_authenticated" }), {
         status: 200,
+        headers: JSON_HEADERS,
       });
     }
     const { data: staffRow } = await callerClient.from("staff").select("id")
@@ -105,6 +124,7 @@ Deno.serve(async (req) => {
     if (!staffRow) {
       return new Response(JSON.stringify({ error: "staff_only" }), {
         status: 200,
+        headers: JSON_HEADERS,
       });
     }
 
@@ -112,6 +132,7 @@ Deno.serve(async (req) => {
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "invalid_input" }), {
         status: 200,
+        headers: JSON_HEADERS,
       });
     }
     // Trust nothing about shape/size from the client -- coerce every turn
@@ -124,6 +145,7 @@ Deno.serve(async (req) => {
     if (turns.length === 0) {
       return new Response(JSON.stringify({ error: "invalid_input" }), {
         status: 200,
+        headers: JSON_HEADERS,
       });
     }
 
@@ -141,11 +163,12 @@ Deno.serve(async (req) => {
       if (geminiRes.status === 429) {
         return new Response(JSON.stringify({ error: "rate_limited" }), {
           status: 200,
+          headers: JSON_HEADERS,
         });
       }
       return new Response(
         JSON.stringify({ error: "ai_error", detail: await geminiRes.text() }),
-        { status: 200 },
+        { status: 200, headers: JSON_HEADERS },
       );
     }
 
@@ -154,15 +177,18 @@ Deno.serve(async (req) => {
     if (!reply) {
       return new Response(JSON.stringify({ error: "ai_bad_response" }), {
         status: 200,
+        headers: JSON_HEADERS,
       });
     }
 
     return new Response(JSON.stringify({ reply: String(reply).slice(0, 4000) }), {
       status: 200,
+      headers: JSON_HEADERS,
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
+      headers: JSON_HEADERS,
     });
   }
 });
