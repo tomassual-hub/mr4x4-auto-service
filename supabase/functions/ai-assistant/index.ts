@@ -6,11 +6,16 @@
 // model's own knowledge -- it has no access to this shop's own data
 // (no db reads here at all beyond verifying the caller is real staff).
 //
-// Uses Google's Gemini API specifically because it has a real free tier (no
-// credit card, no subscription) -- see
-// https://ai.google.dev/gemini-api/docs/pricing. Free tiers carry real rate
-// limits (a handful of requests per minute, capped per day) -- fine for
-// occasional staff questions, not something to call in a loop.
+// Uses Google's Gemini API as the primary model, with Groq as an optional
+// fallback -- both specifically because they have real free tiers (no
+// credit card, no subscription):
+//   https://ai.google.dev/gemini-api/docs/pricing
+//   https://console.groq.com/docs/rate-limits
+// Free tiers carry real rate limits (a handful of requests per minute,
+// capped per day) -- fine for occasional staff questions, not something to
+// call in a loop. Groq is only tried if Gemini is unset or fails (including
+// a real "AI is busy" rate-limit hit) -- it's a safety net, not a
+// load-balancer between the two.
 //
 // DEPLOY (same process as the other functions here -- see
 // supabase/functions/README.md): Dashboard -> Edge Functions -> Deploy a
@@ -20,15 +25,21 @@
 // SECRETS (Dashboard -> Edge Functions -> Manage secrets):
 //   GEMINI_API_KEY -- free, from https://aistudio.google.com/apikey
 //                     (Google account, no billing needed for the free tier)
+//   GROQ_API_KEY   -- optional fallback, free, from
+//                     https://console.groq.com/keys (no billing needed for
+//                     the free tier). If unset, this function just behaves
+//                     as it did before -- Gemini only, no fallback attempt.
 // SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY are all
 // provided automatically to every Edge Function -- the dashboard actively
 // rejects manually setting a secret with the SUPABASE_ prefix, so don't try.
 //
-// Until GEMINI_API_KEY is set, this returns { error: "not_configured" }
-// (200, not 500) so the client can show a clear "not available yet" state.
+// Until at least one of GEMINI_API_KEY/GROQ_API_KEY is set, this returns
+// { error: "not_configured" } (200, not 500) so the client can show a clear
+// "not available yet" state.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
@@ -45,11 +56,14 @@ const CORS_HEADERS = {
 };
 const JSON_HEADERS = { ...CORS_HEADERS, "Content-Type": "application/json" };
 
-// Free-tier-eligible as of when this was written -- Google's model lineup
-// changes over time, so if this ever starts 404ing, check
-// https://ai.google.dev/gemini-api/docs/models for the current free-tier
-// model name and update this constant (nothing else here needs to change).
+// Free-tier-eligible as of when this was written -- each provider's model
+// lineup changes over time, so if either ever starts 404ing, check the
+// current free-tier model name and update the relevant constant (nothing
+// else here needs to change):
+//   Gemini -- https://ai.google.dev/gemini-api/docs/models
+//   Groq   -- https://console.groq.com/docs/models
 const GEMINI_MODEL = "gemini-2.0-flash";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 const SYSTEM_PROMPT =
   "You are a helpful assistant for staff at a car workshop in Malaysia. " +
@@ -63,20 +77,20 @@ const SYSTEM_PROMPT =
 
 // The app's UI language (state.language in the client) -- staff mostly work
 // in Malay, so the reply should match rather than default to whatever
-// language Gemini guesses from the question's wording.
+// language the model guesses from the question's wording.
 function langInstruction(lang: unknown): string {
   return lang === "en"
     ? "Reply in English."
     : "Reply in Bahasa Malaysia (everyday spoken register used in Malaysian workshops, not overly formal).";
 }
 
-const MAX_TURNS = 12; // caps both the request payload size and Gemini's own context/cost per call
+const MAX_TURNS = 12; // caps both the request payload size and each model's own context/cost per call
 
 // Gemini occasionally returns 503 ("model overloaded") on a transient basis
 // under free-tier load -- one short retry recovers most of those without
 // making the user manually resend. A 429 (real rate limit) is not retried
-// here since retrying immediately won't help; it's surfaced to the client
-// as a distinct "rate_limited" error instead of the generic ai_error.
+// here since retrying immediately won't help; that's what the Groq fallback
+// below is for instead.
 async function callGemini(body: unknown): Promise<Response> {
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
@@ -93,12 +107,26 @@ async function callGemini(body: unknown): Promise<Response> {
   return res;
 }
 
+// Groq's API is OpenAI-compatible (chat completions), unlike Gemini's own
+// shape -- so this takes a plain {role, content} messages array rather than
+// Gemini's {systemInstruction, contents}.
+async function callGroq(messages: { role: string; content: string }[]): Promise<Response> {
+  return await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({ model: GROQ_MODEL, messages }),
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
-  if (!GEMINI_API_KEY) {
+  if (!GEMINI_API_KEY && !GROQ_API_KEY) {
     return new Response(JSON.stringify({ error: "not_configured" }), {
       status: 200,
       headers: JSON_HEADERS,
@@ -149,39 +177,64 @@ Deno.serve(async (req) => {
       });
     }
 
-    const geminiRes = await callGemini({
-      systemInstruction: {
-        parts: [{ text: `${SYSTEM_PROMPT} ${langInstruction(lang)}` }],
-      },
-      contents: turns.map((m) => ({
-        role: m.role,
-        parts: [{ text: m.text }],
-      })),
-    });
+    let reply: string | null = null;
+    let lastError: { error: string; detail?: string } | null = null;
 
-    if (!geminiRes.ok) {
-      if (geminiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "rate_limited" }), {
-          status: 200,
-          headers: JSON_HEADERS,
-        });
+    if (GEMINI_API_KEY) {
+      const geminiRes = await callGemini({
+        systemInstruction: {
+          parts: [{ text: `${SYSTEM_PROMPT} ${langInstruction(lang)}` }],
+        },
+        contents: turns.map((m) => ({
+          role: m.role,
+          parts: [{ text: m.text }],
+        })),
+      });
+      if (geminiRes.ok) {
+        const geminiData = await geminiRes.json();
+        const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) reply = String(text).slice(0, 4000);
+        else lastError = { error: "ai_bad_response" };
+      } else {
+        lastError = geminiRes.status === 429
+          ? { error: "rate_limited" }
+          : { error: "ai_error", detail: await geminiRes.text() };
       }
-      return new Response(
-        JSON.stringify({ error: "ai_error", detail: await geminiRes.text() }),
-        { status: 200, headers: JSON_HEADERS },
-      );
     }
 
-    const geminiData = await geminiRes.json();
-    const reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!reply) {
-      return new Response(JSON.stringify({ error: "ai_bad_response" }), {
+    // Only reached if Gemini was unset, or just failed above -- Groq is a
+    // fallback, never called in parallel with a successful Gemini reply.
+    if (!reply && GROQ_API_KEY) {
+      const groqRes = await callGroq([
+        { role: "system", content: `${SYSTEM_PROMPT} ${langInstruction(lang)}` },
+        ...turns.map((m) => ({
+          role: m.role === "model" ? "assistant" : "user",
+          content: m.text,
+        })),
+      ]);
+      if (groqRes.ok) {
+        const groqData = await groqRes.json();
+        const text = groqData?.choices?.[0]?.message?.content;
+        if (text) {
+          reply = String(text).slice(0, 4000);
+          lastError = null;
+        } else {
+          lastError = { error: "ai_bad_response" };
+        }
+      } else {
+        lastError = groqRes.status === 429
+          ? { error: "rate_limited" }
+          : { error: "ai_error", detail: await groqRes.text() };
+      }
+    }
+
+    if (reply) {
+      return new Response(JSON.stringify({ reply }), {
         status: 200,
         headers: JSON_HEADERS,
       });
     }
-
-    return new Response(JSON.stringify({ reply: String(reply).slice(0, 4000) }), {
+    return new Response(JSON.stringify(lastError ?? { error: "ai_error" }), {
       status: 200,
       headers: JSON_HEADERS,
     });

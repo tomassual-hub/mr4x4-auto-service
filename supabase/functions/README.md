@@ -108,9 +108,11 @@ Inspection Checklist modal, `src/ai-assist.js`). A starting point for the
 mechanic, never a diagnosis on its own — the checklist is still filled in
 by hand exactly as before.
 
-Uses Google's Gemini API specifically because it has a real free tier (no
-credit card, no subscription) — see
-[ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing).
+Uses Google's Gemini API as the primary model, with Groq as an optional
+fallback if Gemini is unset or fails (including a real free-tier rate-limit
+hit) — both have a real free tier (no credit card, no subscription): see
+[ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing)
+and [console.groq.com/docs/rate-limits](https://console.groq.com/docs/rate-limits).
 
 ### Deploy
 
@@ -123,21 +125,23 @@ name it exactly `ai-suggest-checklist` → paste
 | Secret | Value |
 |---|---|
 | `GEMINI_API_KEY` | Free, from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — Google account, no billing needed for the free tier |
+| `GROQ_API_KEY` | Optional fallback. Free, from [console.groq.com/keys](https://console.groq.com/keys) — no billing needed for the free tier. If unset, this function behaves exactly as before: Gemini only, no fallback attempt |
 
-That's the only one to set manually. `SUPABASE_URL` / `SUPABASE_ANON_KEY` /
-`SUPABASE_SERVICE_ROLE_KEY` are all provided automatically to every Edge
-Function — the dashboard actively rejects manually setting a secret with
-the `SUPABASE_` prefix, so don't try. `SUPABASE_ANON_KEY` here is used only
-to verify the calling staff member's own session server-side, never to
-bypass RLS.
+`SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` are all
+provided automatically to every Edge Function — the dashboard actively
+rejects manually setting a secret with the `SUPABASE_` prefix, so don't
+try. `SUPABASE_ANON_KEY` here is used only to verify the calling staff
+member's own session server-side, never to bypass RLS.
 
-Until `GEMINI_API_KEY` is set, this returns `{ error: "not_configured" }`
-and the button in the app shows "AI suggestion isn't available right now"
-instead of a suggestion — nothing else about the checklist changes.
+Until at least one of `GEMINI_API_KEY`/`GROQ_API_KEY` is set, this returns
+`{ error: "not_configured" }` and the button in the app shows "AI
+suggestion isn't available right now" instead of a suggestion — nothing
+else about the checklist changes.
 
 Free-tier rate limits are real (a handful of requests per minute, capped
 per day) — fine for one shop's occasional per-job lookup, not something to
-call in a loop.
+call in a loop. Groq is only tried as a fallback after Gemini fails, never
+in parallel — it's a safety net, not a way to double throughput.
 
 ## ai-assistant
 
@@ -147,7 +151,7 @@ tied to a specific job the way `ai-suggest-checklist` above is. Answers
 general automotive/workshop questions using the model's own knowledge; has
 no access to this shop's own customers/jobs/inventory data.
 
-Same Gemini free-tier reasoning as `ai-suggest-checklist` above.
+Same Gemini-primary/Groq-fallback reasoning as `ai-suggest-checklist` above.
 
 ### Deploy
 
@@ -159,10 +163,11 @@ name it exactly `ai-assistant` → paste `ai-assistant/index.ts`.
 | Secret | Value |
 |---|---|
 | `GEMINI_API_KEY` | Same key as `ai-suggest-checklist` above — free, from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| `GROQ_API_KEY` | Optional fallback, same key as `ai-suggest-checklist` above if you set one there — free, from [console.groq.com/keys](https://console.groq.com/keys) |
 
-That's the only one to set manually — same auto-provided `SUPABASE_*` vars
-as every other function here.
+Same auto-provided `SUPABASE_*` vars as every other function here.
 
-Until `GEMINI_API_KEY` is set, this returns `{ error: "not_configured" }`
-and the assistant replies with a generic "can't answer right now" message
-instead of a real one — the chat UI itself still opens and works either way.
+Until at least one of `GEMINI_API_KEY`/`GROQ_API_KEY` is set, this returns
+`{ error: "not_configured" }` and the assistant replies with a generic
+"can't answer right now" message instead of a real one — the chat UI
+itself still opens and works either way.
