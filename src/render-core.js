@@ -169,7 +169,7 @@ function render(){
       </div>
       ${renderMobileTabBar()}
       ${renderMobileMoreSheet()}
-      ${renderMobileHelpBubble()}
+      ${renderMobileAiBubble()}
     </div>
     ${state.modal ? renderModal() : ''}
     ${state.confirmAction ? renderConfirmModal() : ''}

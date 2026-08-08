@@ -217,7 +217,7 @@ body::before{
    bar and sheet simply never render. */
 .mobile-tabbar{display:none;}
 .more-sheet{display:none;}
-.mobile-help-bubble{display:none;}
+.mobile-ai-bubble{display:none;}
 /* Desktop already carries the ServisPro brand in the sidebar (see
    .brand-title in chrome.js/renderSidebar) -- this wordmark is mobile-only,
    where there's no persistent sidebar to show it. Hidden by default,
@@ -228,6 +228,7 @@ body::before{
    the exact bug class already hit once earlier this session. */
 .dash-hero-brand{display:none;}
 .hero-notif{display:none;}
+.hero-chat{display:none;}
 
 @media screen and (max-width:880px){
   .sidebar{display:none;}
@@ -283,14 +284,18 @@ body::before{
      otherwise win on source order and silently cancel this positioning. */
   .dash-hero .hero-notif{display:block;position:absolute;top:16px;right:16px;}
   .hero-notif .btn-icon{background:rgba(255,255,255,.1);}
-  /* Topbar's own bell/title are redundant once the hero above is showing
-     its own copies (Admin dashboard only, see [data-hero-notif] set in
+  /* Same reasoning as .hero-notif above, positioned just to its left --
+     the floating mobile-ai-bubble used to cover chat access once the
+     topbar collapsed away below, but that bubble is a plain AI shortcut
+     now (see mobile-ai-bubble), so this hero copy is the only way to reach
+     support chat from this screen without it. */
+  .dash-hero .hero-chat{display:block;position:absolute;top:16px;right:56px;}
+  .hero-chat .btn-icon{background:rgba(255,255,255,.1);}
+  /* Topbar's own bell/chat/title are redundant once the hero above is
+     showing its own copies (Admin dashboard only, see [data-hero-notif] in
      render-core.js) -- hidden rather than not-rendered so no other view's
      topbar layout has to account for their absence. */
   .main[data-hero-notif="1"] .topbar-notif{display:none;}
-  /* Chat is still reachable via the floating mobile-help-bubble on this
-     same page -- no need for a second entry point once the topbar itself
-     is collapsed away (see .topbar rule below). */
   .main[data-hero-notif="1"] .topbar-chat{display:none;}
   .main[data-hero-notif="1"] .topbar-title-dashboard{display:none;}
   /* Collapses the whole topbar strip to nothing so the hero below starts
@@ -365,14 +370,14 @@ body::before{
   .mobile-tab-badge{position:absolute;top:1px;right:16%;background:var(--danger);color:#fff;font-size:9px;font-weight:700;border-radius:20px;min-width:15px;height:15px;display:flex;align-items:center;justify-content:center;padding:0 3px;line-height:1;box-shadow:0 0 0 2px var(--glass-2);}
   .mobile-tab-item.active .mobile-tab-badge{box-shadow:0 0 0 2px var(--accent);}
 
-  .mobile-help-bubble{
+  .mobile-ai-bubble{
     display:flex;align-items:center;justify-content:center;
     position:fixed;right:16px;bottom:calc(100px + env(safe-area-inset-bottom));z-index:44;
     width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
     background:linear-gradient(135deg, var(--accent), var(--accent-2));color:var(--accent-ink);
     box-shadow:0 10px 26px -8px var(--accent-shadow), inset 0 1px 0 rgba(255,255,255,.3);
   }
-  .mobile-help-bubble:active{transform:scale(.94);}
+  .mobile-ai-bubble:active{transform:scale(.94);}
 
   .user-name,.user-role{display:none;}
   .topbar-account{display:none;}

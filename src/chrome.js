@@ -139,20 +139,20 @@ function renderMobileMoreSheet(){
   </div>`;
 }
 
-// Floating help launcher, mobile only -- a placeholder for a future in-app
-// support/assistant channel (see the reference app's own floating bubble),
-// not wired to anything real yet, so it just shows a "coming soon" toast
-// (see the 'mobile-help' binding in event-handlers.js). Hidden whenever a
-// sheet/modal is already covering the screen so it can't float on top of
-// or behind either.
-function renderMobileHelpBubble(){
+// Floating AI shortcut, mobile only -- jumps straight to Jobs, since
+// that's where the actual AI feature lives (open a job -> Checklist ->
+// "AI Suggestion", see src/ai-assist.js). Used to be the floating support-
+// chat launcher; chat now only needs one entry point (the topbar/hero chat
+// icon, see renderSupportChatButton), so this bubble was freed up for a
+// second, more-visible AI entry point instead of two icons on screen doing
+// similar jobs. Hidden whenever a sheet/modal is already covering the
+// screen so it can't float on top of or behind either.
+function renderMobileAiBubble(){
   if(state.navOpen || state.modal || state.confirmAction || state.showOnboarding) return '';
   const en = state.language==='en';
-  const unread = supportUnreadCount();
   return `
-  <button class="mobile-help-bubble" data-action="open-support-chat" title="${en?'Support':'Sokongan'}">
-    ${ICONS.chat}
-    ${unread>0 ? `<span class="notif-badge">${unread}</span>` : ''}
+  <button class="mobile-ai-bubble" data-nav="jobs" title="${en?'AI Assistant':'Pembantu AI'}">
+    ${ICONS.sparkle}
   </button>`;
 }
 
@@ -289,6 +289,28 @@ function renderNotifBell(extraClass){
     </div>` : ''}
   </div>`;
 }
+// Shared by the topbar and the mobile dashboard hero, same reasoning as
+// renderNotifBell above -- the hero collapses the rest of the topbar away
+// on mobile (see [data-hero-notif] in styles.css), so support chat needs
+// its own copy there too or it becomes unreachable on that one screen.
+function renderSupportChatButton(extraClass){
+  const en = state.language==='en';
+  const unread = supportUnreadCount();
+  // Wrapped the same way renderNotifBell wraps its own button -- the
+  // button itself already needs position:relative (as the anchor for its
+  // own .notif-badge), so the hero/topbar placement classes go on this
+  // outer wrapper instead, not the button, or the two position rules would
+  // just fight each other (inline style always wins over a stylesheet
+  // rule, so the button's own position:relative silently ate this
+  // function's first attempt at position:absolute placement here).
+  return `
+  <div class="notif-wrap ${extraClass||''}">
+    <button class="btn-icon" data-action="open-support-chat" title="${en?'Support':'Sokongan'}" style="position:relative;">
+      ${ICONS.chat}
+      ${unread>0 ? `<span class="notif-badge">${unread}</span>` : ''}
+    </button>
+  </div>`;
+}
 function renderTopbar(){
   const titles = {dashboard:t('title_dashboard'), jobs:t('title_jobs'), pos:t('title_pos'), inventory:t('title_inventory'), customers:t('title_customers'), reports:t('title_reports'), staffpage:t('title_staffpage'), appointments:t('title_appointments'), settings:t('title_settings'), payroll:t('title_payroll'), techref: state.language==='en'?'Technical Reference':'Rujukan Teknikal', account: state.language==='en'?'Account':'Akaun'};
   const en = state.language==='en';
@@ -314,11 +336,7 @@ function renderTopbar(){
         <option value="all" ${state.currentBranch==='all'?'selected':''}>${en?'All Branches':'Semua Cawangan'}</option>
         ${db.branches.map(b=>`<option value="${b.id}" ${state.currentBranch===b.id?'selected':''}>${esc(b.name)}</option>`).join('')}
       </select>` : ''}
-      ${(()=>{ const unread = supportUnreadCount(); return `
-      <button class="btn-icon topbar-chat" data-action="open-support-chat" title="${en?'Support':'Sokongan'}" style="position:relative;">
-        ${ICONS.chat}
-        ${unread>0 ? `<span class="notif-badge">${unread}</span>` : ''}
-      </button>`; })()}
+      ${renderSupportChatButton('topbar-chat')}
       ${renderNotifBell('topbar-notif')}
       <div class="topbar-account">
         <div class="theme-toggle" data-action="toggle-theme" title="${tt('Tukar tema')}">

@@ -599,7 +599,7 @@ declare function getNavItems(): { k: string; l: string; icon: string; badge?: nu
 declare function renderSidebar(): string;
 declare function renderMobileTabBar(): string;
 declare function renderMobileMoreSheet(): string;
-declare function renderMobileHelpBubble(): string;
+declare function renderMobileAiBubble(): string;
 declare function renderSupportChatModal(): string;
 declare function supportThreadIdForCurrentUser(): string | null;
 declare function supportMessagesForThread(threadStaffId: string): SupportMessage[];
@@ -613,6 +613,7 @@ declare function refreshPushSubscriptionState(): Promise<void>;
 declare function subscribeToPush(): Promise<boolean>;
 declare function unsubscribeFromPush(): Promise<boolean>;
 declare function renderNotifBell(extraClass?: string): string;
+declare function renderSupportChatButton(extraClass?: string): string;
 declare function renderTopbar(): string;
 declare function renderSyncErrorBanner(): string;
 declare function renderModal(): string;

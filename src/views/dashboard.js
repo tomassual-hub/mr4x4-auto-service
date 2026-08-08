@@ -33,6 +33,7 @@ function viewDashboard(){
   </div>` : ''}
   ${isAdmin ? `
   <div class="panel dash-hero" style="margin-bottom:22px;">
+    ${renderSupportChatButton('hero-chat')}
     ${renderNotifBell('hero-notif')}
     <div class="dash-hero-brand">ServisPro</div>
     <div class="stat-label">${esc(db.settings.shopName)} · ${t('stat_today_sales')}</div>
