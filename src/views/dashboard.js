@@ -1,12 +1,15 @@
 /* ============================= DASHBOARD ============================= */
 function viewDashboard(){
   const en = state.language==='en';
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
   const todayStr = localDateStr();
   const branchFilter = rec => state.currentBranch==='all' || rec.branchId===state.currentBranch || (!rec.branchId && state.currentBranch==='main');
+  const todaysInvoices = db.invoices.filter(inv=>inv.createdAt>=todayStart.getTime() && branchFilter(inv));
+  const todaySales = todaysInvoices.reduce((s,i)=>s+i.total,0);
   const activeJobs = db.jobs.filter(j=>j.status!=='delivered' && branchFilter(j));
   const lowStock = db.inventory.filter(i=>i.qty<=i.lowStock);
-  // Sales figures (target rings' RM amounts) are Admin-only — Mekanik still
-  // sees everything else (active jobs, stock, customer count).
+  // Sales figures (today's total, recent invoice amounts) are Admin-only —
+  // Mekanik still sees everything else (active jobs, stock, customer count).
   const isAdmin = canSeeRevenue();
 
   const bookingsToday = db.appointments.filter(a=>a.date===todayStr).length;
@@ -27,6 +30,14 @@ function viewDashboard(){
       <div style="color:var(--text-muted);margin-top:2px;">${en?'Approve quotations, check full service history, book appointments, and download receipts — all from a shared link. See the Kiosk screen from the login page.':'Luluskan sebut harga, semak sejarah servis penuh, tempah janji temu, dan muat turun resit — semua dari pautan dikongsi. Lihat skrin Kiosk dari halaman log masuk.'}</div>
     </div>
     <button class="btn-icon" data-action="dismiss-whats-new" title="${en?'Dismiss':'Tutup'}" style="flex-shrink:0;">${ICONS.x}</button>
+  </div>` : ''}
+  ${isAdmin ? `
+  <div class="panel dash-hero" style="margin-bottom:22px;">
+    ${renderNotifBell('hero-notif')}
+    <div class="dash-hero-brand">ServisPro</div>
+    <div class="stat-label">${esc(db.settings.shopName)} · ${t('stat_today_sales')}</div>
+    <div class="dash-hero-value">${fmtRM(todaySales)}</div>
+    <div class="stat-sub">${todaysInvoices.length} ${tt('invois dikeluarkan')}</div>
   </div>` : ''}
 
   ${isAdmin ? (()=>{
