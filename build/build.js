@@ -33,6 +33,7 @@ const FILE_ORDER = [
   'face-id.js', // before sync-engine.js: initApp()/handleAuthenticated() call its functions
   'sync-engine.js',
   'license.js',
+  'ai-assist.js',
   'utils.js',
   'state.js',
   'icons.js',

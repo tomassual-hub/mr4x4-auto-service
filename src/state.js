@@ -49,6 +49,11 @@ let state = {
   mfaFactors: /** @type {{id:string, status:string}[]|null} */ (null),
   mfaEnrollment: /** @type {{factorId:string, qrSvg:string, secret:string}|null} */ (null),
   mfaChallenge: /** @type {{factorId:string, challengeId:string}|null} */ (null),
+  // AI checklist suggestion (see src/ai-assist.js) -- ephemeral, never
+  // persisted to db.jobs or synced -- just a UI hint the mechanic reads and
+  // acts on with their own judgment, cleared the moment the inspection
+  // modal closes.
+  aiSuggestion: /** @type {'loading'|'unavailable'|{likelyCauses:string[], suggestedItems:string[]}|null} */ (null),
   payrollMonth: /** @type {string|null} */ (null),
   techRefSearch: '',
   techRefEditingSectionId: /** @type {string|null} */ (null),

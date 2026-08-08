@@ -72,14 +72,33 @@ function inspectionModalHTML(job){
   const markColor = {ok:'var(--success)', attention:'#d99a2b', replace:'var(--danger)'};
   const c = getCustomer(job.customerId);
   const hasFindings = Object.keys(insp).length>0 || marks.length>0 || (job.photos||[]).length>0;
+  const ai = state.aiSuggestion;
+  const suggestedItems = (ai && typeof ai==='object') ? ai.suggestedItems : [];
   return `
     <h2>${ICONS.done||'✓'} ${en?'Inspection Checklist':'Senarai Semak Pemeriksaan'} — ${job.jobNo}</h2>
     <p style="font-size:12px;color:var(--text-muted);margin-top:0;">${en?'Click each item to cycle status: Not Checked → OK → Needs Attention → Needs Replacement':'Klik setiap item untuk tukar status: Belum Semak → OK → Perlu Perhatian → Perlu Tukar'}</p>
+    <div style="margin-bottom:12px;">
+      ${!ai ? `
+      <button class="btn btn-outline btn-sm" data-action="ai-suggest-checklist" data-id="${job.id}" ${(job.description||'').trim()?'':'disabled'}>${ICONS.sparkle} ${en?'AI Suggestion (where to check first)':'Cadangan AI (mula semak di mana)'}</button>
+      ${!(job.description||'').trim() ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${en?'Add a job description first.':'Tambah penerangan kerja dahulu.'}</div>` : ''}
+      ` : ai==='loading' ? `
+      <div style="font-size:12.5px;color:var(--text-muted);">${en?'Asking AI…':'Bertanya AI…'}</div>
+      ` : ai==='unavailable' ? `
+      <div style="font-size:12px;color:var(--text-muted);">${en?'AI suggestion isn\'t available right now.':'Cadangan AI tidak tersedia buat masa ini.'}</div>
+      ` : `
+      <div class="panel" style="background:var(--accent-soft);border-color:var(--accent);padding:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;">${ICONS.sparkle} ${en?'AI suggestion — a starting point, not a diagnosis':'Cadangan AI — titik permulaan, bukan diagnosis'}</div>
+        ${ai.likelyCauses.length ? `<div style="font-size:12.5px;margin-bottom:6px;"><strong>${en?'Possible causes:':'Kemungkinan punca:'}</strong> ${ai.likelyCauses.map(x=>esc(x)).join(', ')}</div>` : ''}
+        ${ai.suggestedItems.length ? `<div style="font-size:12.5px;">${en?'Suggested items to check first are highlighted below.':'Item dicadangkan untuk disemak dahulu ditanda di bawah.'}</div>` : `<div style="font-size:12.5px;color:var(--text-muted);">${en?'No specific checklist items stood out — check the usual items.':'Tiada item senarai semak yang menonjol — semak item biasa.'}</div>`}
+      </div>
+      `}
+    </div>
     <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
       ${INSPECTION_ITEMS.map(name=>{
         const st = insp[name];
-        return `<div class="clickable" data-inspect-item="${name}" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--panel-alt);border-radius:6px;">
-          <span style="font-size:13px;">${tt(name)}</span>
+        const suggested = suggestedItems.includes(name);
+        return `<div class="clickable" data-inspect-item="${name}" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--panel-alt);border-radius:6px;${suggested?'border:1.5px solid var(--accent);':''}">
+          <span style="font-size:13px;">${suggested?(ICONS.sparkle)+' ':''}${tt(name)}</span>
           ${st ? `<span class="pill ${statusClass[st]}">${statusLabel[st]}</span>` : `<span class="pill" style="background:var(--border);color:var(--text-muted);">${en?'Not Checked':'Belum Semak'}</span>`}
         </div>`;
       }).join('')}

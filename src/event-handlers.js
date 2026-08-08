@@ -1533,7 +1533,12 @@ function attachHandlers(){
   });
   bindAllAction('open-inspection', el=>{
     const job = db.jobs.find(j=>j.id===el.dataset.id);
+    state.aiSuggestion = null; // fresh each time -- never carry a previous job's suggestion into this one
     setState({modal:{type:'inspection', job}});
+  });
+  bindAllAction('ai-suggest-checklist', el=>{
+    const job = db.jobs.find(j=>j.id===el.dataset.id);
+    if(job) requestAiSuggestion(job);
   });
   document.querySelectorAll('[data-inspect-item]').forEach(el=>el.addEventListener('click', ()=>{
     const job = state.modal.job;

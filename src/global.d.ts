@@ -700,6 +700,7 @@ declare function tryFaceIdUnlock(): Promise<boolean>;
 declare function clearFaceId(): void;
 declare function maybeOfferFaceIdEnroll(session: any): Promise<void>;
 declare let pendingFaceIdSession: any;
+declare function requestAiSuggestion(job: Job): Promise<void>;
 declare function getOnboardingSteps(): any[];
 declare function finishOnboarding(): void;
 declare function checkOnboarding(): Promise<void>;

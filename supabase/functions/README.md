@@ -99,3 +99,38 @@ Until `TOYYIBPAY_SECRET_KEY`/`TOYYIBPAY_CATEGORY_CODE`/`TOYYIBPAY_BASE_URL`/
 `{ error: "not_configured" }` and the plan picker's "Pay with ToyyibPay"
 button doesn't even show — the existing test-mode upgrade button keeps
 working regardless.
+
+## ai-suggest-checklist
+
+Suggests likely causes and which inspection checklist items to check first,
+based on a job's description (see the "AI Suggestion" button in the
+Inspection Checklist modal, `src/ai-assist.js`). A starting point for the
+mechanic, never a diagnosis on its own — the checklist is still filled in
+by hand exactly as before.
+
+Uses Google's Gemini API specifically because it has a real free tier (no
+credit card, no subscription) — see
+[ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing).
+
+### Deploy
+
+Same as the others — Dashboard → Edge Functions → Deploy a new function →
+name it exactly `ai-suggest-checklist` → paste
+`ai-suggest-checklist/index.ts`.
+
+### Secrets
+
+| Secret | Value |
+|---|---|
+| `GEMINI_API_KEY` | Free, from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — Google account, no billing needed for the free tier |
+| `SUPABASE_ANON_KEY` | This project's own anon key (same value already embedded in the built app) — used only to verify the calling staff member's own session server-side, never to bypass RLS |
+
+`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are provided automatically.
+
+Until `GEMINI_API_KEY` is set, this returns `{ error: "not_configured" }`
+and the button in the app shows "AI suggestion isn't available right now"
+instead of a suggestion — nothing else about the checklist changes.
+
+Free-tier rate limits are real (a handful of requests per minute, capped
+per day) — fine for one shop's occasional per-job lookup, not something to
+call in a loop.
