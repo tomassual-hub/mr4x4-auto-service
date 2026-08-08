@@ -44,9 +44,41 @@ const SYSTEM_PROMPT =
   "terminology, and general workshop know-how, clearly and practically. " +
   "You have no access to this specific shop's own records (customers, " +
   "jobs, inventory) -- if asked about those, say so and suggest checking " +
-  "the app directly instead of guessing. Keep answers concise.";
+  "the app directly instead of guessing. Keep answers concise. Reply in " +
+  "plain text only -- no markdown (no asterisks, no headers, no bullet " +
+  "symbols), since the reply is shown to the user as plain text.";
+
+// The app's UI language (state.language in the client) -- staff mostly work
+// in Malay, so the reply should match rather than default to whatever
+// language Gemini guesses from the question's wording.
+function langInstruction(lang: unknown): string {
+  return lang === "en"
+    ? "Reply in English."
+    : "Reply in Bahasa Malaysia (everyday spoken register used in Malaysian workshops, not overly formal).";
+}
 
 const MAX_TURNS = 12; // caps both the request payload size and Gemini's own context/cost per call
+
+// Gemini occasionally returns 503 ("model overloaded") on a transient basis
+// under free-tier load -- one short retry recovers most of those without
+// making the user manually resend. A 429 (real rate limit) is not retried
+// here since retrying immediately won't help; it's surfaced to the client
+// as a distinct "rate_limited" error instead of the generic ai_error.
+async function callGemini(body: unknown): Promise<Response> {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const init = {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+  const res = await fetch(url, init);
+  if (res.status === 503) {
+    await new Promise((r) => setTimeout(r, 500));
+    return await fetch(url, init);
+  }
+  return res;
+}
 
 Deno.serve(async (req) => {
   if (!GEMINI_API_KEY) {
@@ -76,7 +108,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { messages } = await req.json();
+    const { messages, lang } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "invalid_input" }), {
         status: 200,
@@ -95,22 +127,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: turns.map((m) => ({
-            role: m.role,
-            parts: [{ text: m.text }],
-          })),
-        }),
+    const geminiRes = await callGemini({
+      systemInstruction: {
+        parts: [{ text: `${SYSTEM_PROMPT} ${langInstruction(lang)}` }],
       },
-    );
+      contents: turns.map((m) => ({
+        role: m.role,
+        parts: [{ text: m.text }],
+      })),
+    });
 
     if (!geminiRes.ok) {
+      if (geminiRes.status === 429) {
+        return new Response(JSON.stringify({ error: "rate_limited" }), {
+          status: 200,
+        });
+      }
       return new Response(
         JSON.stringify({ error: "ai_error", detail: await geminiRes.text() }),
         { status: 200 },

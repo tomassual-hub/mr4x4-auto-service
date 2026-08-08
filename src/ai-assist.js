@@ -17,11 +17,11 @@ async function requestAiSuggestion(job){
   render();
   try{
     const { data, error } = await supabaseClient.functions.invoke('ai-suggest-checklist', {
-      body: { description: job.description, vehicleModel: v ? v.model : null }
+      body: { description: job.description, vehicleModel: v ? v.model : null, lang: state.language }
     });
     if(error) throw error;
     if(!data || data.error){
-      state.aiSuggestion = 'unavailable';
+      state.aiSuggestion = data && data.error==='rate_limited' ? 'rate_limited' : 'unavailable';
       render();
       return;
     }
@@ -56,11 +56,14 @@ async function sendAiAssistantMessage(text){
   render();
   try{
     const { data, error } = await supabaseClient.functions.invoke('ai-assistant', {
-      body: { messages: state.aiAssistantMessages }
+      body: { messages: state.aiAssistantMessages, lang: state.language }
     });
     if(error) throw error;
     if(!data || data.error || !data.reply){
-      state.aiAssistantMessages.push({ role:'ai', text: tt('Maaf, tidak dapat jawab buat masa ini. Cuba lagi sebentar lagi.') });
+      const msg = data && data.error==='rate_limited'
+        ? tt('AI sedang sibuk buat masa ini. Cuba sebentar lagi.')
+        : tt('Maaf, tidak dapat jawab buat masa ini. Cuba lagi sebentar lagi.');
+      state.aiAssistantMessages.push({ role:'ai', text: msg });
     } else {
       state.aiAssistantMessages.push({ role:'ai', text: data.reply });
     }

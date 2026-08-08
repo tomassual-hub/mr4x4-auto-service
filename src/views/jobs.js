@@ -85,6 +85,8 @@ function inspectionModalHTML(job){
       <div style="font-size:12.5px;color:var(--text-muted);">${en?'Asking AI…':'Bertanya AI…'}</div>
       ` : ai==='unavailable' ? `
       <div style="font-size:12px;color:var(--text-muted);">${en?'AI suggestion isn\'t available right now.':'Cadangan AI tidak tersedia buat masa ini.'}</div>
+      ` : ai==='rate_limited' ? `
+      <div style="font-size:12px;color:var(--text-muted);">${en?'AI is busy right now. Try again shortly.':'AI sedang sibuk buat masa ini. Cuba sebentar lagi.'}</div>
       ` : `
       <div class="panel" style="background:var(--accent-soft);border-color:var(--accent);padding:12px;">
         <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;">${ICONS.sparkle} ${en?'AI suggestion — a starting point, not a diagnosis':'Cadangan AI — titik permulaan, bukan diagnosis'}</div>

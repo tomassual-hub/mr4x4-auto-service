@@ -52,6 +52,36 @@ const INSPECTION_ITEMS = [
   "Minyak Brek", "Minyak Gear/Transmisi", "Air Conditioner (Aircond)",
 ];
 
+// The app's UI language (state.language in the client) -- staff mostly work
+// in Malay, so likely-cause phrases should match rather than default to
+// whatever language Gemini guesses from the description's wording.
+function langInstruction(lang: unknown): string {
+  return lang === "en"
+    ? "Reply in English."
+    : "Reply in Bahasa Malaysia (everyday spoken register used in Malaysian workshops, not overly formal).";
+}
+
+// Gemini occasionally returns 503 ("model overloaded") on a transient basis
+// under free-tier load -- one short retry recovers most of those without
+// making the mechanic manually retry. A 429 (real rate limit) is not
+// retried here since retrying immediately won't help; it's surfaced to the
+// client as a distinct "rate_limited" error instead of the generic ai_error.
+async function callGemini(body: unknown): Promise<Response> {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const init = {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+  const res = await fetch(url, init);
+  if (res.status === 503) {
+    await new Promise((r) => setTimeout(r, 500));
+    return await fetch(url, init);
+  }
+  return res;
+}
+
 Deno.serve(async (req) => {
   if (!GEMINI_API_KEY) {
     return new Response(JSON.stringify({ error: "not_configured" }), {
@@ -85,7 +115,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { description, vehicleModel } = await req.json();
+    const { description, vehicleModel, lang } = await req.json();
     const safeDescription = String(description ?? "").slice(0, 1000).trim();
     const safeModel = String(vehicleModel ?? "").slice(0, 100).trim();
     if (!safeDescription) {
@@ -103,31 +133,30 @@ Deno.serve(async (req) => {
       `only from this list, max 6, most relevant first):\n` +
       INSPECTION_ITEMS.map((n) => `- ${n}`).join("\n") +
       `\n\nThis is a starting point for the mechanic's own inspection, not ` +
-      `a final diagnosis -- keep causes short and practical.`;
+      `a final diagnosis -- keep causes short and practical. ${langInstruction(lang)} ` +
+      `Plain text phrases only, no markdown.`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                likelyCauses: { type: "ARRAY", items: { type: "STRING" } },
-                suggestedItems: { type: "ARRAY", items: { type: "STRING" } },
-              },
-              required: ["likelyCauses", "suggestedItems"],
-            },
+    const geminiRes = await callGemini({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            likelyCauses: { type: "ARRAY", items: { type: "STRING" } },
+            suggestedItems: { type: "ARRAY", items: { type: "STRING" } },
           },
-        }),
+          required: ["likelyCauses", "suggestedItems"],
+        },
       },
-    );
+    });
 
     if (!geminiRes.ok) {
+      if (geminiRes.status === 429) {
+        return new Response(JSON.stringify({ error: "rate_limited" }), {
+          status: 200,
+        });
+      }
       return new Response(
         JSON.stringify({ error: "ai_error", detail: await geminiRes.text() }),
         { status: 200 },
