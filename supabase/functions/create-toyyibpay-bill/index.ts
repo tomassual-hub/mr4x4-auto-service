@@ -49,6 +49,18 @@ const CATEGORY_CODE = Deno.env.get("TOYYIBPAY_CATEGORY_CODE") ?? "";
 const BASE_URL = Deno.env.get("TOYYIBPAY_BASE_URL") ?? "";
 const PUBLIC_APP_URL = Deno.env.get("PUBLIC_APP_URL") ?? "";
 
+// Supabase's gateway does NOT add CORS headers on its own -- without these,
+// the browser's preflight OPTIONS request for this cross-origin call (app
+// on github.io, function on supabase.co) gets no Access-Control-Allow-*
+// headers back, so the browser silently blocks upgradePlanReal()'s real
+// request before it ever reaches this function. Same bug class already
+// found and fixed in ai-assistant/ai-suggest-checklist -- see those files.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+const JSON_HEADERS = { ...CORS_HEADERS, "Content-Type": "application/json" };
+
 // Keep this in sync with PLAN_PRICE_MYR in src/license.js.
 const PLAN_PRICE_MYR: Record<string, number> = { free: 0, pro: 50 };
 
@@ -58,9 +70,14 @@ const supabase = createClient(
 );
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
+
   if (!SECRET_KEY || !CATEGORY_CODE || !BASE_URL || !PUBLIC_APP_URL) {
     return new Response(JSON.stringify({ error: "not_configured" }), {
       status: 200,
+      headers: JSON_HEADERS,
     });
   }
 
@@ -70,6 +87,7 @@ Deno.serve(async (req) => {
     if (!licenseKey || !price || price <= 0) {
       return new Response(JSON.stringify({ error: "invalid_plan" }), {
         status: 200,
+        headers: JSON_HEADERS,
       });
     }
 
@@ -120,7 +138,7 @@ Deno.serve(async (req) => {
     if (!billCode) {
       return new Response(
         JSON.stringify({ error: "toyyibpay_error", detail: data }),
-        { status: 200 },
+        { status: 200, headers: JSON_HEADERS },
       );
     }
 
@@ -136,11 +154,12 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ billCode, paymentUrl: `${BASE_URL}/${billCode}` }),
-      { status: 200 },
+      { status: 200, headers: JSON_HEADERS },
     );
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
+      headers: JSON_HEADERS,
     });
   }
 });
