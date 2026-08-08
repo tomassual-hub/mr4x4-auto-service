@@ -270,7 +270,7 @@ body::before{
      rule wins regardless of media query" trap already hit a few times this
      session. */
   .panel.dash-hero{border-radius:0;}
-  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:30px;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
+  .dash-hero-brand{display:block;font-family:'Oswald',sans-serif;font-weight:700;font-size:60px;letter-spacing:.2px;color:var(--accent);margin-bottom:14px;}
   .dash-hero .stat-label{color:rgba(243,240,232,.72);}
   .dash-hero .stat-sub{color:rgba(243,240,232,.55);}
   /* Replaces the topbar's own bell on this page -- see [data-hero-notif] on
