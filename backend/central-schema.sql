@@ -157,9 +157,6 @@ begin
   if not found then
     return jsonb_build_object('success', false, 'reason', 'unknown_license');
   end if;
-  if caller.referred_by is not null then
-    return jsonb_build_object('success', false, 'reason', 'already_redeemed');
-  end if;
 
   select * into referrer from licenses where referral_code = upper(trim(p_referral_code));
   if not found then
@@ -169,7 +166,19 @@ begin
     return jsonb_build_object('success', false, 'reason', 'self_referral');
   end if;
 
-  update licenses set referred_by = referrer.id, updated_at = now() where id = p_license_key;
+  -- Atomic claim: "referred_by is null" is re-checked as part of the SAME
+  -- UPDATE, not read separately beforehand -- a plain read-then-write here
+  -- (select referred_by, check null, then update) would let two concurrent
+  -- calls both read null before either commits, both pass, and both credit
+  -- the referrer, since credit_balance is a relative += below. Two calls
+  -- racing this UPDATE can only ever have ONE of them actually flip
+  -- referred_by from null; the other's UPDATE simply matches zero rows.
+  update licenses set referred_by = referrer.id, updated_at = now()
+    where id = p_license_key and referred_by is null;
+  if not found then
+    return jsonb_build_object('success', false, 'reason', 'already_redeemed');
+  end if;
+
   update licenses set credit_balance = credit_balance + reward, updated_at = now() where id = referrer.id;
 
   return jsonb_build_object('success', true, 'reward', reward);
@@ -202,15 +211,21 @@ begin
   if not found then
     return jsonb_build_object('success', false, 'reason', 'unknown_license');
   end if;
-  if rec.credit_balance < price then
-    return jsonb_build_object('success', false, 'reason', 'insufficient_credit');
-  end if;
 
+  -- Atomic check-and-spend: "credit_balance >= price" is re-checked as
+  -- part of the SAME UPDATE's WHERE clause, not read separately beforehand
+  -- -- a plain read-then-write here would let concurrent calls all read
+  -- the same pre-spend balance, all pass the check, and each subtract
+  -- price, driving credit_balance negative (a balance of exactly one
+  -- upgrade's price could otherwise fund unlimited concurrent upgrades).
   update licenses
     set plan = p_plan, status = 'active', expires_at = now() + interval '30 days',
         credit_balance = credit_balance - price, updated_at = now()
-    where id = p_license_key
+    where id = p_license_key and credit_balance >= price
     returning * into rec;
+  if not found then
+    return jsonb_build_object('success', false, 'reason', 'insufficient_credit');
+  end if;
 
   return jsonb_build_object('success', true, 'plan', rec.plan, 'status', rec.status, 'expiresAt', rec.expires_at, 'creditBalance', rec.credit_balance);
 end;

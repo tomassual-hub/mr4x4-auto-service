@@ -89,14 +89,15 @@ as $$
 declare
   new_val int;
 begin
-  -- is_customer() is defined further down this file, but plpgsql only
+  -- is_staff() is defined further down this file, but plpgsql only
   -- resolves calls at first execution (not at CREATE time), so this
   -- forward reference is safe -- by the time anything actually calls
-  -- next_counter(), the whole file has already run. Without this guard a
-  -- registered customer-portal account (a valid `authenticated` session,
-  -- same as staff) could call this RPC directly and burn through
-  -- job/invoice/PO numbers.
-  if is_customer() then
+  -- next_counter(), the whole file has already run. Requires CONFIRMED
+  -- staff, not just "not is_customer()" -- an authenticated session that's
+  -- neither linked as staff nor as a customer yet (e.g. a fresh
+  -- customer-portal signup that never finished linking) must not pass
+  -- either; it's not staff, full stop.
+  if not is_staff() then
     raise exception 'not permitted';
   end if;
   insert into counters(name, value) values (counter_name, 1)
@@ -143,14 +144,45 @@ revoke execute on function is_customer() from public;
 revoke execute on function is_customer() from anon;
 grant execute on function is_customer() to authenticated;
 
+-- is_staff(): true only if the calling session is LINKED to a real staff
+-- record (staff.user_id = auth.uid()), mirroring is_customer() above.
+--
+-- CRITICAL: the blanket policy below used to gate on "not is_customer()"
+-- instead of this -- which sounds equivalent to "is staff" but isn't: an
+-- authenticated session that is NEITHER linked as staff NOR linked as a
+-- customer (e.g. someone who just called auth.signUp() on the customer
+-- portal's public signup form and never completed the separate "link my
+-- account" step, or simply never will) has is_customer() = false, so
+-- "not is_customer()" was TRUE for them too, granting the exact same
+-- blanket full-table access as real staff -- read/write on customers,
+-- invoices, staff, inventory, everything. Signup itself needs no
+-- verification (just an email+password), so this was reachable by anyone
+-- on the internet, no staff credentials needed at all. is_staff() fails
+-- CLOSED instead: an unrecognized authenticated session (customer,
+-- unlinked, or anything else) is simply not staff, full stop. This does
+-- NOT break staff onboarding -- claim_staff_record() below is itself
+-- security definer and links a fresh session to a staff row without
+-- needing this policy to pass first.
+create or replace function is_staff()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists(select 1 from staff where user_id = auth.uid());
+$$;
+revoke execute on function is_staff() from public;
+revoke execute on function is_staff() from anon;
+grant execute on function is_staff() to authenticated;
+
 -- Row Level Security: this is a single-shop app (not multi-tenant SaaS),
 -- so the trust model is simply "logged in with real staff credentials =
 -- full access", matching how the current local version already works
 -- (any valid PIN sees everything). Tighten later with role-based policies
 -- if you ever need e.g. mechanics blocked from certain reports.
 --
--- "not is_customer()" on every table here is load-bearing, not decorative
--- -- see the comment on is_customer() above.
+-- "is_staff()" on every table here is load-bearing, not decorative -- see
+-- the comment on is_staff() above.
 do $$
 declare
   t text;
@@ -165,7 +197,7 @@ begin
     execute format('alter table %I enable row level security;', t);
     execute format('drop policy if exists "staff full access" on %I;', t);
     execute format(
-      'create policy "staff full access" on %I for all to authenticated using (not is_customer()) with check (not is_customer());',
+      'create policy "staff full access" on %I for all to authenticated using (is_staff()) with check (is_staff());',
       t
     );
   end loop;
@@ -222,16 +254,18 @@ grant execute on function is_manager() to authenticated;
 
 -- staff: everyone (every STAFF member) can read the roster (needed to
 -- assign mechanics to jobs), but only Admin/Kerani can add/edit/remove
--- staff records directly. This predates is_customer() (see above) and
--- was never revisited when that landed -- "using (true)" let any
--- registered customer-portal account read the full staff roster
--- including attendance tokens via a direct API call. Excluded here.
+-- staff records directly. This predates is_customer()/is_staff() (see
+-- above) and was never revisited when those landed -- "using (true)" let
+-- any registered customer-portal account read the full staff roster
+-- including attendance tokens via a direct API call. is_staff() (not
+-- merely "not is_customer()") excludes both customers AND any other
+-- unrecognized authenticated session here.
 drop policy if exists "staff full access" on staff;
 drop policy if exists "staff select" on staff;
 drop policy if exists "staff admin insert" on staff;
 drop policy if exists "staff admin update" on staff;
 drop policy if exists "staff admin delete" on staff;
-create policy "staff select" on staff for select to authenticated using (not is_customer());
+create policy "staff select" on staff for select to authenticated using (is_staff());
 create policy "staff admin insert" on staff for insert to authenticated with check (is_manager());
 create policy "staff admin update" on staff for update to authenticated using (is_manager()) with check (is_manager());
 create policy "staff admin delete" on staff for delete to authenticated using (is_manager());
@@ -274,7 +308,7 @@ drop policy if exists "shop_meta select" on shop_meta;
 drop policy if exists "shop_meta admin insert" on shop_meta;
 drop policy if exists "shop_meta admin update" on shop_meta;
 drop policy if exists "shop_meta admin delete" on shop_meta;
-create policy "shop_meta select" on shop_meta for select to authenticated using (not is_customer());
+create policy "shop_meta select" on shop_meta for select to authenticated using (is_staff());
 create policy "shop_meta admin insert" on shop_meta for insert to authenticated with check (is_manager());
 create policy "shop_meta admin update" on shop_meta for update to authenticated using (is_manager()) with check (is_manager());
 create policy "shop_meta admin delete" on shop_meta for delete to authenticated using (is_manager());
@@ -342,8 +376,8 @@ create trigger support_messages_validate before insert or update on support_mess
 drop policy if exists "staff full access" on audit_log;
 drop policy if exists "audit_log select" on audit_log;
 drop policy if exists "audit_log insert" on audit_log;
-create policy "audit_log select" on audit_log for select to authenticated using (not is_customer());
-create policy "audit_log insert" on audit_log for insert to authenticated with check (not is_customer());
+create policy "audit_log select" on audit_log for select to authenticated using (is_staff());
+create policy "audit_log insert" on audit_log for insert to authenticated with check (is_staff());
 
 -- backups: automatic periodic snapshots of the whole shop database (see
 -- src/sync-engine.js's maybeAutoBackup()), stored server-side so a recovery
@@ -404,15 +438,34 @@ end $$;
 -- notes, no mechanic name, no pricing -- security definer so this one
 -- narrow read works despite jobs/vehicles requiring "authenticated" for
 -- everything else via RLS above.
+--
+-- Rate limited on TWO buckets, unlike the other kiosk_* RPCs above which
+-- only need one: job numbers here are sequential (WS-0001, WS-0002, ... --
+-- see allocateCounter() in src/sync-engine.js), not a random token, so a
+-- per-query bucket alone (throttling repeated guesses of the SAME job/
+-- plate) does nothing against a script that just increments the number
+-- each call -- every guess is a fresh identifier with its own fresh
+-- bucket. The second, global bucket caps TOTAL anonymous lookups shop-wide
+-- regardless of which job number is asked for, which is what actually
+-- stops that enumeration from walking the whole jobs table (status,
+-- rating, free-text feedback) one job number at a time.
 create or replace function kiosk_lookup_job(query text)
 returns jsonb
 language plpgsql
 security definer
-stable
 as $$
 declare
   rec record;
+  norm_query text := lower(trim(coalesce(query,'')));
+  ok_query boolean;
+  ok_global boolean;
 begin
+  ok_query := norm_query <> '' and rate_limit_check('lookup_job_query', norm_query, 20, 3600);
+  ok_global := rate_limit_check('lookup_job_global', 'global', 200, 3600);
+  if not ok_query or not ok_global then
+    return null;
+  end if;
+
   select j.id, j.data->>'jobNo' as job_no, j.data->>'status' as status,
          j.data->'rating' as rating, j.data->>'feedback' as feedback,
          v.data->>'plate' as plate, v.data->>'model' as model
