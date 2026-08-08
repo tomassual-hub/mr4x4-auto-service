@@ -123,9 +123,13 @@ name it exactly `ai-suggest-checklist` → paste
 | Secret | Value |
 |---|---|
 | `GEMINI_API_KEY` | Free, from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — Google account, no billing needed for the free tier |
-| `SUPABASE_ANON_KEY` | This project's own anon key (same value already embedded in the built app) — used only to verify the calling staff member's own session server-side, never to bypass RLS |
 
-`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` are provided automatically.
+That's the only one to set manually. `SUPABASE_URL` / `SUPABASE_ANON_KEY` /
+`SUPABASE_SERVICE_ROLE_KEY` are all provided automatically to every Edge
+Function — the dashboard actively rejects manually setting a secret with
+the `SUPABASE_` prefix, so don't try. `SUPABASE_ANON_KEY` here is used only
+to verify the calling staff member's own session server-side, never to
+bypass RLS.
 
 Until `GEMINI_API_KEY` is set, this returns `{ error: "not_configured" }`
 and the button in the app shows "AI suggestion isn't available right now"
