@@ -139,23 +139,24 @@ function renderMobileMoreSheet(){
   </div>`;
 }
 
-// Floating AI shortcut, mobile only -- jumps straight to Tech Reference
-// (the shop's own saved make/model/variant notes -- service schedules, oil
-// types, torque specs, fault codes), a lookup tool, deliberately NOT tied
-// to any specific job/work order (that's the separate "AI Suggestion"
-// button inside a job's own Inspection Checklist, see src/ai-assist.js --
-// a different feature for a different moment: this one is "what's the
-// spec", that one is "what's wrong with THIS car"). Used to be the
-// floating support-chat launcher; chat now only needs one entry point (the
-// topbar/hero chat icon, see renderSupportChatButton), so this bubble was
-// freed up for a more-visible reference shortcut instead of two icons on
-// screen doing similar jobs. Hidden whenever a sheet/modal is already
-// covering the screen so it can't float on top of or behind either.
+// Floating AI Assistant launcher, mobile only -- opens a standalone Q&A
+// chat (see openAiAssistant()/aiAssistantModalHTML() in src/ai-assist.js),
+// deliberately independent of every other feature: not a shortcut to an
+// existing screen, not tied to any specific job/work order (that's the
+// separate "AI Suggestion" button inside a job's own Inspection Checklist
+// -- a different feature for a different moment: this one is a general
+// assistant you can ask anything, that one is "what's wrong with THIS
+// car"). Used to be the floating support-chat launcher; chat now only
+// needs one entry point (the topbar/hero chat icon, see
+// renderSupportChatButton), so this bubble was freed up for the AI
+// Assistant instead of two icons on screen doing similar jobs. Hidden
+// whenever a sheet/modal is already covering the screen so it can't float
+// on top of or behind either.
 function renderMobileAiBubble(){
   if(state.navOpen || state.modal || state.confirmAction || state.showOnboarding) return '';
   const en = state.language==='en';
   return `
-  <button class="mobile-ai-bubble" data-nav="techref" title="${en?'Tech Reference':'Rujukan Teknikal'}">
+  <button class="mobile-ai-bubble" data-action="open-ai-assistant" title="${en?'AI Assistant':'Pembantu AI'}">
     ${ICONS.sparkle}
   </button>`;
 }

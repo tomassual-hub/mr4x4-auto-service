@@ -138,3 +138,31 @@ instead of a suggestion — nothing else about the checklist changes.
 Free-tier rate limits are real (a handful of requests per minute, capped
 per day) — fine for one shop's occasional per-job lookup, not something to
 call in a loop.
+
+## ai-assistant
+
+A standalone general Q&A chat for staff (see the floating AI button,
+`src/ai-assist.js`) — deliberately independent of any other feature, not
+tied to a specific job the way `ai-suggest-checklist` above is. Answers
+general automotive/workshop questions using the model's own knowledge; has
+no access to this shop's own customers/jobs/inventory data.
+
+Same Gemini free-tier reasoning as `ai-suggest-checklist` above.
+
+### Deploy
+
+Same as the others — Dashboard → Edge Functions → Deploy a new function →
+name it exactly `ai-assistant` → paste `ai-assistant/index.ts`.
+
+### Secrets
+
+| Secret | Value |
+|---|---|
+| `GEMINI_API_KEY` | Same key as `ai-suggest-checklist` above — free, from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+
+That's the only one to set manually — same auto-provided `SUPABASE_*` vars
+as every other function here.
+
+Until `GEMINI_API_KEY` is set, this returns `{ error: "not_configured" }`
+and the assistant replies with a generic "can't answer right now" message
+instead of a real one — the chat UI itself still opens and works either way.

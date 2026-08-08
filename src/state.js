@@ -54,6 +54,13 @@ let state = {
   // acts on with their own judgment, cleared the moment the inspection
   // modal closes.
   aiSuggestion: /** @type {'loading'|'unavailable'|{likelyCauses:string[], suggestedItems:string[]}|null} */ (null),
+  // Standalone AI Assistant (see src/ai-assist.js) -- a general Q&A chat,
+  // deliberately independent of any other feature (not tied to a job, not
+  // navigation to an existing screen -- see the floating mobile-ai-bubble).
+  // Ephemeral, never persisted/synced -- a fresh conversation every time
+  // the modal is opened.
+  aiAssistantMessages: /** @type {{role:'user'|'ai', text:string}[]} */ ([]),
+  aiAssistantBusy: false,
   payrollMonth: /** @type {string|null} */ (null),
   techRefSearch: '',
   techRefEditingSectionId: /** @type {string|null} */ (null),

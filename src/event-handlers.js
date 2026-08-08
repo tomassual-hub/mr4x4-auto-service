@@ -435,6 +435,26 @@ function attachHandlers(){
     const list = document.getElementById('support-chat-messages');
     if(list) list.scrollTop = list.scrollHeight;
   }
+  bindAllAction('open-ai-assistant', ()=>{ openAiAssistant(); });
+  bindAllAction('send-ai-assistant-message', ()=>{
+    const input = /** @type {HTMLInputElement} */ (document.getElementById('ai-assistant-input'));
+    const text = input && input.value.trim();
+    if(!text) return;
+    input.value = '';
+    sendAiAssistantMessage(text);
+  });
+  const aiAssistantInput = document.getElementById('ai-assistant-input');
+  if(aiAssistantInput){
+    aiAssistantInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        const btn = /** @type {HTMLElement} */ (document.querySelector('[data-action="send-ai-assistant-message"]'));
+        if(btn && !(/** @type {HTMLButtonElement} */(btn).disabled)) btn.click();
+      }
+    });
+    aiAssistantInput.focus();
+    const list = document.getElementById('ai-assistant-messages');
+    if(list) list.scrollTop = list.scrollHeight;
+  }
   bindAllAction('toggle-push-notifications', async ()=>{
     if(state.pushSubscribed) await unsubscribeFromPush();
     else await subscribeToPush();
