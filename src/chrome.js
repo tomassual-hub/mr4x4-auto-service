@@ -263,13 +263,6 @@ function renderGlobalSearchResultsHTML(){
       </div>`).join('')}
   </div>`;
 }
-// Shared by the topbar and the mobile dashboard hero (see viewDashboard's
-// bell button, which replaces the topbar's copy on mobile so the bell isn't
-// hidden along with the rest of the topbar there) -- one notifOpen toggle,
-// one dropdown markup, so both copies always agree on what's open. Whichever
-// copy is actually visible is decided by CSS (.topbar-notif/.hero-notif),
-// not by which one got clicked -- see the [data-hero-notif] rule in
-// styles.css and bindAllAction('toggle-notif', ...) in event-handlers.js.
 function renderNotifBell(extraClass){
   const en = state.language==='en';
   const n = getNotifications();

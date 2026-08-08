@@ -152,17 +152,11 @@ function render(){
     attachLoginHandlers();
     return;
   }
-  // Dashboard's hero banner carries its own notif bell + brand title on
-  // mobile (see viewDashboard()/dash-hero-brand) -- only when it actually
-  // renders (isAdmin, same gate as the hero panel itself), so the topbar's
-  // own copies must stay visible for non-Admin roles, who never get a hero
-  // to replace them. Must match viewDashboard()'s own isAdmin check exactly.
-  const heroReplacesTopbar = state.view==='dashboard' && canSeeRevenue();
   root.innerHTML = `
     <div class="app">
       ${renderSidebar()}
       <div class="sidebar-backdrop ${state.navOpen?'show':''}" data-action="close-nav"></div>
-      <div class="main" data-hero-notif="${heroReplacesTopbar?1:0}">
+      <div class="main">
         ${renderTopbar()}
         ${renderSyncErrorBanner()}
         <div class="content">${renderView()}</div>
